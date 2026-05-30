@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.SysSettingMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.SysSetting">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="config_name" jdbcType="VARCHAR" property="configName" />
+    <result column="config_code" jdbcType="VARCHAR" property="configCode" />
+    <result column="config_value" jdbcType="VARCHAR" property="configValue" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="public_type" jdbcType="CHAR" property="publicType" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, config_name, config_code, config_value, description, public_type, update_user, update_time
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.SysSetting">
+    INSERT INTO sys_setting (id, config_name, config_code,
+      config_value, description, public_type, update_user,
+      update_time)
+    VALUES (#{id,jdbcType=VARCHAR}, #{configName,jdbcType=VARCHAR}, #{configCode,jdbcType=VARCHAR},
+      #{configValue,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, #{publicType,jdbcType=CHAR}, #{updateUser,jdbcType=VARCHAR},
+      #{updateTime,jdbcType=TIMESTAMP})
+  </insert>
+
+  <delete id="deleteByCode" parameterType="java.lang.String">
+    DELETE FROM sys_setting
+    WHERE config_code = #{configCode,jdbcType=VARCHAR}
+  </delete>
+
+  <update id="updateByCode" parameterType="com.uoquo.platform.system.model.pojo.SysSetting">
+    UPDATE sys_setting
+    SET
+    <if test="configName != null">
+      config_name = #{configName,jdbcType=VARCHAR},
+    </if>
+    <if test="description != null">
+      description = #{description,jdbcType=VARCHAR},
+    </if>
+    <if test="publicType != null">
+      public_type = #{publicType,jdbcType=CHAR},
+    </if>
+      config_value = #{configValue,jdbcType=VARCHAR},
+      update_user  = #{updateUser,jdbcType=VARCHAR},
+      update_time  = #{updateTime,jdbcType=TIMESTAMP}
+    WHERE config_code = #{configCode,jdbcType=VARCHAR}
+  </update>
+
+  <update id="batchUpdate" parameterType="java.util.List">
+    <foreach collection="list" item="item" separator=";">
+      UPDATE sys_setting
+      SET
+      <if test="item.configName != null">
+        config_name = #{item.configName,jdbcType=VARCHAR},
+      </if>
+      <if test="item.description != null">
+        description = #{item.description,jdbcType=VARCHAR},
+      </if>
+      <if test="item.publicType != null">
+        public_type = #{item.publicType,jdbcType=CHAR},
+      </if>
+        config_value = #{item.configValue,jdbcType=VARCHAR},
+        update_user  = #{item.updateUser,jdbcType=VARCHAR},
+        update_time  = #{item.updateTime,jdbcType=TIMESTAMP}
+      WHERE config_code = #{item.configCode,jdbcType=VARCHAR}
+    </foreach>
+  </update>
+
+  <select id="selectByCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_setting
+    WHERE config_code = #{configCode,jdbcType=VARCHAR}
+  </select>
+
+  <!-- SettingDto 专用 resultMap（加密查询用，触发 @SensitiveData/@SensitiveField 解密） -->
+  <resultMap id="EncryptedDtoResultMap" type="com.uoquo.platform.system.model.dto.SettingDto">
+    <result column="config_name" jdbcType="VARCHAR" property="configName" />
+    <result column="config_code" jdbcType="VARCHAR" property="configCode" />
+    <result column="config_value" jdbcType="VARCHAR" property="configValue" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <select id="selectEncryptedByCodePrefix" resultMap="EncryptedDtoResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_setting
+    WHERE config_code LIKE CONCAT(#{prefix,jdbcType=VARCHAR},'%')
+    <if test="types != null and types.size() > 0">
+      AND public_type IN
+      <foreach collection="types" item="type" open="(" separator="," close=")">
+        #{type}
+      </foreach>
+    </if>
+    ORDER BY config_code ASC
+  </select>
+
+  <!-- 查询加密公开配置（映射到 SettingDto - 自动解密） -->
+  <select id="selectEncryptedByPublicType" resultMap="EncryptedDtoResultMap">
+    SELECT <include refid="Base_Column_List" />
+    FROM sys_setting
+    WHERE public_type = #{publicType,jdbcType=CHAR}
+    ORDER BY config_code ASC
+  </select>
+
+  <!-- 根据 code 查询加密配置（单条，映射到 SettingDto） -->
+  <select id="selectEncryptedByCode" resultMap="EncryptedDtoResultMap">
+    SELECT <include refid="Base_Column_List" />
+    FROM sys_setting
+    WHERE config_code = #{configCode,jdbcType=VARCHAR}
+  </select>
+
+  <!-- 加密插入（通过 @SensitiveField 参数注解自动加密 configValue） -->
+  <insert id="insertWithEncryptedValue">
+    INSERT INTO sys_setting (id, config_name, config_code,
+      config_value, description, public_type, update_user, update_time)
+    VALUES (#{id,jdbcType=VARCHAR}, #{configName,jdbcType=VARCHAR}, #{configCode,jdbcType=VARCHAR},
+      #{configValue,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, #{publicType,jdbcType=CHAR},
+      #{updateUser,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP})
+  </insert>
+
+  <!-- 加密更新（通过 @SensitiveField 参数注解自动加密 configValue） -->
+  <update id="updateConfigValueEncrypted">
+    UPDATE sys_setting
+    SET config_value = #{configValue,jdbcType=VARCHAR},
+        update_user  = #{updateUser,jdbcType=VARCHAR},
+        update_time  = #{updateTime,jdbcType=TIMESTAMP}
+    WHERE config_code = #{configCode,jdbcType=VARCHAR}
+  </update>
+
+</mapper>

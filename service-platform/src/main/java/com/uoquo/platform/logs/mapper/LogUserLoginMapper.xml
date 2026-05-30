@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.logs.mapper.LogUserLoginMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.logs.model.pojo.LogUserLogin">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="token" jdbcType="VARCHAR" property="token" />
+    <result column="trace_id" jdbcType="VARCHAR" property="traceId" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="user_name" jdbcType="VARCHAR" property="userName" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="login_ip" jdbcType="VARCHAR" property="loginIp" />
+    <result column="login_address" jdbcType="VARCHAR" property="loginAddress" />
+    <result column="device_sn" jdbcType="VARCHAR" property="deviceSn" />
+    <result column="device_os" jdbcType="VARCHAR" property="deviceOs" />
+    <result column="device_ua" jdbcType="VARCHAR" property="deviceUa" />
+    <result column="app_module_id" jdbcType="VARCHAR" property="appModuleId" />
+    <result column="app_module_name" jdbcType="VARCHAR" property="appModuleName" />
+    <result column="app_version" jdbcType="VARCHAR" property="appVersion" />
+    <result column="app_key" jdbcType="VARCHAR" property="appKey" />
+    <result column="app_name" jdbcType="VARCHAR" property="appName" />
+    <result column="login_status" jdbcType="CHAR" property="loginStatus" />
+    <result column="login_param" jdbcType="VARCHAR" property="loginParam" typeHandler="com.uoquo.web.mybatis.handler.Map2JsonTypeHandler" />
+    <result column="login_time" jdbcType="TIMESTAMP" property="loginTime" />
+    <result column="logout_status" jdbcType="CHAR" property="logoutStatus" />
+    <result column="logout_desc" jdbcType="VARCHAR" property="logoutDesc" />
+    <result column="logout_time" jdbcType="TIMESTAMP" property="logoutTime" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, token, trace_id, user_id, user_name, institute_id, login_ip, login_address, device_sn, device_os, device_ua,
+    app_module_id, app_module_name, app_version, app_key, app_name, login_status, login_time, login_param,
+    logout_status, logout_time, logout_desc, description
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.logs.model.pojo.LogUserLogin">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO log_user_login (id, token, trace_id,
+      user_id, user_name, institute_id, login_ip,
+      login_address, device_sn, device_os,
+      device_ua, app_module_id, app_module_name,
+      app_version, app_key, app_name, login_status,
+      login_time,
+      login_param,
+      description
+      )
+    VALUES  (#{id,jdbcType=VARCHAR}, #{token,jdbcType=VARCHAR}, #{traceId,jdbcType=VARCHAR},
+      #{userId,jdbcType=VARCHAR}, #{userName,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{loginIp,jdbcType=VARCHAR},
+      #{loginAddress,jdbcType=VARCHAR}, #{deviceSn,jdbcType=VARCHAR}, #{deviceOs,jdbcType=VARCHAR},
+      #{deviceUa,jdbcType=VARCHAR}, #{appModuleId,jdbcType=VARCHAR}, #{appModuleName,jdbcType=VARCHAR},
+      #{appVersion,jdbcType=VARCHAR}, #{appKey,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR}, #{loginStatus,jdbcType=CHAR},
+      #{loginTime,jdbcType=TIMESTAMP},
+      #{loginParam,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.Map2JsonTypeHandler},
+      #{description,jdbcType=VARCHAR}
+      )
+  </insert>
+
+  <update id="updateLogout4Token" parameterType="com.uoquo.platform.logs.model.pojo.LogUserLogin">
+    UPDATE log_user_login SET
+      logout_status = #{logoutStatus,jdbcType=CHAR},
+      logout_time   = #{logoutTime,jdbcType=TIMESTAMP},
+      logout_desc   = #{logoutDesc,jdbcType=VARCHAR}
+    WHERE token = #{token,jdbcType=VARCHAR}
+      AND logout_status IS NULL
+  </update>
+
+  <update id="updateLogout4User" parameterType="com.uoquo.platform.logs.model.pojo.LogUserLogin">
+    UPDATE log_user_login SET
+      logout_status = #{logoutStatus,jdbcType=CHAR},
+      logout_time   = #{logoutTime,jdbcType=TIMESTAMP},
+      logout_desc   = #{logoutDesc,jdbcType=VARCHAR}
+    WHERE user_id = #{userId,jdbcType=VARCHAR}
+      AND logout_status IS NULL
+      AND login_status = #{loginStatus,jdbcType=CHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM log_user_login
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM log_user_login
+    <where>
+      <if test="userId != null and userId != ''">
+        AND user_id = #{userId,jdbcType=VARCHAR}
+      </if>
+      <if test="token != null and token != ''">
+        AND token = #{token,jdbcType=VARCHAR}
+      </if>
+      <if test="userName != null and userName != ''">
+        AND user_name = #{userName,jdbcType=VARCHAR}
+      </if>
+      <if test="instituteId != null and instituteId != ''">
+        AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      </if>
+      <if test="loginIp != null and loginIp != ''">
+        AND login_ip LIKE CONCAT(#{loginIp,jdbcType=VARCHAR}, '%')
+      </if>
+      <if test="loginStatus != null and loginStatus != ''">
+        AND login_status = #{loginStatus,jdbcType=CHAR}
+      </if>
+      <if test="loginTimeStart != null">
+        AND login_time BETWEEN #{loginTimeStart,jdbcType=TIMESTAMP} AND #{loginTimeEnd,jdbcType=TIMESTAMP}
+      </if>
+    </where>
+  </select>
+</mapper>

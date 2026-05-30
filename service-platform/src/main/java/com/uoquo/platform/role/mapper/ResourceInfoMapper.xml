@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.role.mapper.ResourceInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.role.model.pojo.ResourceInfo">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="resource_name" jdbcType="VARCHAR" property="resourceName" />
+    <result column="resource_url" jdbcType="VARCHAR" property="resourceUrl" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+
+  <resultMap id="DtoResultMap" type="com.uoquo.platform.role.model.dto.ResourceInfoDto" extends="BaseResultMap">
+    <result column="relate_id" jdbcType="VARCHAR" property="relateId" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, resource_name, resource_url, create_user, create_time
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.role.model.pojo.ResourceInfo" >
+    INSERT INTO bko_resource (id, resource_name, resource_url, create_user,
+      create_time)
+    VALUES (#{id,jdbcType=VARCHAR}, #{resourceName,jdbcType=VARCHAR}, #{resourceUrl,jdbcType=VARCHAR}, #{createUser,jdbcType=VARCHAR},
+      #{createTime,jdbcType=TIMESTAMP})
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    DELETE FROM bko_resource
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.role.model.pojo.ResourceInfo">
+    UPDATE bko_resource
+    <set>
+      <if test="resourceName != null">
+        resource_name = #{resourceName,jdbcType=VARCHAR},
+      </if>
+      <if test="resourceUrl != null">
+        resource_url = #{resourceUrl,jdbcType=VARCHAR},
+      </if>
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_resource
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByResourceUrl" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_resource
+    WHERE resource_url = #{resourceUrl,jdbcType=VARCHAR}
+  </select>
+
+  <select id="checkUrlIsExist" resultType="int">
+    SELECT count(1)
+    FROM bko_resource
+    WHERE resource_url = #{resourceUrl,jdbcType=VARCHAR}
+    <if test="id != null and id != ''">
+      AND id != #{id,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+  <select id="selectByAppPermissionRelateId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT res.id, res.resource_name, res.resource_url
+    FROM bko_resource AS res
+    LEFT JOIN bko_app_permission AS bap ON bap.resource_id = res.id
+    WHERE bap.id = #{relateId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByAppInheritRelateId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT res.id, res.resource_name, res.resource_url
+    FROM bko_resource AS res
+    LEFT JOIN bko_app_permission AS bap ON bap.resource_id = res.id
+    LEFT JOIN bko_app_inherit AS bai ON bap.app_id = bai.parent_id
+    WHERE bai.id = #{relateId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_resource
+    <where>
+      <if test="resourceName != null and resourceName != ''">
+        AND resource_name = #{resourceName,jdbcType=VARCHAR}
+      </if>
+      <if test="resourceUrl != null and resourceUrl != ''">
+        AND resource_url = #{resourceUrl,jdbcType=VARCHAR}
+      </if>
+    </where>
+  </select>
+
+  <select id="listByRoleId" parameterType="map" resultMap="DtoResultMap">
+    SELECT bmd.id AS relate_id, res.id, res.resource_name, res.resource_url
+    FROM bko_resource as res
+    LEFT JOIN bko_module_resource bmr ON bmr.resource_id = res.id
+    LEFT JOIN bko_role_module bmd      ON bmr.module_id = bmd.module_id
+    WHERE bmd.role_id = #{roleId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByAppId" resultMap="DtoResultMap">
+    SELECT bap.id AS relate_id, res.id, res.resource_name, res.resource_url
+    FROM bko_resource as res
+    LEFT JOIN bko_app_permission bap ON bap.resource_id = res.id
+    WHERE bap.app_id = #{appId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listNotRelateAppId" resultMap="DtoResultMap">
+    SELECT res.id, res.resource_name, res.resource_url
+    FROM bko_resource as res
+    WHERE NOT EXISTS (
+      SELECT 1 FROM bko_app_permission bap
+      WHERE bap.resource_id = res.id
+        AND bap.app_id = #{appId,jdbcType=VARCHAR}
+    )
+    <if test="keyword != null and keyword != ''">
+      AND res.resource_url LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+    </if>
+  </select>
+
+  <select id="listByModuleId" resultMap="DtoResultMap">
+    SELECT bmr.id AS relate_id, res.id, res.resource_name, res.resource_url
+    FROM bko_resource as res
+    LEFT JOIN bko_module_resource bmr ON bmr.resource_id = res.id
+    WHERE bmr.module_id = #{moduleId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listNotRelateModuleId" resultMap="DtoResultMap">
+    SELECT res.id, res.resource_name, res.resource_url
+    FROM bko_resource as res
+    WHERE NOT EXISTS (
+      SELECT 1 FROM bko_module_resource bmr
+      WHERE bmr.resource_id = res.id
+        AND bmr.module_id = #{moduleId,jdbcType=VARCHAR}
+    )
+    <if test="keyword != null and keyword != ''">
+      AND res.resource_url LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+    </if>
+  </select>
+
+</mapper>

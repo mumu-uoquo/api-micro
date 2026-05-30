@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.message.mapper.MsgTemplateMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.message.model.pojo.MsgTemplate">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="template_code" jdbcType="VARCHAR" property="templateCode" />
+    <result column="template_name" jdbcType="VARCHAR" property="templateName" />
+    <result column="message_type" jdbcType="CHAR" property="messageType" />
+    <result column="push_way" jdbcType="CHAR" property="pushWay" />
+    <result column="title_template" jdbcType="VARCHAR" property="titleTemplate" />
+    <result column="content_template" jdbcType="LONGVARCHAR" property="contentTemplate" />
+    <result column="variables" jdbcType="VARCHAR" property="variables" typeHandler="com.uoquo.web.mybatis.handler.List2JsonTypeHandler" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="is_default" jdbcType="BIT" property="defaulted" />
+    <result column="status" jdbcType="CHAR" property="status" />
+    <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
+    <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, template_code, template_name, message_type, push_way, title_template, `variables`, 
+    description, is_default, `status`, status_time, status_memo, create_user, create_time, 
+    update_user, update_time, delete_state,
+    content_template
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.message.model.pojo.MsgTemplate">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO msg_template (id, template_code, template_name,
+      message_type, push_way, title_template, 
+      `variables`, description, is_default, 
+      `status`, status_time, status_memo, 
+      create_user, create_time, update_user, 
+      update_time, delete_state, content_template
+      )
+    VALUES  (#{id,jdbcType=VARCHAR}, #{templateCode,jdbcType=VARCHAR}, #{templateName,jdbcType=VARCHAR},
+      #{messageType,jdbcType=CHAR}, #{pushWay,jdbcType=CHAR}, #{titleTemplate,jdbcType=VARCHAR}, 
+      #{variables,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.List2JsonTypeHandler},
+      #{description,jdbcType=VARCHAR}, #{defaulted,jdbcType=BIT},
+      #{status,jdbcType=CHAR}, #{statusTime,jdbcType=TIMESTAMP}, #{statusMemo,jdbcType=VARCHAR}, 
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT}, #{contentTemplate,jdbcType=LONGVARCHAR}
+      )
+  </insert>
+
+  <update id="deleteByPrimaryKey">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_template SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.message.model.pojo.MsgTemplate">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_template SET
+      template_name = #{templateName,jdbcType=VARCHAR},
+      message_type = #{messageType,jdbcType=CHAR},
+      push_way = #{pushWay,jdbcType=CHAR},
+      title_template = #{titleTemplate,jdbcType=VARCHAR},
+      content_template = #{contentTemplate,jdbcType=LONGVARCHAR},
+      `variables` = #{variables,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.List2JsonTypeHandler},
+      description = #{description,jdbcType=VARCHAR},
+      <if test="defaulted != null">
+        is_default = #{defaulted,jdbcType=BIT},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateStatus" parameterType="com.uoquo.platform.message.model.pojo.MsgTemplate">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_template SET
+      `status` = #{status,jdbcType=CHAR},
+      status_time = #{statusTime,jdbcType=TIMESTAMP},
+      status_memo = #{statusMemo,jdbcType=VARCHAR},
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateClearDefault">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_template SET
+      is_default = false
+    WHERE message_type = #{messageType,jdbcType=CHAR}
+      AND push_way = #{pushWay,jdbcType=CHAR}
+  </update>
+
+  <update id="updateToDefault" parameterType="com.uoquo.platform.message.model.pojo.MsgTemplate">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_template SET
+      is_default = true,
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_template
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_template
+    WHERE template_code = #{templateCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByDefault" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_template
+    WHERE delete_state = 0
+      AND message_type = #{messageType,jdbcType=CHAR}
+      AND push_way     = #{pushWay,jdbcType=CHAR}
+      AND is_default   = true
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_template
+    WHERE delete_state = 0
+    <if test="templateCode != null and templateCode != ''">
+      AND template_code LIKE CONCAT('%', #{templateCode,jdbcType=VARCHAR}, '%')
+    </if>
+    <if test="templateName != null and templateName != ''">
+      AND template_name LIKE CONCAT('%', #{templateName,jdbcType=VARCHAR}, '%')
+    </if>
+    <if test="messageType != null and messageType != ''">
+      AND message_type = #{messageType,jdbcType=CHAR}
+    </if>
+    <if test="pushWay != null and pushWay != ''">
+      AND push_way = #{pushWay,jdbcType=CHAR}
+    </if>
+    <if test="defaulted != null">
+      AND is_default = #{defaulted,jdbcType=BIT}
+    </if>
+    <if test="status != null and status != ''">
+      AND `status` = #{status,jdbcType=CHAR}
+    </if>
+    <if test="createTimeStart != null">
+      AND create_time BETWEEN #{createTimeStart,jdbcType=TIMESTAMP} AND #{createTimeEnd,jdbcType=TIMESTAMP}
+    </if>
+  </select>
+</mapper>

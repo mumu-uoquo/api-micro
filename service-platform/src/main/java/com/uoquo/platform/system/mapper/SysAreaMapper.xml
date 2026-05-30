@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.SysAreaMapper">
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.SysArea">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="postal_code" jdbcType="CHAR" property="postalCode" />
+    <result column="geo_code" jdbcType="VARCHAR" property="geoCode" />
+    <result column="district_code" jdbcType="VARCHAR" property="districtCode" />
+    <result column="district_level" jdbcType="INTEGER" property="districtLevel" />
+    <result column="phone_code" jdbcType="VARCHAR" property="phoneCode" />
+    <result column="province" jdbcType="VARCHAR" property="province" />
+    <result column="province_short" jdbcType="VARCHAR" property="provinceShort" />
+    <result column="province_abbr" jdbcType="VARCHAR" property="provinceAbbr" />
+    <result column="city" jdbcType="VARCHAR" property="city" />
+    <result column="county" jdbcType="VARCHAR" property="county" />
+    <result column="town" jdbcType="VARCHAR" property="town" />
+    <result column="location_lng" jdbcType="VARCHAR" property="locationLng" />
+    <result column="location_lat" jdbcType="VARCHAR" property="locationLat" />
+    <result column="sort_idx" jdbcType="INTEGER" property="sortIdx" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, postal_code, geo_code, district_code, district_level, phone_code, province, province_short,
+    province_abbr, city, county, town, location_lng, location_lat, sort_idx
+  </sql>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_area
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByPrevCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_area
+    WHERE district_code LIKE CONCAT(#{code},'%')
+    ORDER BY sort_idx,district_code ASC
+  </select>
+
+</mapper>

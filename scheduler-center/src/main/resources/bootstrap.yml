@@ -1,0 +1,119 @@
+# ============================= 自定义配置. =============================
+# 该文件为每个微服务个性化配置，其中redis、db等可以提取到配置中心里
+# 该文件将优先于application.yml加载
+# https://cloud.spring.io/spring-cloud-static/Hoxton.SR3/reference/htmlsingle/#the-bootstrap-application-context
+# ======================================================================
+
+# ============= 自定义配置 =============
+app:
+  name : ${SERVICE_NAME:scheduler-center}
+  code : ${SERVICE_CODE:01}  # 应用编码（16进制，最大0xFF）
+  node : ${SERVICE_NODE:1}   # 节点编码（16进制，最大0xF）
+  type : ${spring.profiles.active:prod} # 环境类型（dev、test、demo、prod）
+  base-path:
+  temp-dir: ${DIR_TEMP:./temp} # 临时目录（上传、下载等）
+  data-dir: ${DIR_DATA:./data} # 数据目录（永久存储）
+  preferred:
+    networks : ${IP_PREFERRED:192.168} # 网络IP前缀（多网卡注册时使用）
+  # ============= 文件上传下载 =============
+  host:
+    cdn : http://cdn.yocalydev.cn # 下载服务器
+    oss : http://oss.yocalydev.cn # 上传服务器
+  # ============= nacos配置 =============
+  nacos:
+    enabled:   ${NACOS_ENABLED:true}
+    server:    ${NACOS_HOST:dev.xuziu.com:8848}
+    namespace: ${NACOS_NAMESPACE:47d74d2f-aeb9-4f47-953c-8f3af58ebd79}
+    username:  ${NACOS_USER:nacos}
+    password:  ${NACOS_PSWD:nacos@123}
+  # ============= DB配置 =============
+  db:
+    url  : jdbc:mysql://${DB_HOST:dev.xuziu.com}:${DB_PORT:3306}/${DB_NAME:uoquo_health}?serverTimezone=${DB_TZ:${TZ:Asia/Shanghai}}&allowMultiQueries=true${DB_EXTENSION:&characterEncoding=utf8&useSSL=true}
+    user : ${DB_USER:admin}
+    pswd : ${DB_PSWD:Admin@123}
+    slow : 100 # 慢SQL（单位ms）
+  # ============= REDIS配置 =============
+  # 哨兵 > 集群 > 单点
+  redis:
+    enabled  : ${REDIS_ENABLED:true}
+    password : ${REDIS_PASSWORD:xuziu}
+    # 哨兵（优先级：高）
+    sentinel-nodes : ${REDIS_SENTINEL:dev.xuziu.com:26379}
+    # 集群（优先级：中）
+    cluster-nodes : ${REDIS_CLUSTER:}
+    # 单点（优先级：低）
+    host : ${REDIS_HOST:dev.xuziu.com}
+    port : 6379
+  # ============= KAFKA配置 ==============
+  kafka:
+    default:
+      enabled: ${KAFKA_ENABLED:true}
+      host:    ${KAFKA_HOST:dev.xuziu.com:9092}
+      group:   ${KAFKA_GROUP:${app.name}}
+      bus-topic: ${KAFKA_BUS_TOPIC:SpringCloudBusTopic}
+      bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus}  # 默认用服务名，防止多节点时重复消费
+  # ============= 自定义线程池 =============
+  task:
+    pool:
+      core-size : ${THREAD_POOL_CORE:8}   # 核心线程数（预估任务量 * 单任务时间秒），最好根据8020原则预估，默认10
+      max-size  : ${THREAD_POOL_SIZE:16}  # 最大线程数，默认50
+      keep-alive: ${THREAD_KEEP_ALIVE:60} # 线程活跃时间（秒）
+      queue-capacity : ${THREAD_TASK_QUEUE:1024} # 任务队列（核心线程数 / 单任务时间秒 * 任务最大时间秒）
+  # ============= 自定义连接池 =============
+  http:
+    pool:
+      max-idle   : ${HTTP_POOL_IDLE:10}    # 最大空闲连接数（多余的会销毁），默认5个
+      keep-alive : ${HTTP_KEEP_ALIVE:300}  # 连接存活时间（秒），默认5分钟
+      timeout:
+        connect : ${HTTP_TIMEOUT_CONN:30}   # 建立连接超时时间（秒），默认3秒
+        read    : ${HTTP_TIMEOUT_READ:20}   # 数据传输超时时间（秒），默认4秒
+        write   : ${HTTP_TIMEOUT_WRITE:10}  # 请求响应超时时间（秒），默认5秒
+  # ============= 日志配置 =============
+  log:
+    name : ${app.name}
+    home : ${DIR_LOGS:./logs}
+
+# ============= 应用配置 =============
+spring:
+  application:
+    name: ${app.name} # 应用名称
+  cloud:
+    # 多网络选择
+    inetutils:
+      preferred-networks: ${app.preferred.networks} # 倾向网络ip地址 可匹配正则 也可以匹配前缀
+      use-only-site-local-interfaces: false # 是否读取本地回环网络
+    nacos:
+      username: ${app.nacos.username}
+      password: ${app.nacos.password}
+      server-addr: ${app.nacos.server}
+      # 注册中心
+      discovery:
+        enabled:    ${app.nacos.enabled}
+        namespace:  ${app.nacos.namespace}
+        metadata:
+          basePath: ${app.base-path}
+      # 配置中心
+      config:
+        enabled:    ${app.nacos.enabled}
+        namespace:  ${app.nacos.namespace}
+        file-extension: yml
+
+# ======================= 日志配置 =======================
+# 如果需要某些错误单导输出到指定文件，最好使用xml配置
+# 参考：https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-application-properties.html
+# 不可以放到application.yml中，会与 nacos 产生 contextName 冲突
+# 解决 nacos 冲突的另一方法：System.setProperty("spring.cloud.bootstrap.enabled", "false");
+logging:
+  config: classpath:logback-custom.xml
+#  file:
+#    max-size      : 10MB  # 单日志不超过10MB
+#    max-history   : 365   # 最多保留1年的日志（默认7天）
+#    total-size-cap: 20GB  # 日志总大小不超过20GB（默认不限）
+#    name: ${app.log.home}/${app.log.name:${app.name}}.log
+#  pattern:
+#    console: ${app.log.format}
+#    file   : ${app.log.format}
+#    rolling-file-name: ${app.log.home}/history/${app.log.name}.%d{yyyy-MM-dd}.%i.log.gz
+#  level:
+#    root: INFO
+#    com.uoquo: debug

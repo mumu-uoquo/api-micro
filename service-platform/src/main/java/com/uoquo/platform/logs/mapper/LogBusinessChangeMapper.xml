@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.logs.mapper.LogBusinessChangeMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.logs.model.pojo.LogBusinessChange">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="token" jdbcType="VARCHAR" property="token" />
+    <result column="trace_id" jdbcType="VARCHAR" property="traceId" />
+    <result column="business_type" jdbcType="CHAR" property="businessType" />
+    <result column="business_sub_type" jdbcType="VARCHAR" property="businessSubType" />
+    <result column="business_id" jdbcType="VARCHAR" property="businessId" />
+    <result column="business_institute_id" jdbcType="VARCHAR" property="businessInstituteId"/>
+    <result column="table_name" jdbcType="VARCHAR" property="tableName" />
+    <result column="operator_id" jdbcType="VARCHAR" property="operatorId" />
+    <result column="operator_name" jdbcType="VARCHAR" property="operatorName" />
+    <result column="operation_type" jdbcType="CHAR" property="operationType" />
+    <result column="operation_time" jdbcType="TIMESTAMP" property="operationTime" />
+    <result column="operation_desc" jdbcType="VARCHAR" property="operationDesc" />
+    <result column="before_data" jdbcType="VARCHAR" property="beforeData" typeHandler="com.uoquo.web.mybatis.handler.Map2JsonTypeHandler" />
+    <result column="after_data"  jdbcType="VARCHAR" property="afterData"  typeHandler="com.uoquo.web.mybatis.handler.Map2JsonTypeHandler" />
+    <result column="change_fields" jdbcType="VARCHAR" property="changeFields" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, token, trace_id, business_type, business_sub_type, business_id, `table_name`, operator_id, operator_name,
+    operation_type, operation_time, operation_desc, before_data, after_data, change_fields, 
+    description
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.logs.model.pojo.LogBusinessChange">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO log_business_change (id, token, trace_id,
+      business_type, business_sub_type,
+      business_id, `table_name`, operator_id, 
+      operator_name, operation_type, operation_time, 
+      operation_desc, before_data, after_data, 
+      change_fields, description)
+    VALUES  (#{id,jdbcType=VARCHAR}, #{token,jdbcType=VARCHAR}, #{traceId,jdbcType=VARCHAR},
+      #{businessType,jdbcType=CHAR}, #{businessSubType,jdbcType=VARCHAR},
+      #{businessId,jdbcType=VARCHAR}, #{tableName,jdbcType=VARCHAR}, #{operatorId,jdbcType=VARCHAR}, 
+      #{operatorName,jdbcType=VARCHAR}, #{operationType,jdbcType=CHAR}, #{operationTime,jdbcType=TIMESTAMP}, 
+      #{operationDesc,jdbcType=VARCHAR},
+      #{beforeData,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.Map2JsonTypeHandler},
+      #{afterData,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.Map2JsonTypeHandler},
+      #{changeFields,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR})
+  </insert>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM log_business_change
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM log_business_change
+    <where>
+      <if test="operatorId != null and operatorId != ''">
+        AND operator_id = #{operatorId,jdbcType=VARCHAR}
+      </if>
+      <if test="token != null and token != ''">
+        AND token = #{token,jdbcType=VARCHAR}
+      </if>
+      <if test="businessInstituteId != null and businessInstituteId != ''">
+        AND business_institute_id = #{businessInstituteId,jdbcType=VARCHAR}
+      </if>
+      <if test="businessType != null and businessType != ''">
+        AND business_type = #{businessType,jdbcType=CHAR}
+      </if>
+      <if test="businessId != null and businessId != ''">
+        AND business_id = #{businessId,jdbcType=VARCHAR}
+      </if>
+      <if test="operationType != null and operationType != ''">
+        AND operation_type = #{operationType,jdbcType=CHAR}
+      </if>
+      <if test="operationTimeStart != null">
+        AND operation_time BETWEEN #{operationTimeStart,jdbcType=TIMESTAMP} AND #{operationTimeEnd,jdbcType=TIMESTAMP}
+      </if>
+    </where>
+  </select>
+</mapper>

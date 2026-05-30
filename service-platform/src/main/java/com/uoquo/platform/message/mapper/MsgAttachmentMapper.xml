@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.message.mapper.MsgAttachmentMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.message.model.pojo.MsgAttachment">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="message_id" jdbcType="VARCHAR" property="messageId" />
+    <result column="file_name" jdbcType="VARCHAR" property="fileName" />
+    <result column="file_path" jdbcType="VARCHAR" property="filePath" />
+    <result column="file_size" jdbcType="BIGINT" property="fileSize" />
+    <result column="file_type" jdbcType="VARCHAR" property="fileType" />
+    <result column="download_count" jdbcType="INTEGER" property="downloadCount" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, message_id, file_name, file_path, file_size, file_type, download_count, create_time
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.message.model.pojo.MsgAttachment">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO msg_attachment (id, message_id, file_name,
+      file_path, file_size, file_type,
+      download_count, create_time)
+    VALUES (#{id,jdbcType=VARCHAR}, #{messageId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR},
+      #{filePath,jdbcType=VARCHAR}, #{fileSize,jdbcType=BIGINT}, #{fileType,jdbcType=VARCHAR},
+      #{downloadCount,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP})
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    DELETE FROM msg_attachment
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByMessageId" parameterType="java.lang.String">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    DELETE FROM msg_attachment
+    WHERE message_id = #{messageId,jdbcType=VARCHAR}
+  </delete>
+
+  <update id="updateDownloadCount">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_attachment SET
+      download_count = #{downloadCount,jdbcType=INTEGER}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_attachment
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByMessageId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_attachment
+    WHERE message_id = #{messageId,jdbcType=VARCHAR}
+  </select>
+
+</mapper>

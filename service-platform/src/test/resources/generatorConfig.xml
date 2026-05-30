@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+<generatorConfiguration>
+    <!--  mysql数据源配置文件路径  -->
+    <!--    <properties resource="bootstrap-dev.yml"/>-->
+
+    <!-- context子节点顺序不能变 https://mybatis.org/generator/configreference/context.html -->
+    <context id="mybatis-builder" defaultModelType="flat" targetRuntime="MyBatis3">
+        <!-- TODO 个性配置 -->
+        <property name="app.db.url"  value="jdbc:mysql://localhost:3306/health_platform?serverTimezone=Asia/Shanghai&amp;allowMultiQueries=true&amp;characterEncoding=utf8&amp;useSSL=true"/>
+        <property name="app.db.user" value="admin"/>
+        <property name="app.db.pswd" value="Admin@l23"/>
+
+        <!-- 标准配置 -->
+        <property name="endingDelimiter"     value="`"/>
+        <property name="beginningDelimiter"  value="`"/>
+        <property name="javaFileEncoding"    value="UTF-8"/>
+        <property name="autoDelimitKeywords" value="false"/>
+
+        <!-- uncomment to enable rename plugin -->
+        <plugin type="com.chuntung.plugin.mybatis.builder.generator.plugins.RenamePlugin">
+            <property name="type" value="com.chuntung.plugin.mybatis.builder.generator.plugins.RenamePlugin" />
+            <property name="mapperTypePattern" value="${domainName}Mapper" />
+            <property name="exampleTypePattern" value="${domainName}Example" />
+            <property name="sqlFileNamePattern" value="${domainName}Mapper.xml" />
+        </plugin>
+
+        <!-- uncomment to enable mapper annotation plugin -->
+        <!--
+        <plugin type="com.chuntung.plugin.mybatis.builder.generator.plugins.MapperAnnotationPlugin">
+          <property name="type" value="com.chuntung.plugin.mybatis.builder.generator.plugins.MapperAnnotationPlugin" />
+          <property name="customAnnotationType" value="org.springframework.stereotype.Repository" />
+        </plugin>
+        -->
+
+        <!-- uncomment to enable Lombok plugin -->
+        <!--
+        <plugin type="com.chuntung.plugin.mybatis.builder.generator.plugins.LombokPlugin">
+          <property name="type" value="com.chuntung.plugin.mybatis.builder.generator.plugins.LombokPlugin" />
+        </plugin>
+        -->
+
+        <!-- uncomment to enable select with lock plugin -->
+        <!--
+        <plugin type="com.chuntung.plugin.mybatis.builder.generator.plugins.selectwithlock.SelectWithLockPlugin">
+          <property name="type" value="com.chuntung.plugin.mybatis.builder.generator.plugins.selectwithlock.SelectWithLockPlugin" />
+          <property name="byPrimaryKeyWithLockEnabled" value="true" />
+          <property name="byExampleWithLockEnabled" value="false" />
+          <property name="byPrimaryKeyWithLockOverride" value="selectByPrimaryKeyWithLock" />
+          <property name="byExampleWithLockOverride" value="selectByExampleWithLock" />
+        </plugin>
+        -->
+
+        <!-- custom comment generator is required for auto merger -->
+        <commentGenerator type="com.chuntung.plugin.mybatis.builder.generator.CustomCommentGenerator">
+            <property name="addDatabaseRemark" value="true"/>
+            <property name="suppressAllComments" value="false" />
+            <!--            <property name="generatedComment" value="generated automatically, do not modify!"/>-->
+        </commentGenerator>
+
+        <!--配置数据库连接-->
+        <jdbcConnection driverClass="com.mysql.jdbc.Driver"
+                        connectionURL="jdbc:mysql://localhost:3306/health_platform?serverTimezone=Asia/Shanghai"
+                        userId="admin"
+                        password="Admin@l23" />
+
+        <javaTypeResolver>
+            <property name="forceBigDecimals" value="true"/>
+            <property name="useJSR310Types" value="false"/>
+        </javaTypeResolver>
+
+        <!--
+            support below variables which should be wrapped with ${}.
+            PROJECT_DIR: the project base path.
+            CURRENT_DIR: the configuration file path.
+        -->
+        <!-- 指定javabean的位置 -->
+        <javaModelGenerator targetPackage="com.uoquo.platform.user.model.pojo" targetProject="${PROJECT_DIR}/service-platform/src/main/java">
+            <property name="trimStrings" value="true"/>
+            <property name="enableSubPackages" value="true"/>
+        </javaModelGenerator>
+
+        <!-- 指定sql的映射文件 -->
+        <sqlMapGenerator targetPackage="com.uoquo.platform.user.mapper"  targetProject="${PROJECT_DIR}/service-platform/src/main/java">
+            <property name="enableSubPackages" value="true" />
+        </sqlMapGenerator>
+
+        <!-- 指定dao接口的位置 -->
+        <javaClientGenerator targetPackage="com.uoquo.platform.user.mapper"  targetProject="${PROJECT_DIR}/service-platform/src/main/java" type="XMLMAPPER">
+            <property name="enableSubPackages" value="true" />
+        </javaClientGenerator>
+
+        <!-- TODO table的生成策略 -->
+        <table tableName="bko_user" domainObjectName="BkoUser" enableDeleteByExample="false" enableUpdateByExample="false">
+            <property name="useActualColumnNames" value="true"/>
+            <generatedKey column="id" identity="true" sqlStatement="JDBC"/>
+            <!-- uncomment to ignore or override columns -->
+            <!--
+                <ignoreColumn column="context" />
+                <columnOverride column="DATE_FIELD" property="startDate" />
+                <columnOverride column="LONG_VARCHAR_FIELD" jdbcType="VARCHAR" />
+                <columnOverride column="created_at" javaType="java.util.Date" property="createdAt" />
+            -->
+        </table>
+
+    </context>
+</generatorConfiguration>

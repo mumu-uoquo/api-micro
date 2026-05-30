@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.institute.mapper.AreaInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.institute.model.pojo.AreaInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="area_name" jdbcType="VARCHAR" property="areaName" />
+    <result column="area_code" jdbcType="VARCHAR" property="areaCode" />
+    <result column="address" jdbcType="VARCHAR" property="address" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="is_default" jdbcType="BIT" property="defaulted" />
+    <result column="third_id" jdbcType="VARCHAR" property="thirdId" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, institute_id, area_name, area_code, address, description, is_default, third_id,
+    create_user, create_time, update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.institute.model.pojo.AreaInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO inc_area (id, institute_id, area_name,
+      area_code, address, description,
+      is_default, third_id, create_user,
+      create_time, update_user, update_time,
+      delete_state
+    )
+    VALUES (#{id,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{areaName,jdbcType=VARCHAR},
+      #{areaCode,jdbcType=VARCHAR}, #{address,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR},
+      #{defaulted,jdbcType=VARCHAR}, #{thirdId,jdbcType=VARCHAR}, #{createUser,jdbcType=VARCHAR},
+      #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP},
+      #{deleteState,jdbcType=BIGINT}
+    )
+  </insert>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.institute.model.pojo.AreaInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_area
+    <set>
+      <if test="areaName != null and areaName != ''">
+        area_name = #{areaName,jdbcType=VARCHAR},
+      </if>
+      <if test="areaCode != null">
+        area_code = #{areaCode,jdbcType=VARCHAR},
+      </if>
+      <if test="address != null">
+        address = #{address,jdbcType=VARCHAR},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      <if test="thirdId != null">
+        third_id = #{thirdId,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="deleteByPrimaryKey">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_area SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_area
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByDefault" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_area
+    WHERE institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND is_default = true
+  </select>
+
+  <select id="selectByThirdId" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_area
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND third_id = #{thirdId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByCode" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_area
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND area_code = #{areaCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByName" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_area
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND area_name = #{areaName,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByInstituteId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_area
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+  </select>
+</mapper>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.AppInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.AppInfo">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="app_name" jdbcType="VARCHAR" property="appName" />
+    <result column="appkey" jdbcType="VARCHAR" property="appkey" />
+    <result column="secret" jdbcType="VARCHAR" property="secret" />
+    <result column="template_type" jdbcType="CHAR" property="templateType" />
+    <result column="module_id" jdbcType="VARCHAR" property="moduleId" />
+    <result column="status" jdbcType="CHAR" property="status" />
+    <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
+    <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <!-- 比 BaseResultMap 少几个字段，所以不能直接继承 -->
+  <resultMap id="DtoResultMap" type="com.uoquo.platform.system.model.dto.AppInfoDto">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="institute_name" jdbcType="VARCHAR" property="instituteName" />
+    <result column="app_name" jdbcType="VARCHAR" property="appName" />
+    <result column="appkey" jdbcType="VARCHAR" property="appkey" />
+    <result column="secret" jdbcType="VARCHAR" property="secret" />
+    <result column="template_type" jdbcType="CHAR" property="templateType" />
+    <result column="module_id" jdbcType="VARCHAR" property="moduleId" />
+    <result column="status" jdbcType="CHAR" property="status" />
+    <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
+    <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, institute_id, app_name, appkey, secret, template_type, module_id, `status`, status_time, status_memo,
+    create_user, create_time, update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.AppInfo">
+    INSERT INTO bko_app_info (id, institute_id, app_name,
+      appkey, secret, template_type, module_id,
+      `status`, status_time, status_memo,
+      create_user, create_time, update_user,
+      update_time, delete_state)
+    VALUES (#{id,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR},
+      #{appkey,jdbcType=VARCHAR}, #{secret,jdbcType=VARCHAR}, #{templateType,jdbcType=CHAR}, #{moduleId,jdbcType=VARCHAR},
+      #{status,jdbcType=CHAR}, #{statusTime,jdbcType=TIMESTAMP}, #{statusMemo,jdbcType=VARCHAR},
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR},
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <update id="deleteByPrimaryKey">
+    UPDATE bko_app_info SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.system.model.pojo.AppInfo">
+    UPDATE bko_app_info
+    <set>
+      <if test="appName != null and appName != ''">
+        app_name = #{appName,jdbcType=VARCHAR},
+      </if>
+      <if test="secret != null and secret != ''">
+        secret = #{secret,jdbcType=VARCHAR},
+      </if>
+      <if test="templateType != null and templateType != ''">
+        template_type = #{templateType,jdbcType=CHAR},
+      </if>
+      <if test="moduleId != null and moduleId != ''">
+        module_id = #{moduleId,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null and status != ''">
+        `status` = #{status,jdbcType=CHAR},
+        status_time = #{statusTime,jdbcType=TIMESTAMP},
+        status_memo = #{statusMemo,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_app_info
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByAppkey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_app_info
+    WHERE appkey = #{appkey,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByPermissionRelateId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT app.*
+    FROM bko_app_info AS app
+    LEFT JOIN bko_app_permission AS bap ON bap.app_id = app.id
+    WHERE bap.id = #{relateId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByInheritRelateId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT app.*
+    FROM bko_app_info AS app
+    LEFT JOIN bko_app_inherit AS bai ON bai.app_id = app.id
+    WHERE bai.id = #{relateId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByAll" parameterType="map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_app_info
+  </select>
+
+  <select id="selectBySearch" parameterType="map" resultMap="DtoResultMap">
+    SELECT app.*, institute.institute_name
+    FROM bko_app_info AS app
+    LEFT JOIN inc_institute AS institute ON institute.id = app.institute_id
+    WHERE app.delete_state = 0
+    <if test="appName != null and appName != ''">
+      AND app.app_name LIKE CONCAT('%', #{appName,jdbcType=VARCHAR}, '%')
+    </if>
+    <if test="appkey != null and appkey != ''">
+      AND app.appkey LIKE CONCAT('%', #{appkey,jdbcType=VARCHAR}, '%')
+    </if>
+    <if test="keyword != null and keyword != ''">
+      AND ( app.appkey LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+       OR app.app_name LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+      )
+    </if>
+    <if test="instituteId != null and instituteId != ''">
+      AND app.institute_id = #{instituteId,jdbcType=VARCHAR}
+    </if>
+    <if test="moduleId != null and moduleId != ''">
+      AND app.module_id = #{moduleId,jdbcType=VARCHAR}
+    </if>
+    <if test="templateType != null and templateType != ''">
+      AND app.template_type = #{templateType,jdbcType=CHAR}
+      <if test="inheritAppId != null and inheritAppId != ''">
+        AND app.id NOT IN (
+          SELECT inherit.parent_id
+          FROM bko_app_inherit AS inherit
+          WHERE inherit.app_id = #{inheritAppId,jdbcType=VARCHAR}
+        )
+      </if>
+    </if>
+    <if test="status != null and status != ''">
+      AND app.`status` = #{status,jdbcType=CHAR}
+    </if>
+  </select>
+
+  <select id="selectInheritByAppId" resultMap="DtoResultMap">
+    SELECT app.*, institute.institute_name
+    FROM bko_app_info AS app
+    LEFT JOIN inc_institute AS institute ON institute.id = app.institute_id
+    LEFT JOIN bko_app_inherit AS inherit ON inherit.parent_id = app.id
+    WHERE app.delete_state = 0
+      AND inherit.app_id = #{appId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectInheritByParentId" resultMap="DtoResultMap">
+    SELECT app.*, institute.institute_name
+    FROM bko_app_info AS app
+    LEFT JOIN inc_institute AS institute ON institute.id = app.institute_id
+    LEFT JOIN bko_app_inherit AS inherit ON inherit.app_id = app.id
+    WHERE app.delete_state = 0
+      AND inherit.parent_id = #{parentId,jdbcType=VARCHAR}
+  </select>
+
+</mapper>

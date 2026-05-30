@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.SysHolidayMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.SysHoliday">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="date_value" jdbcType="DATE" property="dateValue" />
+    <result column="date_type" jdbcType="CHAR" property="dateType" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, date_value, date_type, description
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.SysHoliday">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO sys_holiday (id, date_value, date_type,
+      description)
+    VALUES (#{id,jdbcType=VARCHAR}, #{dateValue,jdbcType=DATE}, #{dateType,jdbcType=CHAR},
+      #{description,jdbcType=VARCHAR})
+  </insert>
+
+  <insert id="batchInsert" parameterType="java.util.List">
+    INSERT INTO sys_holiday (id, date_value, date_type,
+      description) VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.id,jdbcType=VARCHAR}, #{item.dateValue,jdbcType=DATE}, #{item.dateType,jdbcType=CHAR},
+        #{item.description,jdbcType=VARCHAR})
+    </foreach>
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    DELETE FROM sys_holiday
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByDate" >
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    DELETE FROM sys_holiday
+    WHERE date_value = #{dateValue,jdbcType=DATE}
+  </delete>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.system.model.pojo.SysHoliday">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE sys_holiday
+    <set>
+      <if test="dateValue != null">
+        date_value = #{dateValue,jdbcType=DATE},
+      </if>
+      <if test="dateType != null">
+        date_type = #{dateType,jdbcType=CHAR},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_holiday
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByDate" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_holiday
+    WHERE date_value = #{dateValue,jdbcType=DATE}
+  </select>
+
+  <select id="listByDateRang" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_holiday
+    WHERE date_value BETWEEN #{startDate,jdbcType=DATE} AND #{endDate,jdbcType=DATE}
+  </select>
+</mapper>

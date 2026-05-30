@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.institute.mapper.DepartmentInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.institute.model.pojo.DepartmentInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="parent_id" jdbcType="VARCHAR" property="parentId" />
+    <result column="parent_path" jdbcType="VARCHAR" property="parentPath" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="area_id" jdbcType="VARCHAR" property="areaId" />
+    <result column="dept_name" jdbcType="VARCHAR" property="deptName" />
+    <result column="pin_yin" jdbcType="VARCHAR" property="pinYin" />
+    <result column="dept_code" jdbcType="VARCHAR" property="deptCode" />
+    <result column="address" jdbcType="VARCHAR" property="address" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="is_default" jdbcType="BIT" property="defaulted" />
+    <result column="third_id" jdbcType="VARCHAR" property="thirdId" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <resultMap id="DtoResultMap" type="com.uoquo.platform.institute.model.dto.DepartmentTreeDto" >
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="parent_id" jdbcType="VARCHAR" property="parentId" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="area_id" jdbcType="VARCHAR" property="areaId" />
+    <result column="area_name" jdbcType="VARCHAR" property="areaName" />
+    <result column="dept_name" jdbcType="VARCHAR" property="deptName" />
+    <result column="dept_code" jdbcType="VARCHAR" property="deptCode" />
+    <result column="address" jdbcType="VARCHAR" property="address" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="is_default" jdbcType="BIT" property="defaulted" />
+    <result column="third_id" jdbcType="VARCHAR" property="thirdId" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, parent_id, parent_path, institute_id, area_id, dept_name, pin_yin, dept_code, address,
+    description, is_default, third_id, create_user, create_time, update_user, update_time,
+    delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.institute.model.pojo.DepartmentInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO inc_department (id, parent_id, parent_path,
+      pin_yin, institute_id, area_id,
+      dept_name, dept_code, address,
+      description,is_default, third_id,
+      create_user, create_time, update_user,
+      update_time, delete_state)
+    VALUES (#{id,jdbcType=VARCHAR}, #{parentId,jdbcType=VARCHAR}, #{parentPath,jdbcType=VARCHAR},
+      #{pinYin,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{areaId,jdbcType=VARCHAR},
+      #{deptName,jdbcType=VARCHAR}, #{deptCode,jdbcType=VARCHAR}, #{address,jdbcType=VARCHAR},
+      #{description,jdbcType=VARCHAR}, #{defaulted,jdbcType=VARCHAR},  #{thirdId,jdbcType=VARCHAR},
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR},
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <update id="deleteByPrimaryKey">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_department SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="batchUpdateArea">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_department SET
+      area_id = #{newAreaId,jdbcType=VARCHAR}
+    WHERE area_id =#{oldAreaId,jdbcType=VARCHAR}
+  </update>
+
+  <update id="batchUpdateParentPath" >
+    UPDATE inc_department SET
+      parent_path = REPLACE(parent_path, #{oldPath,jdbcType=VARCHAR}, #{newPath,jdbcType=VARCHAR})
+    WHERE parent_path LIKE CONCAT(#{oldPath,jdbcType=VARCHAR}, '%')
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.institute.model.pojo.DepartmentInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_department
+    <set>
+      <if test="parentId != null">
+        parent_id = #{parentId,jdbcType=VARCHAR},
+        parent_path = #{parentPath,jdbcType=VARCHAR},
+      </if>
+      <if test="areaId != null and areaId != ''">
+        area_id = #{areaId,jdbcType=VARCHAR},
+      </if>
+      <if test="deptName != null and deptName != ''">
+        dept_name = #{deptName,jdbcType=VARCHAR},
+      </if>
+      <if test="pinYin != null and pinYin != ''">
+        pin_yin = #{pinYin,jdbcType=VARCHAR},
+      </if>
+      <if test="deptCode != null">
+        dept_code = #{deptCode,jdbcType=VARCHAR},
+      </if>
+      <if test="address != null">
+        address = #{address,jdbcType=VARCHAR},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      <if test="thirdId != null">
+        third_id = #{thirdId,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_department
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByDefault" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_department
+    WHERE institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND is_default = true
+  </select>
+
+  <select id="selectByThirdId" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_department
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND third_id = #{thirdId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByCode" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_department
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND dept_code = #{deptCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByName" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_department
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND parent_id = #{parentId,jdbcType=VARCHAR}
+      AND dept_name = #{deptName,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="DtoResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT dept.id, dept.parent_id, dept.institute_id, dept.area_id, area.area_name,
+      dept.dept_name, dept.dept_code, dept.address, dept.description, dept.is_default, dept.third_id
+    FROM inc_department dept
+    LEFT JOIN inc_area area ON area.id = dept.area_id
+    WHERE dept.delete_state = 0
+    <if test="instituteId != null and instituteId != ''">
+      AND dept.institute_id = #{instituteId,jdbcType=VARCHAR}
+    </if>
+    <if test="parentId != null and parentId != ''">
+      AND dept.parent_id = #{parentId,jdbcType=VARCHAR}
+    </if>
+    <if test="areaId != null and areaId != ''">
+      AND dept.area_id = #{areaId,jdbcType=VARCHAR}
+    </if>
+  </select>
+</mapper>

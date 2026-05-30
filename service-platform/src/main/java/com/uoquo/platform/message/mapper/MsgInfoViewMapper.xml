@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.message.mapper.MsgInfoViewMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.message.model.dto.MsgInfoViewDto">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <result column="message_title" jdbcType="VARCHAR" property="messageTitle" />
+    <result column="message_content" jdbcType="LONGVARCHAR" property="messageContent" />
+    <result column="message_type" jdbcType="CHAR" property="messageType" />
+    <result column="message_level" jdbcType="CHAR" property="messageLevel" />
+    <result column="push_way" jdbcType="CHAR" property="pushWay" />
+    <result column="business_type" jdbcType="CHAR" property="businessType" />
+    <result column="business_id" jdbcType="VARCHAR" property="businessId" />
+    <result column="business_extend" jdbcType="VARCHAR" property="businessExtend" typeHandler="com.uoquo.web.mybatis.handler.Map2JsonTypeHandler" />
+    <result column="sender_id" jdbcType="VARCHAR" property="senderId" />
+    <result column="sender_name" jdbcType="VARCHAR" property="senderName" />
+    <result column="sender_avatar" jdbcType="VARCHAR" property="senderAvatar" />
+    <result column="sender_time" jdbcType="TIMESTAMP" property="senderTime" />
+    <result column="expire_time" jdbcType="TIMESTAMP" property="expireTime" />
+
+    <result column="recordId" jdbcType="VARCHAR" property="recordId" />
+    <result column="message_id" jdbcType="VARCHAR" property="messageId" />
+    <result column="receiver_id" jdbcType="VARCHAR" property="receiverId" />
+    <result column="receiver_name" jdbcType="VARCHAR" property="receiverName" />
+    <result column="is_read" jdbcType="BIT" property="readState" />
+    <result column="read_time" jdbcType="TIMESTAMP" property="readTime" />
+    <result column="is_processed" jdbcType="BIT" property="processedState" />
+    <result column="processed_time" jdbcType="TIMESTAMP" property="processedTime" />
+    <result column="processed_result" jdbcType="VARCHAR" property="processedResult" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    m.message_title, m.message_content, m.message_type, m.message_level, m.push_way, m.business_type,
+    m.business_id, m.business_extend, m.sender_id, m.sender_name, m.sender_time, m.expire_time,
+    r.id AS recordId, r.message_id, r.receiver_id, r.receiver_name, r.is_read, r.read_time,
+    r.is_processed, r.processed_time, r.processed_result, r.description, r.create_time,
+    u.avatar AS sender_avatar
+  </sql>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_info AS m
+    LEFT JOIN msg_receiver AS r ON m.id = r.message_id
+    LEFT JOIN bko_user AS u ON u.id = m.sender_id
+    WHERE r.id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByMessageAndReceiver" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_info AS m
+    LEFT JOIN msg_receiver AS r ON m.id = r.message_id
+    LEFT JOIN bko_user AS u ON u.id = m.sender_id
+    WHERE r.message_id  = #{messageId,jdbcType=VARCHAR}
+      AND r.receiver_id = #{receiverId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_info AS m
+    LEFT JOIN msg_receiver AS r ON m.id = r.message_id
+    LEFT JOIN bko_user AS u ON u.id = m.sender_id
+    WHERE r.delete_state = 0 AND m.delete_state = 0
+    <if test="receiverId != null and receiverId != ''">
+      AND r.receiver_id = #{receiverId,jdbcType=VARCHAR}
+    </if>
+    <if test="status != null and status != ''">
+      AND m.`status` = #{status,jdbcType=VARCHAR}
+    </if>
+    <if test="messageType != null and messageType != ''">
+      AND m.message_type = #{messageType,jdbcType=CHAR}
+    </if>
+    <if test="messageLevel != null and messageLevel != ''">
+      AND m.message_level = #{messageLevel,jdbcType=CHAR}
+    </if>
+    <if test="businessType != null and businessType != ''">
+      AND m.business_type = #{businessType,jdbcType=CHAR}
+    </if>
+    <if test="readState != null">
+      AND r.is_read = #{readState,jdbcType=BIT}
+    </if>
+    <if test="processedState != null">
+      AND r.is_processed = #{processedState,jdbcType=BIT}
+    </if>
+    <if test="senderTimeStart != null">
+      AND m.sender_time BETWEEN #{senderTimeStart,jdbcType=TIMESTAMP} AND #{senderTimeEnd,jdbcType=TIMESTAMP}
+    </if>
+    <if test="expireTime != null">
+      AND m.expire_time >= #{expireTime,jdbcType=TIMESTAMP}
+    </if>
+  </select>
+
+</mapper>

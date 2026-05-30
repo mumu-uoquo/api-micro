@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.user.mapper.GroupInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.user.model.pojo.GroupInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="dept_id" jdbcType="VARCHAR" property="deptId" />
+    <result column="group_name" jdbcType="VARCHAR" property="groupName" />
+    <result column="group_type" jdbcType="CHAR" property="groupType" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, institute_id, dept_id, group_name, group_type, description, create_user, create_time,
+    update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.user.model.pojo.GroupInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO bko_group (id, institute_id, dept_id,
+      group_name, group_type, description,
+      create_user, create_time, update_user,
+      update_time, delete_state)
+    VALUES (#{id,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{deptId,jdbcType=VARCHAR},
+      #{groupName,jdbcType=VARCHAR}, #{groupType,jdbcType=CHAR}, #{description,jdbcType=VARCHAR},
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR},
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <update id="deleteByPrimaryKey">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE bko_group SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.user.model.pojo.GroupInfo">
+    UPDATE bko_group
+    <set>
+      <if test="groupName != null and groupName != ''">
+        group_name = #{groupName,jdbcType=VARCHAR},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_group
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByInstituteId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/>
+    FROM bko_group
+    WHERE delete_state = 0
+      AND group_type = '003001'
+    UNION
+    SELECT <include refid="Base_Column_List"/>
+    FROM bko_group
+    WHERE delete_state = 0
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      AND group_type = '003003'
+  </select>
+
+  <select id="listByDepartmentId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/>
+    FROM bko_group
+    WHERE delete_state = 0
+      AND dept_id = #{departmentId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByUserId" resultMap="BaseResultMap">
+    SELECT bg.*
+    FROM bko_group AS bg
+    LEFT JOIN bko_user_group AS brg ON bg.id = brg.group_id
+    WHERE bg.delete_state = 0
+      AND brg.user_id = #{userId,jdbcType=VARCHAR}
+  </select>
+
+</mapper>

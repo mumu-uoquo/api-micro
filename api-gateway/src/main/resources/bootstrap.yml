@@ -1,0 +1,72 @@
+# ============================= 自定义配置. =============================
+# 优先于application的配置，应用名称、配置中心等在此处定义
+# 注：此配置文件内容不可以被覆盖（即：不可以有变量）
+# https://cloud.spring.io/spring-cloud-static/Hoxton.SR3/reference/htmlsingle/#the-bootstrap-application-context
+# ======================================================================
+
+# ============= 自定义配置 =============
+app:
+  name : ${SERVICE_NAME:gateway}
+  port : ${SERVICE_PORT:7210}
+  code : ${SERVICE_CODE:01}  # 应用编码（16进制，最大0xFF）
+  node : ${SERVICE_NODE:1}   # 节点编码（16进制，最大0xF）
+  type : ${spring.profiles.active:prod} # 环境类型（dev、test、demo、prod）
+  base-path: /
+  temp-dir: ${DIR_TEMP:./temp} # 临时目录（上传、下载等）
+  language: zh-cn
+  preferred:
+    networks: ${IP_PREFERRED:192.168} # 网络IP前缀
+  # ============= nacos配置 =============
+  nacos:
+    enabled:   ${NACOS_ENABLED:true}
+    server:    ${NACOS_HOST:dev.xuziu.com:8848}
+    namespace: ${NACOS_NAMESPACE:47d74d2f-aeb9-4f47-953c-8f3af58ebd79}
+    username:  ${NACOS_USER:nacos}
+    password:  ${NACOS_PSWD:nacos@123}
+  # ============= REDIS配置 =============
+  # 模式变更时，需要修改application中的对应设置
+  redis:
+    enabled  : ${REDIS_ENABLED:true}
+    password : ${REDIS_PASSWORD:xuziu}
+    # 哨兵（优先级：高）
+    sentinel-nodes : ${REDIS_SENTINEL:dev.xuziu.com:26379}
+    # 集群（优先级：中）
+    cluster-nodes : ${REDIS_CLUSTER:}
+    # 单点（优先级：低）
+    host : ${REDIS_HOST:dev.xuziu.com}
+    port : 6379
+  # ============= 日志配置 =============
+  log:
+    name : ${app.name}
+    home : ${DIR_LOGS:./logs}
+
+# ============= 应用配置 =============
+spring:
+  application:
+    name: ${app.name}
+  cloud:
+    # 多网络选择
+    inetutils:
+      preferred-networks: ${app.preferred.networks} # 倾向网络ip地址 可匹配正则 也可以匹配前缀
+      use-only-site-local-interfaces: false # 是否读取本地回环网络
+    nacos:
+      username: ${app.nacos.username}
+      password: ${app.nacos.password}
+      server-addr: ${app.nacos.server}
+      # 注册中心
+      discovery:
+        enabled:    ${app.nacos.enabled}
+        namespace:  ${app.nacos.namespace}
+        metadata:
+          basePath: ${app.base-path}
+      # 配置中心
+      config:
+        enabled:    ${app.nacos.enabled}
+        namespace:  ${app.nacos.namespace}
+        file-extension: yml
+
+# ======================= 日志配置 =======================
+# spring默认加载logback.xml和logback-spring.xml，此处让其从spring中加载变量，因此手动加载
+# 参考：https://www.jianshu.com/p/3dee6b898eda
+logging:
+  config: classpath:logback-custom.xml

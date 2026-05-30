@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.role.mapper.RoleModuleMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.role.model.pojo.RoleModule">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="role_id" jdbcType="VARCHAR" property="roleId" />
+    <result column="module_id" jdbcType="VARCHAR" property="moduleId" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, role_id, module_id
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.role.model.pojo.RoleModule" >
+    INSERT INTO bko_role_module (id, role_id, module_id)
+    VALUES (#{id,jdbcType=VARCHAR}, #{roleId,jdbcType=VARCHAR}, #{moduleId,jdbcType=VARCHAR})
+  </insert>
+
+  <insert id="batchInsert" parameterType="java.util.List">
+    INSERT INTO bko_role_module (id, role_id, module_id) VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.id,jdbcType=VARCHAR}, #{item.roleId,jdbcType=VARCHAR}, #{item.moduleId,jdbcType=VARCHAR})
+    </foreach>
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    DELETE FROM bko_role_module
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByRoleIdAndModuleId">
+    DELETE FROM bko_role_module
+    WHERE role_id = #{roleId,jdbcType=VARCHAR}
+      AND module_id = #{moduleId,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="batchDeleteByModuleId" parameterType="list">
+    DELETE FROM bko_role_module
+    WHERE role_id = #{roleId}
+      AND module_id IN
+      <foreach collection="list" item="item" open="(" close=")" separator=",">
+        #{item}
+      </foreach>
+  </delete>
+
+  <delete id="deleteByModuleId" parameterType="java.lang.String">
+    DELETE FROM bko_role_module
+    WHERE module_id = #{moduleId,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByRoleId" parameterType="java.lang.String">
+    DELETE FROM bko_role_module
+    WHERE role_id = #{roleId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="listByModuleId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_role_module
+    WHERE module_id = #{moduleId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByRoleId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_role_module
+    WHERE role_id = #{roleId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listRoleIdByModuleId" resultType="java.lang.String" >
+    SELECT brm.role_id
+    FROM bko_role_module AS brm
+    LEFT JOIN bko_role AS br ON br.id = brm.role_id
+    WHERE brm.module_id = #{moduleId,jdbcType=VARCHAR}
+    <if test="roleType != null and roleType != ''">
+      AND br.role_type = #{roleType,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+</mapper>

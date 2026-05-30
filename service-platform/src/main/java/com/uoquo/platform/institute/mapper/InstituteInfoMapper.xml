@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.institute.mapper.InstituteInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.institute.model.pojo.InstituteInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="parent_id" jdbcType="VARCHAR" property="parentId" />
+    <result column="parent_path" jdbcType="VARCHAR" property="parentPath" />
+    <result column="institute_type" jdbcType="CHAR" property="instituteType" />
+    <result column="institute_name" jdbcType="VARCHAR" property="instituteName" />
+    <result column="short_name" jdbcType="VARCHAR" property="shortName" />
+    <result column="pin_yin" jdbcType="VARCHAR" property="pinYin" />
+    <result column="institute_code" jdbcType="VARCHAR" property="instituteCode" />
+    <result column="district_code" jdbcType="VARCHAR" property="districtCode" />
+    <result column="address" jdbcType="VARCHAR" property="address" />
+    <result column="role_group" jdbcType="VARCHAR" property="roleGroup" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="status" jdbcType="CHAR" property="status" />
+    <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
+    <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="location_lng" jdbcType="VARCHAR" property="locationLng" />
+    <result column="location_lat" jdbcType="VARCHAR" property="locationLat" />
+    <result column="third_id" jdbcType="VARCHAR" property="thirdId" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, parent_id, parent_path, institute_type, institute_name, short_name, pin_yin, institute_code,
+    district_code, address, role_group, description, `status`, status_time, status_memo, location_lng,
+    location_lat, third_id, create_user, create_time, update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.institute.model.pojo.InstituteInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO inc_institute (id, parent_id, parent_path,
+      institute_type, institute_name, short_name,
+      pin_yin, institute_code, district_code,
+      address, role_group, description,
+      `status`, status_time, status_memo,
+      location_lng, location_lat, third_id,
+      create_user, create_time, update_user,
+      update_time, delete_state
+    )
+    VALUES (#{id,jdbcType=VARCHAR}, #{parentId,jdbcType=VARCHAR}, #{parentPath,jdbcType=VARCHAR},
+      #{instituteType,jdbcType=CHAR}, #{instituteName,jdbcType=VARCHAR}, #{shortName,jdbcType=VARCHAR},
+      #{pinYin,jdbcType=VARCHAR}, #{instituteCode,jdbcType=VARCHAR}, #{districtCode,jdbcType=VARCHAR},
+      #{address,jdbcType=VARCHAR}, #{roleGroup,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR},
+      #{status,jdbcType=CHAR}, #{statusTime,jdbcType=TIMESTAMP}, #{statusMemo,jdbcType=VARCHAR},
+      #{locationLng,jdbcType=VARCHAR}, #{locationLat,jdbcType=VARCHAR}, #{thirdId,jdbcType=VARCHAR},
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR},
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT}
+    )
+  </insert>
+
+  <update id="deleteByPrimaryKey">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_institute SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.institute.model.pojo.InstituteInfo">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE inc_institute
+    <set>
+      <if test="parentId != null and parentId != ''">
+        parent_id = #{parentId,jdbcType=VARCHAR},
+        parent_path = #{parentPath,jdbcType=VARCHAR},
+      </if>
+      <if test="instituteType != null and instituteType != ''">
+        institute_type = #{instituteType,jdbcType=CHAR},
+      </if>
+      <if test="instituteName != null and instituteName != ''">
+        institute_name = #{instituteName,jdbcType=VARCHAR},
+      </if>
+      <if test="shortName != null and shortName != ''">
+        short_name = #{shortName,jdbcType=VARCHAR},
+      </if>
+      <if test="pinYin != null and pinYin != ''">
+        pin_yin = #{pinYin,jdbcType=VARCHAR},
+      </if>
+      <if test="instituteCode != null and instituteCode != ''">
+        institute_code = #{instituteCode,jdbcType=VARCHAR},
+      </if>
+      <if test="roleGroup != null and roleGroup != ''">
+        role_group = #{roleGroup,jdbcType=CHAR},
+      </if>
+      <if test="districtCode != null">
+        district_code = #{districtCode,jdbcType=VARCHAR},
+      </if>
+      <if test="address != null">
+        address = #{address,jdbcType=VARCHAR},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      <if test="locationLng != null">
+        location_lng = #{locationLng,jdbcType=VARCHAR},
+      </if>
+      <if test="locationLat != null">
+        location_lat = #{locationLat,jdbcType=VARCHAR},
+      </if>
+      <if test="thirdId != null">
+        third_id = #{thirdId,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null and status != ''">
+        `status` = #{status,jdbcType=CHAR},
+        status_time = #{statusTime,jdbcType=TIMESTAMP},
+        status_memo = #{statusMemo,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP},
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="batchUpdateParentPath" >
+    UPDATE inc_institute SET
+      parent_path = REPLACE(parent_path, #{oldPath,jdbcType=VARCHAR}, #{newPath,jdbcType=VARCHAR})
+    WHERE parent_path LIKE CONCAT(#{oldPath,jdbcType=VARCHAR}, '%')
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_institute
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByRoleId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_institute ins
+    WHERE EXISTS (
+      SELECT 1 FROM bko_role AS r
+      WHERE r.institute_id = ins.id
+        AND r.id = #{roleId,jdbcType=VARCHAR}
+    )
+  </select>
+
+  <select id="selectByUnique" parameterType="map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_institute ins
+    WHERE delete_state = 0
+    <if test="thirdId != null and thirdId != ''">
+      AND parent_id = #{parentId,jdbcType=VARCHAR}
+      AND third_id = #{thirdId,jdbcType=VARCHAR}
+    </if>
+    <if test="instituteName != null and instituteName != ''">
+      AND institute_name = #{instituteName,jdbcType=VARCHAR}
+    </if>
+    <if test="id != null and id != ''">
+      AND id != #{id,jdbcType=VARCHAR}
+    </if>
+    LIMIT 1
+  </select>
+
+  <select id="selectBySearch" parameterType="map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM inc_institute
+    WHERE delete_state = 0
+    <if test="instituteName != null and instituteName != ''">
+      AND ( institute_name LIKE CONCAT('%', #{instituteName,jdbcType=VARCHAR}, '%')
+        OR  pin_yin LIKE CONCAT('%', UPPER(#{instituteName,jdbcType=VARCHAR}), '%')
+      )
+    </if>
+    <if test="parentId != null and parentId != ''">
+      AND parent_id = #{parentId,jdbcType=VARCHAR}
+    </if>
+    <if test="parentPath != null and parentPath != ''">
+      AND parent_path LIKE CONCAT(#{parentPath},'%')
+    </if>
+  </select>
+
+</mapper>

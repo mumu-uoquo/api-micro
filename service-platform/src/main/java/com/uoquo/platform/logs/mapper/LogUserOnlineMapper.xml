@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.logs.mapper.LogUserOnlineMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.logs.model.pojo.LogUserOnline">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="token" jdbcType="VARCHAR" property="token" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="user_name" jdbcType="VARCHAR" property="userName" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="login_ip" jdbcType="VARCHAR" property="loginIp" />
+    <result column="login_address" jdbcType="VARCHAR" property="loginAddress" />
+    <result column="device_sn" jdbcType="VARCHAR" property="deviceSn" />
+    <result column="device_os" jdbcType="VARCHAR" property="deviceOs" />
+    <result column="device_ua" jdbcType="VARCHAR" property="deviceUa" />
+    <result column="app_module_id" jdbcType="VARCHAR" property="appModuleId" />
+    <result column="app_module_name" jdbcType="VARCHAR" property="appModuleName" />
+    <result column="app_version" jdbcType="VARCHAR" property="appVersion" />
+    <result column="app_key" jdbcType="VARCHAR" property="appKey" />
+    <result column="app_name" jdbcType="VARCHAR" property="appName" />
+    <result column="login_time" jdbcType="TIMESTAMP" property="loginTime" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, token, user_id, user_name, institute_id, login_ip, login_address, device_sn, device_os,
+    device_ua, app_module_id, app_module_name, app_version, app_key, app_name, login_time, create_time, description
+  </sql>
+
+  <insert id="upsert" parameterType="com.uoquo.platform.logs.model.pojo.LogUserOnline">
+    INSERT INTO log_user_online (id, token, user_id, user_name, institute_id,
+      login_ip, login_address, device_sn, device_os, device_ua,
+      app_module_id, app_module_name, app_version, app_key, app_name,
+      login_time, create_time, description)
+    VALUES (#{id,jdbcType=VARCHAR}, #{token,jdbcType=VARCHAR}, #{userId,jdbcType=VARCHAR},
+      #{userName,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR},
+      #{loginIp,jdbcType=VARCHAR}, #{loginAddress,jdbcType=VARCHAR},
+      #{deviceSn,jdbcType=VARCHAR}, #{deviceOs,jdbcType=VARCHAR}, #{deviceUa,jdbcType=VARCHAR},
+      #{appModuleId,jdbcType=VARCHAR}, #{appModuleName,jdbcType=VARCHAR},
+      #{appVersion,jdbcType=VARCHAR}, #{appKey,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR},
+      #{loginTime,jdbcType=TIMESTAMP}, #{createTime,jdbcType=TIMESTAMP}, #{description,jdbcType=VARCHAR}
+    )
+    ON DUPLICATE KEY UPDATE
+      token           = VALUES(token),
+      login_time      = VALUES(login_time),
+      login_ip        = VALUES(login_ip),
+      login_address   = VALUES(login_address),
+      device_sn       = VALUES(device_sn),
+      device_os       = VALUES(device_os),
+      device_ua       = VALUES(device_ua),
+      app_module_id   = VALUES(app_module_id),
+      app_module_name = VALUES(app_module_name),
+      app_version     = VALUES(app_version),
+      description     = VALUES(description)
+  </insert>
+
+  <delete id="deleteByUserIdAndAppKey">
+    DELETE FROM log_user_online
+    WHERE user_id = #{userId,jdbcType=VARCHAR}
+      AND app_key = #{appKey,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByUserId" parameterType="java.lang.String">
+    DELETE FROM log_user_online
+    WHERE user_id = #{userId,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteById" parameterType="java.lang.String">
+    DELETE FROM log_user_online
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="selectById" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM log_user_online
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM log_user_online
+    <where>
+      <if test="userName != null and userName != ''">
+        AND user_name LIKE CONCAT('%', #{userName,jdbcType=VARCHAR}, '%')
+      </if>
+      <if test="instituteId != null and instituteId != ''">
+        AND institute_id = #{instituteId,jdbcType=VARCHAR}
+      </if>
+      <if test="loginIp != null and loginIp != ''">
+        AND login_ip LIKE CONCAT(#{loginIp,jdbcType=VARCHAR}, '%')
+      </if>
+      <if test="appModuleId != null and appModuleId != ''">
+        AND app_module_id = #{appModuleId,jdbcType=VARCHAR}
+      </if>
+    </where>
+    ORDER BY login_time DESC
+  </select>
+
+</mapper>

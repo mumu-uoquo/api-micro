@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.role.mapper.ModuleInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.role.model.pojo.ModuleInfo">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="parent_id" jdbcType="VARCHAR" property="parentId" />
+    <result column="module_name" jdbcType="VARCHAR" property="moduleName" />
+    <result column="module_code" jdbcType="VARCHAR" property="moduleCode" />
+    <result column="module_type" jdbcType="CHAR" property="moduleType" />
+    <result column="is_visible" jdbcType="BIT" property="visible" />
+    <result column="menu_name" jdbcType="VARCHAR" property="menuName" />
+    <result column="icon" jdbcType="VARCHAR" property="icon" />
+    <result column="url" jdbcType="VARCHAR" property="url" />
+    <result column="path" jdbcType="VARCHAR" property="path" />
+    <result column="params" jdbcType="VARCHAR" property="params" typeHandler="com.uoquo.web.mybatis.handler.List2JsonTypeHandler" />
+    <result column="popup" jdbcType="BIT" property="popup" />
+    <result column="sort_idx" jdbcType="INTEGER" property="sortIdx" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, parent_id, module_name, module_code, module_type, is_visible, menu_name, icon, path,
+    url, params, popup, sort_idx, description, create_user, create_time, update_user, update_time,
+    delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.role.model.pojo.ModuleInfo">
+    INSERT INTO bko_module (id, parent_id, module_name, module_code,
+      module_type, is_visible, menu_name,  icon,
+      path, url,
+      params,
+      popup, sort_idx,
+      description, create_user, create_time,
+      update_user, update_time, delete_state
+    )
+    VALUES (#{id,jdbcType=VARCHAR}, #{parentId,jdbcType=VARCHAR}, #{moduleName,jdbcType=VARCHAR}, #{moduleCode,jdbcType=VARCHAR},
+      #{moduleType,jdbcType=CHAR}, #{visible,jdbcType=BIT}, #{menuName,jdbcType=VARCHAR}, #{icon,jdbcType=VARCHAR},
+      #{path,jdbcType=VARCHAR}, #{url,jdbcType=VARCHAR},
+      #{params,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.List2JsonTypeHandler},
+      #{popup,jdbcType=BIT}, #{sortIdx,jdbcType=INTEGER},
+      #{description,jdbcType=VARCHAR}, #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
+      #{updateUser,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT}
+    )
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    DELETE FROM bko_module
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.role.model.pojo.ModuleInfo">
+    UPDATE bko_module
+    <set>
+      <if test="moduleName != null and moduleName != ''">
+        module_name = #{moduleName,jdbcType=VARCHAR},
+      </if>
+      <if test="moduleType != null and moduleType != ''">
+        module_type = #{moduleType,jdbcType=CHAR},
+      </if>
+      <if test="visible != null">
+        is_visible = #{visible,jdbcType=BIT},
+      </if>
+      <if test="menuName != null">
+        menu_name = #{menuName,jdbcType=VARCHAR},
+      </if>
+      <if test="icon != null">
+        icon = #{icon,jdbcType=VARCHAR},
+      </if>
+      <if test="path != null">
+        path = #{path,jdbcType=VARCHAR},
+      </if>
+      <if test="url != null">
+        url = #{url,jdbcType=VARCHAR},
+      </if>
+      <if test="params != null">
+        `params` = #{params,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.List2JsonTypeHandler},
+      </if>
+      <if test="popup != null">
+        popup = #{popup,jdbcType=BIT},
+      </if>
+      <if test="sortIdx != null">
+        sort_idx = #{sortIdx,jdbcType=INTEGER},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_module
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_module
+    WHERE delete_state = 0
+    <if test="parentId != null and parentId != ''">
+      AND parent_id = #{parentId,jdbcType=VARCHAR}
+    </if>
+    <if test="moduleType != null and moduleType != ''">
+      AND module_type = #{moduleType,jdbcType=CHAR}
+    </if>
+  </select>
+
+  <select id="listByParentId" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_module
+    WHERE delete_state = 0
+    <choose>
+      <when test="parentId != null and parentId != ''">
+        AND parent_id = #{parentId,jdbcType=VARCHAR}
+      </when>
+      <otherwise>
+        AND (parent_id IS NULL OR parent_id = '')
+      </otherwise>
+    </choose>
+  </select>
+
+  <select id="listByRoleId" resultMap="BaseResultMap">
+    SELECT bm.*
+    FROM bko_module AS bm
+    LEFT JOIN bko_role_module AS br ON bm.id = br.module_id
+    WHERE bm.delete_state = 0
+      AND br.role_id = #{roleId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="checkCodeIsExist" resultType="int">
+    SELECT count(1)
+    FROM bko_module
+    WHERE delete_state = 0
+    AND module_code = #{moduleCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="checkNameIsExist" resultType="int">
+    SELECT count(1)
+    FROM bko_module
+    WHERE delete_state = 0
+    AND module_name = #{moduleName,jdbcType=VARCHAR}
+    <choose>
+      <when test="parentId != null and parentId != ''">
+        AND parent_id = #{parentId,jdbcType=VARCHAR}
+      </when>
+      <otherwise>
+        AND (parent_id IS NULL OR parent_id = '')
+      </otherwise>
+    </choose>
+    <if test="id != null and id != ''">
+      AND id != #{id,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+</mapper>

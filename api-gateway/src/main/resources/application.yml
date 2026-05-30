@@ -1,0 +1,124 @@
+# =========================================================
+# 该配置文件可以提取到配置中心中，基本所有的微服务都可以通用.
+# https://docs.spring.io/spring-boot/docs/current/reference/html/spring-boot-features.html#boot-features-external-config
+# https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-application-properties.html
+# =========================================================
+
+# ======================= web容器配置 =======================
+server:
+  port: ${app.port}
+
+# ======================= spring配置 =======================
+spring:
+  # ======================= redis配置 =======================
+  redis:
+    default:
+      database: 0  # Redis数据库索引（默认为0）
+      password: ${app.redis.password}
+      timeout: 2000 # 读超时时间（毫秒），适当增加以应对大 key 或慢查询
+      connect-timeout: 1000 # 连接超时时间（毫秒），适当增加避免网络波动
+      client-name: ${spring.application.name}-redis # 客户端名称标识，便于监控
+      # 单点模式
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      # 哨兵模式
+      sentinel:
+        nodes: ${app.redis.sentinel-nodes}
+        master: mymaster
+        # sentinel-password: ${app.redis.sentinel-password} # 如果哨兵有密码
+      # 集群模式
+      cluster:
+        nodes: ${app.redis.cluster-nodes} # 以逗号分隔的“主机:端口”对列表进行引导
+        max-redirects: 3     # 在群集中执行命令时要遵循的最大重定向数目
+      lettuce:
+        shutdown-timeout: 100ms # 优雅关闭超时时间
+        pool:
+          max-active: 16 # 连接池最大连接数，建议设置为 CPU 核心数的 2-4 倍
+          max-idle: 8    # 最大空闲连接，适当增加以应对突发流量
+          min-idle: 4    # 最小空闲连接，保持一定的预热连接
+          max-wait: 3000ms # 连接池最大阻塞等待时间，适当延长
+          time-between-eviction-runs: 30s # 空闲连接检测间隔
+          # 关键健康检查配置
+          test-while-idle: true
+          test-on-borrow:  false # 改为 false，提升性能，依赖 test-while-idle
+          num-tests-per-eviction-run: 3
+          # 连接驱逐策略优化
+          min-evictable-idle-time-millis: 1800000 # 连接在池中最小生存时间 (30 分钟)
+          soft-min-evictable-idle-time-millis: 1800000 # 软最小驱逐时间
+
+  # ======================= gateway配置 =======================
+  # https://docs.spring.io/spring-cloud-gateway/reference/appendix.html
+  # Spring Cloud Gateway 2025.0+ 配置前缀变更为 spring.cloud.gateway.server.webflux
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # ======================= 注册中心 =======================
+          # 从服务注册中心获取服务信息，然后以服务名作为前缀配置相应的路由
+          discovery:
+            locator:
+              enabled: true
+          # ======================= 跨域配置 =======================
+          # https://docs.spring.io/spring-cloud-gateway/docs/current/reference/html/#cors-configuration
+          globalcors:
+            add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
+            cors-configurations:
+              '[/**]':
+#                allowedOriginPatterns: http://localhost,http://localhost:3000
+                allowedOriginPatterns: ${CORS_ORIGINS:*} # CORS_ORIGINS=host1,host2 #完整主机名（含协议、端口），不可用引号包裹，多个用英文逗号分割
+                allowCredentials: true
+                allowedMethods: ["GET", "POST", "OPTIONS"]
+#                allowedHeaders: "*" # 允许的自定义头信息（常规默认头信息不受限制）
+                allowedHeaders: ["Content-Type", "Last-Event-ID", "appid", "token", "nonce", "device-id", "timestamp", "signature-app", "user-language"]
+                exposedHeaders: "*"
+                maxAge: 1800
+          # ======================= 全局过滤器 =======================
+          default-filters:
+            - PreserveHostHeader               # 保留请求头
+            - name: GatewayRequestRateLimiter  # 请求限流（常规：RequestRateLimiter）
+              args:
+                # 例：限制每个用户每秒平均10次请求，最多15次
+                redis-rate-limiter.replenishRate: ${LIMITER_RATE:10}  # 令牌桶填充速率（每秒平均处理数 = replenishRate / requestedTokens）
+                redis-rate-limiter.burstCapacity: ${LIMITER_MAX:15}   # 令牌桶最大容量（每秒最大处理数 = burstCapacity / requestedTokens）
+                redis-rate-limiter.requestedTokens: 1  # 每个请求消耗的令牌数
+                status-code: OK                        # 限流后的响应码（默认为429，此处改为200）
+                key-resolver: "#{@tokenKeyResolver}"   # 限流采用的KEY（使用SpEL表达式从Spring容器中获取Bean对象）
+                #key-resolver: "#{@ipKeyResolver}"
+                #key-resolver: "#{@pathKeyResolver}"
+                # 自定义限流器
+                #rate-limiter: "#{@myRateLimiter}"    # 指定限流器的Bean
+                #key-resolver: "#{@userKeyResolver}"  # 指定限流的KEY
+          # ======================= 路由配置 =======================
+          routes:
+            # 标准配置，从注册中心的服务进行负载
+            - id: service-platform
+              uri: lb://service-platform
+              predicates:
+                - Path=/health/api/platform/**
+            # 自定义IPHASH负载
+            - id: demo-cloud-book
+              uri: iphash://demo-cloud-book
+              predicates:
+                - Path=/api/book/**
+#              filters:
+#                - StripPrefix=1      # 表示从二级url路径转发
+            # BIMI
+            - id: bimi-platform
+              uri: lb://bimi-platform
+              predicates:
+                - Path=/api/platform/**
+            - id: bimi-merchant
+              uri: lb://bimi-merchant
+              predicates:
+                - Path=/api/merchant/**
+            # 转发到外网
+            - id: baidu-test
+              uri: http://www.baidu.com
+              predicates:
+                - Path=/baidu/**
+            # 测试
+            - id: spring-demo
+              uri: http://localhost:7080
+              predicates:
+                - Path=/health/api/demo/**
+

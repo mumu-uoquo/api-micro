@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.logs.mapper.BizEventRecordMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.logs.model.pojo.BizEventRecord">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id"/>
+    <result column="token" jdbcType="VARCHAR" property="token"/>
+    <result column="trace_id" jdbcType="VARCHAR" property="traceId"/>
+    <result column="business_type" jdbcType="CHAR" property="businessType"/>
+    <result column="business_sub_type" jdbcType="VARCHAR" property="businessSubType"/>
+    <result column="business_table" jdbcType="VARCHAR" property="businessTable"/>
+    <result column="business_id" jdbcType="VARCHAR" property="businessId"/>
+    <result column="business_institute_id" jdbcType="VARCHAR" property="businessInstituteId"/>
+    <result column="operator_id" jdbcType="VARCHAR" property="operatorId"/>
+    <result column="operator_name" jdbcType="VARCHAR" property="operatorName"/>
+    <result column="operator_institute_id" jdbcType="VARCHAR" property="operatorInstituteId"/>
+    <result column="operation_time" jdbcType="TIMESTAMP" property="operationTime"/>
+    <result column="operation_type" jdbcType="CHAR" property="operationType"/>
+    <result column="operation_status" jdbcType="VARCHAR" property="operationStatus"/>
+    <result column="operation_desc" jdbcType="VARCHAR" property="operationDesc"/>
+    <result column="operation_content" jdbcType="VARCHAR" property="operationContent" typeHandler="com.uoquo.web.mybatis.handler.Map2JsonTypeHandler" />
+    <result column="change_data" jdbcType="VARCHAR" property="changeData" typeHandler="com.uoquo.web.mybatis.handler.Map2JsonTypeHandler" />
+    <result column="change_fields" jdbcType="VARCHAR" property="changeFields" />
+    <result column="remote_event" jdbcType="BOOLEAN" property="remoteEvent"/>
+    <result column="event_class" jdbcType="VARCHAR" property="eventClass"/>
+    <result column="event_content" jdbcType="VARCHAR" property="eventContent"/>
+    <result column="retry_count" jdbcType="INTEGER" property="retryCount"/>
+    <result column="retry_operator_id" jdbcType="VARCHAR" property="retryOperatorId"/>
+    <result column="retry_operator_name" jdbcType="VARCHAR" property="retryOperatorName"/>
+    <result column="retry_time" jdbcType="TIMESTAMP" property="retryTime"/>
+    <result column="description" jdbcType="VARCHAR" property="description"/>
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, token, trace_id, business_type, business_sub_type, business_table, business_id,
+    business_institute_id, operator_id, operator_name, operator_institute_id, operation_time,
+    operation_type, operation_status, operation_desc, operation_content, change_data, change_fields,
+    remote_event, event_class, event_content, retry_count, retry_operator_id,
+    retry_operator_name, retry_time, description
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.logs.model.pojo.BizEventRecord">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO biz_event_record (id, token, trace_id, business_type, business_sub_type,
+      business_table, business_id, business_institute_id, operator_id, operator_name,
+      operator_institute_id, operation_time, operation_type, operation_status,
+      operation_desc, operation_content, change_data, change_fields,
+      remote_event, event_class, event_content, retry_count, retry_operator_id,
+      retry_operator_name, retry_time, description)
+    VALUES (#{id,jdbcType=VARCHAR}, #{token,jdbcType=VARCHAR}, #{traceId,jdbcType=VARCHAR},
+      #{businessType,jdbcType=CHAR}, #{businessSubType,jdbcType=VARCHAR},
+      #{businessTable,jdbcType=VARCHAR}, #{businessId,jdbcType=VARCHAR},
+      #{businessInstituteId,jdbcType=VARCHAR}, #{operatorId,jdbcType=VARCHAR},
+      #{operatorName,jdbcType=VARCHAR}, #{operatorInstituteId,jdbcType=VARCHAR},
+      #{operationTime,jdbcType=TIMESTAMP}, #{operationType,jdbcType=CHAR},
+      #{operationStatus,jdbcType=VARCHAR}, #{operationDesc,jdbcType=VARCHAR},
+      #{operationContent,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.Map2JsonTypeHandler},
+      #{changeData,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.Map2JsonTypeHandler},
+      #{changeFields,jdbcType=VARCHAR},
+      #{remoteEvent,jdbcType=BOOLEAN}, #{eventClass,jdbcType=VARCHAR}, #{eventContent,jdbcType=VARCHAR},
+      #{retryCount,jdbcType=BOOLEAN}, #{retryOperatorId,jdbcType=VARCHAR},
+      #{retryOperatorName,jdbcType=VARCHAR}, #{retryTime,jdbcType=TIMESTAMP}, #{description,jdbcType=VARCHAR}
+    )
+  </insert>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM biz_event_record
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="java.util.Map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM biz_event_record
+    <where>
+      <if test="businessType != null and businessType != ''">
+        AND business_type = #{businessType}
+      </if>
+      <if test="businessSubType != null and businessSubType != ''">
+        AND business_sub_type = #{businessSubType}
+      </if>
+      <if test="businessId != null and businessId != ''">
+        AND business_id = #{businessId}
+      </if>
+      <if test="businessInstituteId != null and businessInstituteId != ''">
+        AND business_institute_id = #{businessInstituteId}
+      </if>
+      <if test="operatorId != null and operatorId != ''">
+        AND operator_id = #{operatorId}
+      </if>
+      <if test="token != null and token != ''">
+        AND token = #{token,jdbcType=VARCHAR}
+      </if>
+      <if test="operatorInstituteId != null and operatorInstituteId != ''">
+        AND operator_institute_id = #{operatorInstituteId}
+      </if>
+      <if test="operationType != null and operationType != ''">
+        AND operation_type = #{operationType,jdbcType=CHAR}
+      </if>
+      <if test="operationTimeStart != null">
+        AND u.create_time BETWEEN #{operationTimeStart,jdbcType=TIMESTAMP} AND #{operationTimeEnd,jdbcType=TIMESTAMP}
+      </if>
+    </where>
+    order by operation_time desc
+  </select>
+
+  <update id="updateRetryInfo" parameterType="com.uoquo.platform.logs.model.pojo.BizEventRecord">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE biz_event_record
+    <set>
+      <if test="retryCount != null">
+        retry_count = #{retryCount,jdbcType=INTEGER},
+      </if>
+      <if test="retryOperatorId != null and retryOperatorId != ''">
+        retry_operator_id = #{retryOperatorId,jdbcType=VARCHAR},
+      </if>
+      <if test="retryOperatorName != null and retryOperatorName != ''">
+        retry_operator_name = #{retryOperatorName,jdbcType=VARCHAR},
+      </if>
+      <if test="retryTime != null">
+        retry_time = #{retryTime,jdbcType=TIMESTAMP},
+      </if>
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+</mapper>

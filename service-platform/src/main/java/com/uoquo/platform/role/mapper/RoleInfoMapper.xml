@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.role.mapper.RoleInfoMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.role.model.pojo.RoleInfo">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="role_name" jdbcType="VARCHAR" property="roleName" />
+    <result column="role_type" jdbcType="CHAR" property="roleType" />
+    <result column="role_group" jdbcType="VARCHAR" property="roleGroup" />
+    <result column="role_grade" jdbcType="INTEGER" property="roleGrade" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <resultMap id="DtoResultMap" type="com.uoquo.platform.role.model.dto.RoleInfoDto">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="institute_id" jdbcType="VARCHAR" property="instituteId" />
+    <result column="institute_name" jdbcType="VARCHAR" property="instituteName" />
+    <result column="role_name" jdbcType="VARCHAR" property="roleName" />
+    <result column="role_type" jdbcType="CHAR" property="roleType" />
+    <result column="role_group" jdbcType="VARCHAR" property="roleGroup" />
+    <result column="role_grade" jdbcType="INTEGER" property="roleGrade" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, institute_id, role_name, role_type, role_group, role_grade, description, create_user,
+    create_time, update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.role.model.pojo.RoleInfo">
+    INSERT INTO bko_role (id, institute_id, role_name, role_type,
+      role_group, role_grade, description, 
+      create_user, create_time, update_user, 
+      update_time, delete_state)
+    VALUES (#{id,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{roleName,jdbcType=VARCHAR}, #{roleType,jdbcType=CHAR},
+      #{roleGroup,jdbcType=VARCHAR}, #{roleGrade,jdbcType=INTEGER}, #{description,jdbcType=VARCHAR}, 
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    DELETE FROM bko_role
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.role.model.pojo.RoleInfo">
+    UPDATE bko_role
+    <set>
+      <if test="roleName != null and roleName != ''">
+        role_name = #{roleName,jdbcType=VARCHAR},
+      </if>
+      <if test="roleType != null and roleType != ''">
+        role_type = #{roleType,jdbcType=VARCHAR},
+      </if>
+      <if test="roleGrade != null">
+        role_grade = #{roleGrade,jdbcType=INTEGER},
+      </if>
+      <if test="description != null and description != ''">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_role
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByInstitute" parameterType="map" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List"/>
+    FROM bko_role
+    WHERE delete_state = 0
+    AND role_type = '003001'
+    AND role_group = #{roleGroup,jdbcType=VARCHAR}
+    <if test="roleGrade != null">
+      AND role_grade <![CDATA[>=]]> #{roleGrade}
+    </if>
+    <if test="roleName != null and roleName != ''">
+      AND role_name LIKE CONCAT('%',#{roleName},'%')
+    </if>
+    UNION
+    SELECT
+    <include refid="Base_Column_List"/>
+    FROM bko_role
+    WHERE delete_state = 0
+    AND institute_id = #{instituteId}
+    AND role_type = '003003'
+    <if test="roleGrade != null">
+      AND role_grade <![CDATA[>=]]> #{roleGrade}
+    </if>
+    <if test="roleName != null and roleName != ''">
+      AND role_name LIKE CONCAT('%',#{roleName},'%')
+    </if>
+  </select>
+
+  <select id="selectBySearch" parameterType="map" resultMap="DtoResultMap">
+    SELECT brole.*, institute.institute_name
+    FROM bko_role AS brole
+    LEFT JOIN inc_institute AS institute ON institute.id = brole.institute_id
+    WHERE brole.delete_state = 0
+    AND brole.role_grade <![CDATA[>=]]> #{roleGrade}
+    <if test="roleName != null and roleName != ''">
+      AND brole.role_name LIKE CONCAT('%',#{roleName},'%')
+    </if>
+    <if test="instituteId != null and instituteId != ''">
+      AND brole.institute_id = #{instituteId,jdbcType=VARCHAR}
+    </if>
+    <if test="instituteList != null and instituteList.size() > 0">
+      AND brole.institute_id IN
+      <foreach collection="instituteList" item="item" open="(" close=")" separator=",">
+        #{item}
+      </foreach>
+    </if>
+    <if test="roleType != null and roleType != ''">
+      AND brole.role_type = #{roleType,jdbcType=CHAR}
+    </if>
+    <if test="roleGroup != null and roleGroup != ''">
+      AND brole.role_group = #{roleGroup,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+  <select id="listByUserId" resultMap="BaseResultMap">
+    SELECT br.*
+    FROM bko_role AS br
+    LEFT JOIN bko_user_role AS bru ON br.id = bru.role_id
+    WHERE br.delete_state = 0
+      AND bru.user_id = #{userId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="checkRoleNameIsExist" resultType="int">
+    SELECT count(1)
+    FROM bko_role
+    WHERE delete_state = 0
+      AND role_name = #{roleName,jdbcType=VARCHAR}
+      AND institute_id = #{instituteId,jdbcType=VARCHAR}
+    <if test="id != null and id != ''">
+      AND id != #{id,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+</mapper>

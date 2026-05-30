@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.role.mapper.ModuleResourceMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.role.model.pojo.ModuleResource">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="module_id" jdbcType="VARCHAR" property="moduleId" />
+    <result column="resource_id" jdbcType="VARCHAR" property="resourceId" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, module_id, resource_id
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.role.model.pojo.ModuleResource" >
+    INSERT INTO bko_module_resource (id, module_id, resource_id)
+    VALUES (#{id,jdbcType=VARCHAR}, #{moduleId,jdbcType=VARCHAR}, #{resourceId,jdbcType=VARCHAR})
+  </insert>
+
+  <insert id="batchInsert" parameterType="java.util.List">
+    INSERT INTO bko_module_resource (id, module_id, resource_id) VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.id,jdbcType=VARCHAR}, #{item.moduleId,jdbcType=VARCHAR}, #{item.resourceId,jdbcType=VARCHAR})
+    </foreach>
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    DELETE FROM bko_module_resource
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByModuleId" parameterType="java.lang.String">
+    DELETE FROM bko_module_resource
+    WHERE module_id = #{moduleId,jdbcType=VARCHAR}
+  </delete>
+
+  <delete id="deleteByResourceId" parameterType="java.lang.String">
+    DELETE FROM bko_module_resource
+    WHERE resource_id = #{resourceId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_module_resource
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByModuleId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_module_resource
+    WHERE module_id = #{moduleId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByResourceId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_module_resource
+    WHERE resource_id = #{resourceId,jdbcType=VARCHAR}
+  </select>
+
+</mapper>

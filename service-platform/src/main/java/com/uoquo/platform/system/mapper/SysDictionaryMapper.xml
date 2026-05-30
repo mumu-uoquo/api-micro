@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.SysDictionaryMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.SysDictionary">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="dic_type" jdbcType="CHAR" property="dicType" />
+    <result column="dic_code" jdbcType="CHAR" property="dicCode" />
+    <result column="dic_value" jdbcType="VARCHAR" property="dicValue" />
+    <result column="tag_style" jdbcType="VARCHAR" property="tagStyle" />
+    <result column="sort_idx" jdbcType="INTEGER" property="sortIdx" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, dic_type, dic_code, dic_value, tag_style, sort_idx, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.SysDictionary">
+    INSERT INTO sys_dictionary (id, dic_type, dic_code,
+      dic_value, tag_style, sort_idx,
+      delete_state)
+    VALUES (#{id,jdbcType=VARCHAR}, #{dicType,jdbcType=CHAR}, #{dicCode,jdbcType=CHAR},
+      #{dicValue,jdbcType=VARCHAR}, #{tagStyle,jdbcType=VARCHAR}, #{sortIdx,jdbcType=INTEGER},
+      #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <update id="update" parameterType="com.uoquo.platform.system.model.pojo.SysDictionary">
+    UPDATE sys_dictionary SET
+    <if test="dicType != null and dicType != ''">
+      dic_type  = #{dicType,jdbcType=CHAR},
+    </if>
+      dic_value = #{dicValue,jdbcType=VARCHAR},
+      tag_style = #{tagStyle,jdbcType=VARCHAR},
+      sort_idx  = #{sortIdx,jdbcType=INTEGER}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="deleteByPrimaryKey">
+    UPDATE sys_dictionary SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectById" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_dictionary
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_dictionary
+    WHERE dic_code = #{dicCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByRoot" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_dictionary
+    WHERE LENGTH(dic_code) = 3
+      AND delete_state = 0
+    ORDER BY sort_idx,dic_code ASC
+  </select>
+
+  <select id="selectByPrevCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_dictionary
+    WHERE dic_code LIKE CONCAT(#{code},'%')
+      AND dic_code != #{code}
+      AND delete_state = 0
+    ORDER BY sort_idx,dic_code ASC
+  </select>
+
+  <select id="selectAll" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_dictionary
+    WHERE delete_state = 0
+    ORDER BY sort_idx,dic_code ASC
+  </select>
+
+</mapper>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.institute.mapper.InstituteSettingMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="com.uoquo.platform.institute.model.pojo.InstituteSetting">
+        <id column="id" jdbcType="VARCHAR" property="id"/>
+        <result column="institute_id" jdbcType="VARCHAR" property="instituteId"/>
+        <result column="config_name" jdbcType="VARCHAR" property="configName"/>
+        <result column="config_code" jdbcType="VARCHAR" property="configCode"/>
+        <result column="config_value" jdbcType="VARCHAR" property="configValue"/>
+        <result column="description" jdbcType="VARCHAR" property="description"/>
+        <result column="update_user" jdbcType="VARCHAR" property="updateUser"/>
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
+    </resultMap>
+
+    <!-- 基础列名 -->
+    <sql id="Base_Column_List">
+        id, institute_id, config_name, config_code, config_value, description, update_user, update_time
+    </sql>
+
+    <!-- 插入机构配置 -->
+    <insert id="insert" parameterType="com.uoquo.platform.institute.model.pojo.InstituteSetting">
+        INSERT INTO inc_setting (id, institute_id, config_name, config_code, config_value, description, update_user, update_time)
+        VALUES (#{id,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{configName,jdbcType=VARCHAR}, 
+                #{configCode,jdbcType=VARCHAR}, #{configValue,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, 
+                #{updateUser,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP})
+    </insert>
+
+    <!-- 根据机构ID和配置标识更新 -->
+    <update id="updateByInstituteIdAndCode" parameterType="com.uoquo.platform.institute.model.pojo.InstituteSetting">
+        UPDATE inc_setting
+        SET config_name = #{configName,jdbcType=VARCHAR},
+            config_value = #{configValue,jdbcType=VARCHAR},
+            description = #{description,jdbcType=VARCHAR},
+            update_user = #{updateUser,jdbcType=VARCHAR},
+            update_time = #{updateTime,jdbcType=TIMESTAMP}
+        WHERE institute_id = #{instituteId,jdbcType=VARCHAR} AND config_code = #{configCode,jdbcType=VARCHAR}
+    </update>
+
+    <!-- 根据机构ID和配置标识删除 -->
+    <delete id="deleteByInstituteIdAndCode">
+        DELETE FROM inc_setting
+        WHERE institute_id = #{instituteId,jdbcType=VARCHAR} AND config_code = #{configCode,jdbcType=VARCHAR}
+    </delete>
+
+    <!-- 根据机构ID和配置标识查询 -->
+    <select id="selectByInstituteIdAndCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM inc_setting
+        WHERE institute_id = #{instituteId,jdbcType=VARCHAR} AND config_code = #{configCode,jdbcType=VARCHAR}
+    </select>
+
+    <!-- 根据机构ID和前缀查询列表 -->
+    <select id="selectByInstituteIdAndPrefix" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM inc_setting
+        WHERE institute_id = #{instituteId,jdbcType=VARCHAR} AND config_code LIKE CONCAT(#{prefix,jdbcType=VARCHAR}, '%')
+        ORDER BY config_code
+    </select>
+
+</mapper>

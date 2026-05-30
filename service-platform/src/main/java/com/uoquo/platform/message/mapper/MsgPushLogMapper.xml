@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.message.mapper.MsgPushLogMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.message.model.pojo.MsgPushLog">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="message_id" jdbcType="VARCHAR" property="messageId" />
+    <result column="receiver_id" jdbcType="VARCHAR" property="receiverId" />
+    <result column="receiver_name" jdbcType="VARCHAR" property="receiverName" />
+    <result column="push_way" jdbcType="CHAR" property="pushWay" />
+    <result column="push_status" jdbcType="CHAR" property="pushStatus" />
+    <result column="push_time" jdbcType="TIMESTAMP" property="pushTime" />
+    <result column="push_result" jdbcType="VARCHAR" property="pushResult" />
+    <result column="retry_count" jdbcType="TINYINT" property="retryCount" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, message_id, receiver_id, receiver_name, push_way, push_status, push_time, push_result, retry_count,
+    description
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.message.model.pojo.MsgPushLog">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO msg_push_log (id, message_id, receiver_id, receiver_name,
+      push_way, push_status, push_time,
+      push_result, retry_count, description)
+    VALUES  (#{id,jdbcType=VARCHAR}, #{messageId,jdbcType=VARCHAR}, #{receiverId,jdbcType=VARCHAR}, #{receiverName,jdbcType=VARCHAR},
+      #{pushWay,jdbcType=CHAR}, #{pushStatus,jdbcType=CHAR}, #{pushTime,jdbcType=TIMESTAMP},
+      #{pushResult,jdbcType=VARCHAR}, #{retryCount,jdbcType=TINYINT}, #{description,jdbcType=VARCHAR})
+  </insert>
+
+  <update id="updatePushStatus">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_push_log SET
+      push_status = #{pushStatus,jdbcType=CHAR}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_push_log
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listByMessageId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_push_log
+    WHERE message_id = #{messageId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_push_log
+    <where>
+      <if test="messageId != null and messageId != ''">
+        AND message_id = #{messageId,jdbcType=VARCHAR}
+      </if>
+      <if test="receiverId != null and receiverId != ''">
+        AND receiver_id = #{receiverId,jdbcType=VARCHAR}
+      </if>
+      <if test="pushStatus != null and pushStatus != ''">
+        AND push_status = #{pushStatus,jdbcType=CHAR}
+      </if>
+      <if test="startTime != null">
+        AND push_time BETWEEN #{startTime,jdbcType=TIMESTAMP} AND #{endTime,jdbcType=TIMESTAMP}
+      </if>
+    </where>
+  </select>
+
+</mapper>

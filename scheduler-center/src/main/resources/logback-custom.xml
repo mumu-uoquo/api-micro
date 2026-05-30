@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  该文件为模板文件，实际项目中请调整配置
+  根节点<configuration>包含的属性说明：
+  scan       : 当此属性设置为true时，配置文件如果发生改变，将会被重新加载，默认值为true。
+  scanPeriod : 设置监测配置文件是否有修改的时间间隔，如果没有给出时间单位，默认单位是毫秒，默认的时间间隔为1分钟。当scan为true时，此属性生效。
+  debug      : 当此属性设置为true时，将打印出logback内部日志信息，实时查看logback运行状态。默认值为false。
+-->
+<configuration scan="false" scanPeriod="60 seconds" debug="false">
+  <!-- 设置变量  -->
+  <!--<property resource="system.properties" />-->
+  <!-- 读取配置中心的属性 -->
+  <springProperty scope="context" name="log.name"   source="app.log.name" />
+  <springProperty scope="context" name="log.home"   source="app.log.home" />
+  <!-- %d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符 -->
+  <property name="log.format" value="[%date{yyyy-MM-dd'T'HH:mm:ss.SSS}] [%contextName] [%X{requestId}] [%thread] [%-5level] %logger{96} [%line] - %msg%n" />
+
+  <!-- 当多个应用输出到同一个文件时，可以使用 %contextName 来区分。默认为“default” -->
+  <contextName>${log.name}</contextName>
+
+  <!-- 控制台输出 -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>${log.format}</pattern>
+      <charset>UTF-8</charset> <!-- 此处设置字符集 -->
+    </encoder>
+  </appender>
+
+  <!--
+    FileAppender：把日志添加到文件
+    RollingFileAppender：滚动记录文件，先将日志记录到指定文件，当符合某个条件时，将日志记录到其他文件
+  -->
+  <!-- 系统日志 -->
+  <appender name="ROOT_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${log.home}/catalina-${log.name}.log</file>
+    <!-- 滚动策略（后缀为gz、zip时，自动压缩） -->
+    <!-- 每天一个文件，每个文件不超过100MB，最多保留90天 -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${log.home}/history/catalina-${log.name}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <!-- 保留的历史日志天数（时间维度） -->
+      <maxHistory>90</maxHistory>
+      <!-- 单个文件的最大大小（大小维度） -->
+      <maxFileSize>100MB</maxFileSize>
+      <!-- 所有归档文件的总大小上限（可选） -->
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <!-- 日志内容 -->
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>${log.format}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <!-- 只打印 WARN 日志
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <level>WARN</level>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+    -->
+    <!-- 打印 非WARN 日志
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <level>WARN</level>
+      <onMatch>DENY</onMatch>
+      <onMismatch>ACCEPT</onMismatch>
+    </filter>
+    -->
+  </appender>
+  <!-- 定义 AsyncAppender，包装 ROOT_LOG_FILE -->
+  <appender name="ASYNC_ROOT_LOG_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <!-- 引用目标 Appender（即上面定义的 ROOT_LOG_FILE） -->
+    <appender-ref ref="ROOT_LOG_FILE" />
+    <!-- 异步队列配置 -->
+    <queueSize>1024</queueSize> <!-- 队列容量（默认256，建议根据并发量调整） -->
+    <!-- <discardingThreshold>0</discardingThreshold> --> <!-- 0：不丢弃任何级别日志（默认80%队列满时丢弃 INFO 及以下） -->
+    <neverBlock>false</neverBlock> <!-- 队列满时是否阻塞主线程（默认false：阻塞，避免日志丢失；true：不阻塞，丢弃新日志） -->
+    <includeCallerData>true</includeCallerData> <!-- 是否打印栈信息（如行号）（默认false：不打印，true：打印，会增加性能开销） -->
+  </appender>
+
+  <!-- 业务日志（按天分割） -->
+  <appender name="APP_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${log.home}/${log.name}.log</file>
+    <!-- 滚动策略（后缀为gz、zip时，自动压缩） -->
+    <!-- 每天一个文件，最多保留365天，总日志大小不超过20GB -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${log.home}/history/${log.name}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+      <maxHistory>90</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <!-- 日志内容 -->
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>${log.format}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+  <appender name="ASYNC_APP_LOG_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="APP_LOG_FILE" />
+    <queueSize>1024</queueSize>
+    <neverBlock>false</neverBlock>
+    <includeCallerData>true</includeCallerData>
+  </appender>
+
+  <!-- 日志输出，
+     level : 级别大小写无关，ALL < TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF
+     root  : 所有日志输出
+     logger：可以指定某些包的日志单独输出，如果没有设置level和appender，则使用root的配置
+     name  : 包名或完整类名
+     additivity: 是否向上级传递（默认true）
+  -->
+  <root level="${LOG_LEVEL_ROOT:-INFO}">
+    <appender-ref ref="CONSOLE" />
+    <appender-ref ref="ASYNC_ROOT_LOG_FILE" />
+  </root>
+  <logger name="com.uoquo" level="${LOG_LEVEL_APP:-DEBUG}" additivity="false">
+    <appender-ref ref="CONSOLE" />
+    <appender-ref ref="ASYNC_APP_LOG_FILE" />
+  </logger>
+
+</configuration>

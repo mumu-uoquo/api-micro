@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.message.mapper.MsgReceiverMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.message.model.pojo.MsgReceiver">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="message_id" jdbcType="VARCHAR" property="messageId" />
+    <result column="receiver_id" jdbcType="VARCHAR" property="receiverId" />
+    <result column="receiver_name" jdbcType="VARCHAR" property="receiverName" />
+    <result column="is_read" jdbcType="BIT" property="readState" />
+    <result column="read_time" jdbcType="TIMESTAMP" property="readTime" />
+    <result column="is_processed" jdbcType="BIT" property="processedState" />
+    <result column="processed_time" jdbcType="TIMESTAMP" property="processedTime" />
+    <result column="processed_result" jdbcType="VARCHAR" property="processedResult" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    id, message_id, receiver_id, receiver_name, is_read, read_time, is_processed, processed_time, 
+    processed_result, description, create_time, update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.message.model.pojo.MsgReceiver">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    INSERT INTO msg_receiver (id, message_id, receiver_id,
+      receiver_name, is_read, read_time, 
+      is_processed, processed_time, processed_result, 
+      description, create_time, update_user, 
+      update_time, delete_state)
+    VALUES  (#{id,jdbcType=VARCHAR}, #{messageId,jdbcType=VARCHAR}, #{receiverId,jdbcType=VARCHAR},
+      #{receiverName,jdbcType=VARCHAR}, #{readState,jdbcType=BIT}, #{readTime,jdbcType=TIMESTAMP}, 
+      #{processedState,jdbcType=BIT}, #{processedTime,jdbcType=TIMESTAMP}, #{processedResult,jdbcType=VARCHAR}, 
+      #{description,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR}, 
+      #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <update id="deleteByMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_receiver SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    <where>
+    <if test="messageId != null and messageId != ''">
+      message_id = #{messageId,jdbcType=VARCHAR}
+    </if>
+    <if test="receiverId != null and receiverId != ''">
+      AND receiver_id = #{receiverId,jdbcType=VARCHAR}
+    </if>
+    <if test="id != null and id != ''">
+      id = #{id,jdbcType=VARCHAR}
+    </if>
+    <if test="ids != null and ids.size() > 0">
+      id IN
+      <foreach collection="ids" item="item" open="(" close=")" separator=",">
+        #{item}
+      </foreach>
+    </if>
+    </where>
+  </update>
+
+  <update id="updateReadStatus" parameterType="com.uoquo.platform.message.model.pojo.MsgReceiver">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_receiver
+    <set>
+      is_read   = #{readState,jdbcType=BIT},
+      read_time = #{readTime,jdbcType=TIMESTAMP},
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE
+    <if test="id != null and id != ''">
+      id = #{id,jdbcType=VARCHAR}
+    </if>
+    <if test="receiverId != null and receiverId != ''">
+      receiver_id = #{receiverId,jdbcType=VARCHAR}
+    </if>
+  </update>
+
+  <update id="updateProcessedStatus" parameterType="com.uoquo.platform.message.model.pojo.MsgReceiver">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    UPDATE msg_receiver
+    <set>
+      is_processed     = #{processedState,jdbcType=BIT},
+      processed_time   = #{processedTime,jdbcType=TIMESTAMP},
+      processed_result = #{processedResult,jdbcType=VARCHAR},
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE
+    <if test="id != null and id != ''">
+      id = #{id,jdbcType=VARCHAR}
+    </if>
+    <if test="receiverId != null and receiverId != ''">
+      receiver_id = #{receiverId,jdbcType=VARCHAR}
+    </if>
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_receiver
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByMessageAndReceiver" parameterType="java.lang.String" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_receiver
+    WHERE message_id  = #{messageId,jdbcType=VARCHAR}
+      AND receiver_id = #{receiverId,jdbcType=VARCHAR}
+  </select>
+
+  <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
+    <!-- @mbg.generated: generated automatically, do not modify! -->
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_receiver
+    WHERE delete_state = 0
+    <if test="ids != null and ids.size() > 0">
+      AND id IN
+      <foreach collection="ids" item="item" open="(" close=")" separator=",">
+        #{item}
+      </foreach>
+    </if>
+    <if test="messageId != null and messageId != ''">
+      AND message_id = #{messageId,jdbcType=VARCHAR}
+    </if>
+    <if test="receiverId != null and receiverId != ''">
+      AND receiver_id = #{receiverId,jdbcType=VARCHAR}
+    </if>
+    <if test="readState != null">
+      AND is_read = #{readState,jdbcType=BIT}
+    </if>
+    <if test="processedState != null">
+      AND is_processed = #{processedState,jdbcType=BIT}
+    </if>
+    <if test="latestTime != null">
+      <![CDATA[
+       AND create_time >= #{latestTime,jdbcType=TIMESTAMP}
+      ]]>
+    </if>
+  </select>
+</mapper>

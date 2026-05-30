@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.SysReturnCodeMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.SysReturnCode">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="return_code" jdbcType="VARCHAR" property="returnCode" />
+    <result column="return_value" jdbcType="VARCHAR" property="returnValue" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, return_code, return_value, description
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.SysReturnCode">
+    INSERT INTO sys_return_code (id, return_code, return_value, description)
+    VALUES (#{id,jdbcType=VARCHAR}, #{returnCode,jdbcType=VARCHAR}, #{returnValue,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR})
+  </insert>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+    DELETE FROM sys_return_code
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </delete>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.system.model.pojo.SysReturnCode">
+    UPDATE sys_return_code
+    SET
+    <if test="returnCode != null">
+      return_code = #{returnCode,jdbcType=VARCHAR},
+    </if>
+    <if test="returnValue != null">
+      return_value = #{returnValue,jdbcType=VARCHAR},
+    </if>
+    <if test="description != null">
+      description = #{description,jdbcType=VARCHAR}
+    </if>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_return_code
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectByReturnCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_return_code
+    WHERE return_code = #{returnCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectAll" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_return_code
+    ORDER BY return_code ASC
+  </select>
+
+  <select id="selectBySearch" parameterType="java.util.Map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM sys_return_code
+    <where>
+      <if test="returnCode != null and returnCode != ''">
+        AND return_code LIKE CONCAT('%', #{returnCode,jdbcType=VARCHAR}, '%')
+      </if>
+    </where>
+    ORDER BY return_code ASC
+  </select>
+
+</mapper>

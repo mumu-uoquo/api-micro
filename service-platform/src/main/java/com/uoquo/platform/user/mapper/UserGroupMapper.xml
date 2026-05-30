@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.user.mapper.UserGroupMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.user.model.pojo.UserGroup">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="group_id" jdbcType="VARCHAR" property="groupId" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, user_id, group_id
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.user.model.pojo.UserGroup">
+    INSERT INTO bko_user_group (id, user_id, group_id)
+    VALUES (#{id,jdbcType=VARCHAR}, #{userId,jdbcType=VARCHAR}, #{groupId,jdbcType=VARCHAR})
+  </insert>
+
+  <insert id="batchInsert" parameterType="java.util.List">
+    INSERT INTO bko_user_group (id, user_id, group_id) VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.id,jdbcType=VARCHAR}, #{item.userId,jdbcType=VARCHAR}, #{item.groupId,jdbcType=VARCHAR})
+    </foreach>
+  </insert>
+
+  <delete id="deleteByUserId" parameterType="java.lang.String">
+    DELETE FROM bko_user_group
+    WHERE user_id = #{userId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="selectByUserId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_user_group
+    WHERE user_id = #{userId,jdbcType=VARCHAR}
+  </select>
+
+  <delete id="deleteByGroupId" parameterType="java.lang.String">
+    DELETE FROM bko_user_group
+    WHERE group_id = #{groupId,jdbcType=VARCHAR}
+  </delete>
+
+  <select id="selectByGroupId" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_user_group
+    WHERE group_id = #{groupId,jdbcType=VARCHAR}
+  </select>
+</mapper>

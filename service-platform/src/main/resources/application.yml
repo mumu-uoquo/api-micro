@@ -1,0 +1,272 @@
+# =========================================================
+# 该配置文件可以提取到配置中心中，基本所有的微服务都可以通用.
+# =========================================================
+
+# ======================= web容器配置 =======================
+server:
+  port: ${app.port}
+  use-forward-headers: true
+  servlet:
+    context-path: ${app.base-path:/}
+    # spring boot 2.x
+    encoding:
+      enabled: true
+      charset: UTF-8
+      force:   true
+      force-request:  true
+      force-response: true
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types:
+      - text/html
+      - text/xml
+      - text/plain
+      - text/css
+      - application/json
+      - application/xml
+      - application/javascript
+  tomcat:
+    uri-encoding: UTF-8
+    accept-count: 15000 # 等待连接队列
+    max-threads: 15000  # 最大线程数默认是200
+    max-connections: 15000
+    min-spare-threads: 20
+    connection-timeout: 5000
+    # 代理转发https请求（https://docs.spring.io/spring-boot/docs/2.1.x/reference/htmlsingle/#howto-enable-https）
+    protocol-header: X-Forwarded-Proto
+# ======================= spring配置 =======================
+spring:
+  application:
+    index: ${spring.application.name}-${app.port}-${app.code:00}${app.node:0}
+  cloud:
+    # ======================= 负载均衡策略 =======================
+    # https://github.com/alibaba/spring-cloud-alibaba/wiki/Sentinel
+    sentinel:
+      enabled: ${app.sentinel.enabled}
+      transport:
+        dashboard: ${app.sentinel.dashboard}  # Sentinel 控制台地址
+        port: ${app.sentinel.port}  # 客户端与控制台通信端口（默认8719，若冲突自动+1）
+    # ======================= 负载均衡策略 =======================
+    loadbalancer:
+      retry:
+        enabled: false   # 是否重试（默认false）
+      cache:
+        enabled: true    # 是否缓存（默认false）
+        ttl: 30s         # 缓存时间
+        capacity: 1024   # 缓存个数
+    # ======================= 消息总线 =======================
+    bus:
+      enabled: ${app.kafka.default.enabled}
+      id:  ${spring.application.name}:${app.code:00}${app.node:0} # 必须以“服务名”或“服务名冒号”开头，否则定向消息将无法接收
+      destination: ${app.kafka.default.bus-topic}   # 默认的消息主题
+      trace:
+        enabled: true                               # 启用跟踪
+      ack:
+        enabled: ${app.kafka.default.bus-ask:true}  # 自动Ack
+    stream:
+      bindings:
+        # 输出通道 (生产者)
+        springCloudBusOutput:
+          destination: ${app.kafka.default.bus-topic}  # 发送的 Topic
+        # 输入通道 (消费者)
+        springCloudBusInput:
+          destination: ${app.kafka.default.bus-topic}  # 监听的 Topic
+          group: ${app.kafka.default.bus-group}        # 消费组要用服务名，防止多节点时重复消费
+          consumer:
+            maxAttempts: 1       # 最多尝试次数（含第一次），设置为 1 相当于不重试
+      kafka:
+        bindings:
+          springCloudBusInput:
+            consumer:
+              # 死信队列配置
+              enableDlq: true
+              autoBindDlq: true
+              dlqName: ${app.kafka.default.bus-topic}.DLQ
+              dlqPartitions: 1
+
+  # ======================= swagger兼容 =======================
+  mvc:
+    pathmatch:
+      matching-strategy: ANT_PATH_MATCHER # spring2.6.0之后默认为 PathPatternParser，要集成swagger3，则需要改回 AntPathMatcher
+    favicon:
+      enabled: false
+  http:
+    # spring boot 1.x
+    encoding:
+      enabled: true
+      force:   true
+      charset: UTF-8
+  servlet:
+    multipart:
+      enabled: true
+      location: ${app.temp-dir}
+      max-file-size:    30MB # 单文件大小
+      max-request-size: 50MB # 总请求大小
+  # ======================= redis配置 =======================
+  redis:
+    default:
+      database: 0  # Redis数据库索引（默认为0）
+      password: ${app.redis.password}
+      timeout: 2000 # 读超时时间（毫秒），适当增加以应对大 key 或慢查询
+      connect-timeout: 1000 # 连接超时时间（毫秒），适当增加避免网络波动
+      client-name: ${spring.application.name}-redis # 客户端名称标识，便于监控
+      # 单点模式
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      # 哨兵模式
+      sentinel:
+        nodes: ${app.redis.sentinel-nodes}
+        master: mymaster
+        # sentinel-password: ${app.redis.sentinel-password} # 如果哨兵有密码
+      # 集群模式
+      cluster:
+        nodes: ${app.redis.cluster-nodes} # 以逗号分隔的“主机:端口”对列表进行引导
+        max-redirects: 3     # 在群集中执行命令时要遵循的最大重定向数目
+      lettuce:
+        shutdown-timeout: 100ms # 优雅关闭超时时间
+        pool:
+          max-active: 16 # 连接池最大连接数，建议设置为 CPU 核心数的 2-4 倍
+          max-idle: 8    # 最大空闲连接，适当增加以应对突发流量
+          min-idle: 4    # 最小空闲连接，保持一定的预热连接
+          max-wait: 3000ms # 连接池最大阻塞等待时间，适当延长
+          time-between-eviction-runs: 30s # 空闲连接检测间隔
+          # 关键健康检查配置
+          test-while-idle: true
+          test-on-borrow:  false # 改为 false，提升性能，依赖 test-while-idle
+          num-tests-per-eviction-run: 3
+          # 连接驱逐策略优化
+          min-evictable-idle-time-millis: 1800000 # 连接在池中最小生存时间 (30 分钟)
+          soft-min-evictable-idle-time-millis: 1800000 # 软最小驱逐时间
+
+  # ======================= 数据源配置 =======================
+  datasource:
+    # https://github.com/alibaba/druid/tree/master/druid-spring-boot-starter
+    # Spring Boot 2.X 版本不再支持配置继承，多数据源时所有配置都需要单独配置，否则配置不会生效
+    druid:
+      # 数据源（主）
+      primary:
+        url: ${app.db.url}
+        username: ${app.db.user}
+        password: ${app.db.pswd}
+        initial-size: ${DB_POOL_INIT:2}  # 初始化大小
+        max-active:   ${DB_POOL_SIZE:10} # 最大连接数
+        min-idle:     1 # 最小连接数
+        max-wait:     3000 # 获取连接等待超时的时间(ms)
+        # 打开PSCache，并指定每个连接上PSCache的大小
+        #pool-prepared-statements: true
+        #max-pool-prepared-statement-per-connection-size: 20
+        validation-query: 'SELECT 1 FROM DUAL'
+        #validation-query-timeout:
+        test-on-borrow:  true
+        test-on-return:  false
+        test-while-idle: true
+        time-between-eviction-runs-millis: 60000  # 间隔多久才进行一次检测，检测需要关闭的空闲连接(ms)
+        #min-evictable-idle-time-millis:    # 连接在池中最小生存的时间(ms)
+        #max-evictable-idle-time-millis:    # 连接在池中最大生存的时间(ms)
+      # Filter 配置（可全局生效）
+      filter:
+        # 日志
+        slf4j:
+          enabled: true
+        # SQL统计
+        stat:
+          enabled: true
+          #db-type: mysql
+          merge-sql: true    # SQL合并
+          log-slow-sql: true # 开启慢SQL记录
+          slow-sql-millis: ${app.db.slow:100} # 慢sql
+        # 监控页面
+        stat-view-servlet:
+          enabled: false
+        # 请求统计
+        web-stat-filter:
+          enabled: false
+  # ======================= Kafka配置 =======================
+  kafka:
+    default:
+      bootstrap-servers: ${app.kafka.default.host}
+      listener:
+        # 手动提交：MANUAL_IMMEDIATE、每条消息单独提交：RECORD
+        ack-mode: RECORD
+        # 设置批量消费
+        #type: batch
+        # 消费端监听的topic不存在时，项目启动会报错(关掉)
+        missing-topics-fatal: false
+      #=============== provider  =======================
+      producer:
+        client-id: ${app.kafka.default.group}
+        # 发生错误后，消息重发的次数。
+        retries: 0
+        # 消息重发的间隔时间
+        retry_backoff_ms: 2000
+        # 每次批量发送消息的数量
+        batch-size: 16384
+        # 设置生产者内存缓冲区的大小。
+        buffer-memory: 33554432
+        # 指定消息key和消息体的编解码方式
+        key-serializer:   org.apache.kafka.common.serialization.StringSerializer
+        value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+        # acks=0 ： 生产者在成功写入消息之前不会等待任何来自服务器的响应。
+        # acks=1 ： 只要集群的首领节点收到消息，生产者就会收到一个来自服务器成功响应。
+        # acks=all ：只有当所有参与复制的节点全部收到消息时，生产者才会收到一个来自服务器的成功响应。
+        acks: 1
+      #=============== consumer  =======================
+      consumer:
+        # 指定默认消费者group id
+        group-id:  ${app.kafka.default.group}
+        client-id: ${app.kafka.default.group}
+        # 该属性指定了消费者在读取一个没有偏移量的分区或者偏移量无效的情况下该作何处理：
+        # latest：（默认值）在偏移量无效的情况下，消费者将从最新的记录开始读取数据（在消费者启动之后生成的记录）
+        # earliest ：在偏移量无效的情况下，消费者将从起始位置读取分区的记录
+        # none：topic各分区都存在已提交的offset时，从offset后开始消费；只要有一个分区不存在已提交的offset，则抛出异常
+        auto-offset-reset: latest
+        # 是否自动提交偏移量，默认值是true,为了避免出现重复数据和数据丢失，可以把它设置为false,然后手动提交偏移量
+        enable-auto-commit: false
+        # 自动提交的时间间隔 在spring boot 2.X 版本中这里采用的是值的类型为Duration 需要符合特定的格式，如1S,1M,2H,5D
+        auto-commit-interval: 100
+        # 指定消息key和消息体的编解码方式
+        key-deserializer:   org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+        value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+        max-poll-records: 200
+        properties:
+          # 消费会话超时时间
+          session.timeout.ms: 15000
+          # ErrorHandlingDeserializer 配置
+          spring.json.trusted.packages: '*'  # 允许所有包的反序列化
+          spring.deserializer.key.delegate.class:   org.apache.kafka.common.serialization.StringDeserializer
+          spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+          # 自定义失败处理器（默认：org.springframework.kafka.support.serializer.FailedDeserializationFunction）
+          spring.deserializer.value.function:       com.uoquo.cloud.kafka.DeserializationFailureHandler
+          # 反序列化失败后的行为配置
+          spring.deserializer.key.failure.fallback:   null
+          spring.deserializer.value.failure.fallback: null
+
+# ======================= mybatis =======================
+mybatis:
+  type-handlers-package: com.uoquo.web.mybatis.handler  # TypeHandler所在的包路径
+
+# ======================= SWAGGER =======================
+springfox:
+  documentation:
+    enabled: ${app.swagger.enabled:false}
+springdoc:
+  api-docs:
+    enabled: ${app.swagger.enabled:false}
+
+# ======================= feign相关 =======================
+feign:
+  hystrix:
+    enabled: false # 是否启用熔断
+  client:
+    config:
+      default: # 默认配置，可以设置为指定的服务名，开启针对特定服务的配置
+        loggerLevel: FULL
+        connectTimeout: 1000   # 相当于Request.Options
+        readTimeout:    10000  # 相当于Request.Options
+  httpclient:
+    enabled: false # 关闭feign-httpclient
+    max-connections:           200 # 默认值
+    max-connections-per-route: 50  # 默认值
+  okhttp:
+    enabled: true  # 开启feign-okhttp

@@ -4,8 +4,6 @@
 
 # ======================= spring配置 =======================
 spring:
-  application:
-    index: ${spring.application.name}-${app.code:00}${app.node:0}
   main:
     web-application-type: none # 标记为非WEB应用
   cloud:
@@ -39,9 +37,8 @@ spring:
         bindings:
           springCloudBusInput:
             consumer:
-              # 死信队列配置
+              # 死信队列配置（enableDlq=true 时会自动创建/绑定 DLQ，无需 autoBindDlq）
               enableDlq: true
-              autoBindDlq: true
               dlqName: ${app.kafka.default.bus-topic}.DLQ
               dlqPartitions: 1
 

@@ -31,8 +31,8 @@ import java.util.stream.Collectors;
  * @author uoquo
  */
 @ComponentScan({
-    "com.uoquo.**.handler",  // redis、spring等工具类（@Component）
-    "com.uoquo.**.filter",   // 鉴权过滤器
+    "com.uoquo.**.spring",  // redis、spring等工具类（@Component）
+    "com.uoquo.**.filter",  // 鉴权过滤器
 })
 @Configuration
 public class ApplicationConfig {

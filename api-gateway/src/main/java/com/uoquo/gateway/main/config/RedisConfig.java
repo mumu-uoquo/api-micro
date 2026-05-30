@@ -4,7 +4,6 @@
  */
 package com.uoquo.gateway.main.config;
 
-import com.uoquo.gateway.condition.ConditionOnPropertyExists;
 import com.uoquo.utils.spring.GenericJson2RedisSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +57,7 @@ public class RedisConfig {
     @ConditionalOnMissingBean(value = RedisTemplate.class)
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
         log.debug("Use redisTemplate");
-        RedisTemplate<String, Object> template = new RedisTemplate<String, Object>();
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory);
         // 1. 设置key的序列化方法
         template.setKeySerializer(StringRedisSerializer.UTF_8);

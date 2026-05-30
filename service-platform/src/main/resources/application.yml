@@ -5,7 +5,8 @@
 # ======================= web容器配置 =======================
 server:
   port: ${app.port}
-  use-forward-headers: true
+  # 由 Tomcat 原生处理 X-Forwarded-* 头（配合下方 server.tomcat.protocol-header）
+  forward-headers-strategy: native
   servlet:
     context-path: ${app.base-path:/}
     # spring boot 2.x
@@ -37,8 +38,6 @@ server:
     protocol-header: X-Forwarded-Proto
 # ======================= spring配置 =======================
 spring:
-  application:
-    index: ${spring.application.name}-${app.port}-${app.code:00}${app.node:0}
   cloud:
     # ======================= 负载均衡策略 =======================
     # https://github.com/alibaba/spring-cloud-alibaba/wiki/Sentinel
@@ -79,9 +78,8 @@ spring:
         bindings:
           springCloudBusInput:
             consumer:
-              # 死信队列配置
+              # 死信队列配置（enableDlq=true 时会自动创建/绑定 DLQ，无需 autoBindDlq）
               enableDlq: true
-              autoBindDlq: true
               dlqName: ${app.kafka.default.bus-topic}.DLQ
               dlqPartitions: 1
 
@@ -89,14 +87,6 @@ spring:
   mvc:
     pathmatch:
       matching-strategy: ANT_PATH_MATCHER # spring2.6.0之后默认为 PathPatternParser，要集成swagger3，则需要改回 AntPathMatcher
-    favicon:
-      enabled: false
-  http:
-    # spring boot 1.x
-    encoding:
-      enabled: true
-      force:   true
-      charset: UTF-8
   servlet:
     multipart:
       enabled: true
@@ -247,9 +237,6 @@ mybatis:
   type-handlers-package: com.uoquo.web.mybatis.handler  # TypeHandler所在的包路径
 
 # ======================= SWAGGER =======================
-springfox:
-  documentation:
-    enabled: ${app.swagger.enabled:false}
 springdoc:
   api-docs:
     enabled: ${app.swagger.enabled:false}

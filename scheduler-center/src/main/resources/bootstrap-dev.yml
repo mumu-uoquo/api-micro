@@ -32,19 +32,19 @@ app:
   # 哨兵 > 集群 > 单点
   redis:
     enabled  : true
-    password : Zd3S+7pX35y5/Q==
+    password : xuziu
     # 哨兵（优先级：高）
     sentinel-nodes :
     # 集群（优先级：中）
     cluster-nodes :
     # 单点（优先级：低）
-    host : prod.redis.cardiot
+    host : dev.xuziu.loc
     port : 6379
   # ============= KAFKA配置 ==============
   kafka:
     default:
       enabled: ${KAFKA_ENABLED:true}
-      host:    ${KAFKA_HOST:prod.kafka.cardiot:9092}
+      host:    ${KAFKA_HOST:dev.xuziu.loc:9092}
       group:   ${KAFKA_GROUP:${app.name}}
       bus-topic: ${KAFKA_BUS_TOPIC:SpringCloudBusTopic}
       bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus}  # 默认用服务名，防止多节点时重复消费

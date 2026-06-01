@@ -1,6 +1,7 @@
 
 # ============= 自定义配置 =============
 app:
+  type : ${spring.profiles.active:dev} # 环境类型（dev、test、demo、prod）
   # ============= nacos配置 =============
   nacos:
     enabled:   ${NACOS_ENABLED:true}

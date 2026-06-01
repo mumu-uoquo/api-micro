@@ -6,29 +6,19 @@
 
 # ============= 自定义配置 =============
 app:
-  name : ${SERVICE_NAME:service-platform}
-  port : ${SERVICE_PORT:7220}
-  code : ${SERVICE_CODE:01}  # 应用编码（16进制，最大0xFF）
-  node : ${SERVICE_NODE:1}   # 节点编码（16进制，最大0xF）
-  type : ${spring.profiles.active:dev} # 环境类型（dev、test、demo、prod）
-  base-path: /health/api/platform
+  name : ${SERVICE_NAME:scheduler-center}
+  code : ${SERVICE_CODE:D1}  # 应用编码（16进制，最大0xFF）
+  node : ${SERVICE_NODE:F}   # 节点编码（16进制，最大0xF）
+  type : dev # 环境类型（dev、test、demo、prod）
+  base-path:
   temp-dir: ${DIR_TEMP:./temp} # 临时目录（上传、下载等）
   data-dir: ${DIR_DATA:./data} # 数据目录（永久存储）
   preferred:
     networks : ${IP_PREFERRED:192.168} # 网络IP前缀（多网卡注册时使用）
-  # ============= 文件上传下载 =============
-  host:
-    cdn : http://cdn.yocalydev.cn # 下载服务器
-    oss : http://oss.yocalydev.cn # 上传服务器
-  # ============= sentinel配置 =============
-  sentinel:
-    enabled:   ${SENTINEL_ENABLED:true}
-    dashboard: ${SENTINEL_HOST:192.168.22.205:8199}
-    port:      ${SENTINEL_PORT:7320} # 供sentinel服务端访问
   # ============= nacos配置 =============
   nacos:
     enabled:   ${NACOS_ENABLED:true}
-    server:    ${NACOS_HOST:dev.xuziu.com:8848}
+    server:    ${NACOS_HOST:dev.xuziu.loc:8848}
     namespace: ${NACOS_NAMESPACE:47d74d2f-aeb9-4f47-953c-8f3af58ebd79}
     username:  ${NACOS_USER:nacos}
     password:  ${NACOS_PSWD:nacos@123}
@@ -41,46 +31,27 @@ app:
   # ============= REDIS配置 =============
   # 哨兵 > 集群 > 单点
   redis:
-    enabled  : true
-    password : Zd3S+7pX35y5/Q==
+    enabled  : ${REDIS_ENABLED:true}
+    password : ${REDIS_PASSWORD:xuziu}
     # 哨兵（优先级：高）
-    sentinel-nodes :
+    sentinel-nodes : ${REDIS_SENTINEL:dev.xuziu.loc:26379}
     # 集群（优先级：中）
-    cluster-nodes :
+    cluster-nodes : ''
     # 单点（优先级：低）
-    host : prod.redis.cardiot
+    host : ${REDIS_HOST:dev.xuziu.loc}
     port : 6379
   # ============= KAFKA配置 ==============
   kafka:
     default:
       enabled: ${KAFKA_ENABLED:true}
-      host:    ${KAFKA_HOST:prod.kafka.cardiot:9092}
+      host:    ${KAFKA_HOST:dev.xuziu.loc:9192}
       group:   ${KAFKA_GROUP:${app.name}}
       bus-topic: ${KAFKA_BUS_TOPIC:SpringCloudBusTopic}
       bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus}  # 默认用服务名，防止多节点时重复消费
-  # ============= 自定义线程池 =============
-  task:
-    pool:
-      core-size : ${THREAD_POOL_CORE:8}   # 核心线程数（预估任务量 * 单任务时间秒），最好根据8020原则预估，默认10
-      max-size  : ${THREAD_POOL_SIZE:16}  # 最大线程数，默认50
-      keep-alive: ${THREAD_KEEP_ALIVE:60} # 线程活跃时间（秒）
-      queue-capacity : ${THREAD_TASK_QUEUE:1024} # 任务队列（核心线程数 / 单任务时间秒 * 任务最大时间秒）
-  # ============= 自定义连接池 =============
-  http:
-    pool:
-      max-idle   : ${HTTP_POOL_IDLE:10}    # 最大空闲连接数（多余的会销毁），默认5个
-      keep-alive : ${HTTP_KEEP_ALIVE:300}  # 连接存活时间（秒），默认5分钟
-      timeout:
-        connect : ${HTTP_TIMEOUT_CONN:30}   # 建立连接超时时间（秒），默认3秒
-        read    : ${HTTP_TIMEOUT_READ:20}   # 数据传输超时时间（秒），默认4秒
-        write   : ${HTTP_TIMEOUT_WRITE:10}  # 请求响应超时时间（秒），默认5秒
   # ============= 日志配置 =============
   log:
     name : ${app.name}
     home : ${DIR_LOGS:./logs}
-  # ============= SWAGGER =============
-  swagger:
-    enabled: true
 
 # ============= 应用配置 =============
 spring:

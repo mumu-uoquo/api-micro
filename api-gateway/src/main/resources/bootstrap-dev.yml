@@ -4,7 +4,7 @@ app:
   # ============= nacos配置 =============
   nacos:
     enabled:   ${NACOS_ENABLED:true}
-    server:    ${NACOS_HOST:dev.xuziu.com:8848}
+    server:    ${NACOS_HOST:dev.xuziu.loc:8848}
     namespace: ${NACOS_NAMESPACE:47d74d2f-aeb9-4f47-953c-8f3af58ebd79}
     username:  ${NACOS_USER:nacos}
     password:  ${NACOS_PSWD:nacos@123}
@@ -12,12 +12,11 @@ app:
   # 模式变更时，需要修改application中的对应设置
   redis:
     enabled:   true
-    password : Zd3S+7pX35y5/Q==
+    password : xuziu
     # 哨兵（优先级：高）
     sentinel-nodes :
     # 集群（优先级：中）
-    #cluster-nodes : 112.128.4.36:6301,112.128.4.36:6302,112.128.4.37:6301,112.128.4.37:6302,112.128.4.71:6301,112.128.4.71:6302
     cluster-nodes :
     # 单点（优先级：低）
-    host : prod.redis.cardiot
+    host : dev.xuziu.loc
     port : 6379

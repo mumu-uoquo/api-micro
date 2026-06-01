@@ -15,10 +15,6 @@ app:
   data-dir: ${DIR_DATA:./data} # 数据目录（永久存储）
   preferred:
     networks : ${IP_PREFERRED:192.168} # 网络IP前缀（多网卡注册时使用）
-  # ============= 文件上传下载 =============
-  host:
-    cdn : http://cdn.yocalydev.cn # 下载服务器
-    oss : http://oss.yocalydev.cn # 上传服务器
   # ============= nacos配置 =============
   nacos:
     enabled:   ${NACOS_ENABLED:true}

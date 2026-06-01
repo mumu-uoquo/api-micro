@@ -33,8 +33,8 @@ app:
     # 集群（优先级：中）
     cluster-nodes : ${REDIS_CLUSTER:}
     # 单点（优先级：低）
-    host : ${REDIS_HOST:dev.xuziu.com}
-    port : 6379
+    host : ${REDIS_HOST:}
+    port : ${REDIS_PORT:6379}
   # ============= 日志配置 =============
   log:
     name : ${app.name}

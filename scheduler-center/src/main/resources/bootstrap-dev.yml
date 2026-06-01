@@ -15,14 +15,10 @@ app:
   data-dir: ${DIR_DATA:./data} # 数据目录（永久存储）
   preferred:
     networks : ${IP_PREFERRED:192.168} # 网络IP前缀（多网卡注册时使用）
-  # ============= 文件上传下载 =============
-  host:
-    cdn : http://cdn.yocalydev.cn # 下载服务器
-    oss : http://oss.yocalydev.cn # 上传服务器
   # ============= nacos配置 =============
   nacos:
     enabled:   ${NACOS_ENABLED:true}
-    server:    ${NACOS_HOST:dev.xuziu.com:8848}
+    server:    ${NACOS_HOST:dev.xuziu.loc:8848}
     namespace: ${NACOS_NAMESPACE:47d74d2f-aeb9-4f47-953c-8f3af58ebd79}
     username:  ${NACOS_USER:nacos}
     password:  ${NACOS_PSWD:nacos@123}

@@ -124,10 +124,3 @@ logging:
 #    console: ${app.log.format}
 #    file   : ${app.log.format}
 #    rolling-file-name: ${app.log.home}/history/${app.log.name}.%d{yyyy-MM-dd}.%i.log.gz
-  level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    com.uoquo: ${LOG_LEVEL_APP:DEBUG}
-    com.uoquo.web.interceptor.GlobalInterceptor: ${LOG_LEVEL_ROOT:INFO}
-    org.springframework.cloud.bus: INFO
-    org.springframework.cloud.stream.binder.kafka: INFO
-    org.apache.kafka.clients.producer: INFO

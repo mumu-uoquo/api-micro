@@ -20,7 +20,7 @@ import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 
 @Configuration
-@Import(ApplicationDeveloperConfig.class)
+@Import(DeveloperConfig.class)
 @Order(0)
 public class ApplicationConfig {
     private final Logger log = LoggerFactory.getLogger(this.getClass());

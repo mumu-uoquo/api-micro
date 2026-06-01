@@ -1,6 +1,6 @@
 package com.uoquo.platform.main;
 
-import com.uoquo.platform.main.config.ApplicationDeveloperConfig;
+import com.uoquo.platform.main.config.DeveloperConfig;
 import com.uoquo.platform.role.model.dto.ResourceInfoDto;
 import com.uoquo.platform.role.service.ResourceInfoService;
 import com.uoquo.platform.role.service.RoleInfoService;
@@ -27,10 +27,10 @@ import java.util.stream.Collectors;
 
 @EnableDiscoveryClient
 @SpringBootApplication
-// 排除 ApplicationDeveloperConfig 的自动扫描，采用 ApplicationConfig 的 @Import 导入
+// 排除 DeveloperConfig 的自动扫描，采用 ApplicationConfig 的 @Import 导入
 @ComponentScan(excludeFilters = @ComponentScan.Filter(
         type = FilterType.ASSIGNABLE_TYPE,
-        classes = ApplicationDeveloperConfig.class
+        classes = DeveloperConfig.class
 ))
 public class PlatformApplication extends ServiceApplication {
 

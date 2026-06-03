@@ -1,5 +1,6 @@
 package com.uoquo.platform.logs.service.impl;
 
+import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.platform.common.exception.PlatformReturnCode;
 import com.uoquo.platform.logs.mapper.BizEventRecordMapper;
 import com.uoquo.platform.logs.mapper.BizEventRetryMapper;
@@ -15,6 +16,9 @@ import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.web.SystemReturnCode;
+import com.uoquo.web.events.AppEvent;
+import com.uoquo.web.events.UoquoEventPublisher;
+import com.uoquo.web.events.deserializer.DataTypeResolver;
 import com.uoquo.web.exception.ResourceNotFoundException;
 import com.uoquo.web.exception.UoquoException;
 import com.uoquo.web.mybatis.page.PageHelper;
@@ -52,6 +56,12 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
 
     @Autowired
     private ApplicationContext delegate;
+
+    @Autowired
+    private UoquoEventPublisher eventPublisher;
+
+    @Autowired
+    private DataTypeResolver dataTypeResolver;
 
     @Override
     public String saveEventRecord(BizEventRecordParam param) {
@@ -103,13 +113,31 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         try {
             // 2. 将 event_content 内容重新放入 spring-cloud-bus 队列
             Map<String, Object> map = JsonUtil.deserialize(record.getEventContent());
-            // 重置retry标识
-            map.put("retry", true);
-            if (record.getRemoteEvent() == null || record.getRemoteEvent()) {
-                streamBridge.send(BusConstants.OUTPUT, MessageBuilder.withPayload(map).build());
+            // 20260603：显示转换为对象再发送
+//            map.put("retry", true);
+//            if (record.getRemoteEvent() == null || record.getRemoteEvent()) {
+//                streamBridge.send(BusConstants.OUTPUT, MessageBuilder.withPayload(map).build());
+//            } else {
+//                delegate.publishEvent(map);
+//            }
+            String type = (String) map.get("type");
+            if (StringUtil.notNull(type) && "RemoteEvent".equals(type)) {
+                String dataType = (String) map.get("dataType");
+                Class<?> resolvedClass = dataTypeResolver.resolve(dataType, "RemoteEvent");
+                RemoteEvent<?> event = JsonUtil.deserialize(record.getEventContent(), RemoteEvent.class, resolvedClass);
+                event.setRetry(true);
+                eventPublisher.publishEvent(event);
+            } else if (StringUtil.notNull(type) && "AppEvent".equals(type)) {
+                String dataType = (String) map.get("dataType");
+                Class<?> resolvedClass = dataTypeResolver.resolve(dataType, "AppEvent");
+                AppEvent<?> event = JsonUtil.deserialize(record.getEventContent(), AppEvent.class, resolvedClass);
+                event.setRetry(true);
+                eventPublisher.publishEvent(event);
             } else {
-                delegate.publishEvent(map);
+                map.put("retry", true);
+                eventPublisher.publishEvent(map);
             }
+
 
             // 3. 更新 biz_event_record 的重试信息
             BizEventRecord updateRecord = new BizEventRecord();

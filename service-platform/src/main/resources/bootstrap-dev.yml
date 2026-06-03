@@ -6,11 +6,12 @@
 
 # ============= 自定义配置 =============
 app:
-  name : ${SERVICE_NAME:scheduler-center}
-  code : ${SERVICE_CODE:D1}  # 应用编码（16进制，最大0xFF）
-  node : ${SERVICE_NODE:F}   # 节点编码（16进制，最大0xF）
+  name : ${SERVICE_NAME:service-platform}
+  port : ${SERVICE_PORT:7220}
+  code : ${SERVICE_CODE:01}  # 应用编码（16进制，最大0xFF）
+  node : ${SERVICE_NODE:1}   # 节点编码（16进制，最大0xF）
   type : dev # 环境类型（dev、test、demo、prod）
-  base-path:
+  base-path: ${SERVICE_PATH:/health/api/platform}
   temp-dir: ${DIR_TEMP:./temp} # 临时目录（上传、下载等）
   data-dir: ${DIR_DATA:./data} # 数据目录（永久存储）
   preferred:
@@ -44,7 +45,7 @@ app:
   kafka:
     default:
       enabled: ${KAFKA_ENABLED:true}
-      host:    ${KAFKA_HOST:dev.xuziu.loc:9192}
+      host:    ${KAFKA_HOST:dev.xuziu.loc:9092}
       group:   ${KAFKA_GROUP:${app.name}}
       bus-topic: ${KAFKA_BUS_TOPIC:SpringCloudBusTopic}
       bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus}  # 默认用服务名，防止多节点时重复消费

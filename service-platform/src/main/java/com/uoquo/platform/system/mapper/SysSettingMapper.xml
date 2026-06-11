@@ -76,15 +76,7 @@
     WHERE config_code = #{configCode,jdbcType=VARCHAR}
   </select>
 
-  <!-- SettingDto 专用 resultMap（加密查询用，触发 @SensitiveData/@SensitiveField 解密） -->
-  <resultMap id="EncryptedDtoResultMap" type="com.uoquo.platform.system.model.dto.SettingDto">
-    <result column="config_name" jdbcType="VARCHAR" property="configName" />
-    <result column="config_code" jdbcType="VARCHAR" property="configCode" />
-    <result column="config_value" jdbcType="VARCHAR" property="configValue" />
-    <result column="description" jdbcType="VARCHAR" property="description" />
-  </resultMap>
-
-  <select id="selectEncryptedByCodePrefix" resultMap="EncryptedDtoResultMap">
+  <select id="listByCodePrefix" resultMap="BaseResultMap">
     SELECT
     <include refid="Base_Column_List" />
     FROM sys_setting
@@ -98,37 +90,11 @@
     ORDER BY config_code ASC
   </select>
 
-  <!-- 查询加密公开配置（映射到 SettingDto - 自动解密） -->
-  <select id="selectEncryptedByPublicType" resultMap="EncryptedDtoResultMap">
+  <select id="listByPublicType" resultMap="BaseResultMap">
     SELECT <include refid="Base_Column_List" />
     FROM sys_setting
     WHERE public_type = #{publicType,jdbcType=CHAR}
     ORDER BY config_code ASC
   </select>
-
-  <!-- 根据 code 查询加密配置（单条，映射到 SettingDto） -->
-  <select id="selectEncryptedByCode" resultMap="EncryptedDtoResultMap">
-    SELECT <include refid="Base_Column_List" />
-    FROM sys_setting
-    WHERE config_code = #{configCode,jdbcType=VARCHAR}
-  </select>
-
-  <!-- 加密插入（通过 @SensitiveField 参数注解自动加密 configValue） -->
-  <insert id="insertWithEncryptedValue">
-    INSERT INTO sys_setting (id, config_name, config_code,
-      config_value, description, public_type, update_user, update_time)
-    VALUES (#{id,jdbcType=VARCHAR}, #{configName,jdbcType=VARCHAR}, #{configCode,jdbcType=VARCHAR},
-      #{configValue,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, #{publicType,jdbcType=CHAR},
-      #{updateUser,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP})
-  </insert>
-
-  <!-- 加密更新（通过 @SensitiveField 参数注解自动加密 configValue） -->
-  <update id="updateConfigValueEncrypted">
-    UPDATE sys_setting
-    SET config_value = #{configValue,jdbcType=VARCHAR},
-        update_user  = #{updateUser,jdbcType=VARCHAR},
-        update_time  = #{updateTime,jdbcType=TIMESTAMP}
-    WHERE config_code = #{configCode,jdbcType=VARCHAR}
-  </update>
 
 </mapper>

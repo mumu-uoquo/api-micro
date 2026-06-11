@@ -1,5 +1,16 @@
 package com.uoquo.platform.institute.service.impl;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.platform.common.BusinessOperationEnum;
 import com.uoquo.platform.common.BusinessTypeEnum;
@@ -17,17 +28,6 @@ import com.uoquo.web.SystemReturnCode;
 import com.uoquo.web.events.UoquoEventPublisher;
 import com.uoquo.web.exception.ParamErrorException;
 import com.uoquo.web.exception.ResourceNotFoundException;
-
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 机构配置服务实现
@@ -102,7 +102,8 @@ public class InstituteSettingServiceImpl implements InstituteSettingService {
         }
         
         // 2. 再查系统配置
-        return sysSettingService.getValueByCode(configCode);
+        SettingDto systemSetting = sysSettingService.getInfoByCode(configCode);
+        return systemSetting == null ? null : systemSetting.getConfigValue();
     }
 
     @Override

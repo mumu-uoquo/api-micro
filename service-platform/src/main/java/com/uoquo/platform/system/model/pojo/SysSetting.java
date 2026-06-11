@@ -1,10 +1,15 @@
 package com.uoquo.platform.system.model.pojo;
 
+import com.uoquo.mybatis.sensitive.SensitiveData;
+import com.uoquo.mybatis.sensitive.SensitiveField;
+
 import java.util.Date;
 
 /**
  * Table: sys_setting
+ * MyBatis 拦截器检测 @SensitiveData 类中的 @SensitiveField 字段自动解密
  */
+@SensitiveData  // mybatis 加解密标记
 public class SysSetting {
     /**
      * Column: id
@@ -32,6 +37,7 @@ public class SysSetting {
      * Type: VARCHAR(100)
      * Remark: 配置内容
      */
+    @SensitiveField // mybatis 加解密标记
     private String configValue;
 
     /**

@@ -13,6 +13,10 @@ import com.uoquo.platform.system.service.SysSettingService;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.crypto.AES;
+import com.uoquo.utils.crypto.RSA;
+import com.uoquo.utils.spring.RedisUtil;
+import com.uoquo.web.BaseCacheKey;
 import com.uoquo.web.BaseReturnCode;
 import com.uoquo.web.SystemReturnCode;
 import com.uoquo.web.events.UoquoEventPublisher;
@@ -25,10 +29,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 
 @Service
 public class SysSettingServiceImpl implements SysSettingService {
+    final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Resource
     private SysSettingMapper sysSettingMapper;
@@ -38,60 +46,134 @@ public class SysSettingServiceImpl implements SysSettingService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void checkInitialization() throws Exception {
+        SysSetting info;
+        String currentUser = "SYSTEM";
+
+        // 1. 检查 RSA 密钥对
+        boolean hasRsaPublicKey  = sysSettingMapper.selectByCode(SettingsCode.RSA_PUBLIC_KEY) != null;
+        boolean hasRsaPrivateKey = sysSettingMapper.selectByCode(SettingsCode.RSA_PRIVATE_KEY) != null;
+        if (!hasRsaPublicKey || !hasRsaPrivateKey) {
+            RSA.KeyPair rsaKeyPair = RSA.generateKeyPair();
+            // 公钥
+            SettingSaveParam pubParam = new SettingSaveParam();
+            pubParam.setConfigName("RSA公钥");
+            pubParam.setConfigCode(SettingsCode.RSA_PUBLIC_KEY);
+            pubParam.setConfigValue(rsaKeyPair.getPublicKey());
+            pubParam.setPublicType(SettingsCode.getPublicType(SettingsCode.RSA_PUBLIC_KEY));
+            this.saveSetting(pubParam, currentUser);
+            // 私钥
+            SettingSaveParam priParam = new SettingSaveParam();
+            priParam.setConfigName("RSA私钥");
+            priParam.setConfigCode(SettingsCode.RSA_PRIVATE_KEY);
+            priParam.setConfigValue(rsaKeyPair.getPrivateKey());
+            pubParam.setPublicType(SettingsCode.getPublicType(SettingsCode.RSA_PRIVATE_KEY));
+            this.saveSetting(priParam, currentUser);
+        }
+
+        // 2. 检查 AES 密钥
+        info = sysSettingMapper.selectByCode(SettingsCode.AES_KEY);
+        if (info == null) {
+            SettingSaveParam param = new SettingSaveParam();
+            param.setConfigName("AES密钥");
+            param.setConfigCode(SettingsCode.AES_KEY);
+            param.setConfigValue(AES.generateKey());
+            param.setPublicType(SettingsCode.getPublicType(SettingsCode.AES_KEY));
+            this.saveSetting(param, currentUser);
+        }
+
+        // 3. 检查网关通信密钥
+        info = sysSettingMapper.selectByCode(SettingsCode.GLOBAL_GATEWAY_KEY);
+        if (info == null) {
+            SettingSaveParam param = new SettingSaveParam();
+            param.setConfigName("网关通信密钥");
+            param.setConfigCode(SettingsCode.GLOBAL_GATEWAY_KEY);
+            param.setConfigValue(StringUtil.getRandomString(32));
+            param.setPublicType(SettingsCode.getPublicType(SettingsCode.GLOBAL_GATEWAY_KEY));
+            this.saveSetting(param, currentUser);
+        }
+    }
+
+    @Override
+    public void cache2Redis() {
+        SysSetting info;
+        // 网关通信密钥
+        info = sysSettingMapper.selectByCode(SettingsCode.GLOBAL_GATEWAY_KEY);
+        if (info != null) {
+            RedisUtil.put(BaseCacheKey.GLOBAL_SECRET, info.getConfigValue(), null);
+        }
+        // 缓存RSA私钥
+        info = sysSettingMapper.selectByCode(SettingsCode.RSA_PRIVATE_KEY);
+        if (info != null) {
+            RedisUtil.put("security.rsa.private-key", info.getConfigValue(), null);
+        }
+        // 缓存AES秘钥
+        info = sysSettingMapper.selectByCode(SettingsCode.AES_KEY);
+        if (info != null) {
+            RedisUtil.put("security.aes.key", info.getConfigValue(), null);
+        }
+        // 缓存TOTP时间分片
+        info = sysSettingMapper.selectByCode(SettingsCode.AES_TOTP_STEP);
+        if (info != null) {
+            try {
+                RedisUtil.put("security.aes.time-step", Integer.parseInt(info.getConfigValue()), null);
+            } catch (Exception e) {
+                logger.error("缓存TOTP时间分片【{}】失败", info.getConfigValue(), e);
+            }
+        }
+        // 缓存超时时间
+        info = sysSettingMapper.selectByCode(SettingsCode.SESSION_TIMEOUT);
+        if (info != null) {
+            try {
+                RedisUtil.put(BaseCacheKey.GLOBAL_TIMEOUT, Integer.parseInt(info.getConfigValue()), null);
+            } catch (Exception e) {
+                logger.error("缓存超时时间【{}】失败", info.getConfigValue(), e);
+            }
+        }
+
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void saveSetting(List<SettingSaveParam> list) {
         CurrentUser.UserInfo currentUser = CurrentUser.getInfo();
         for (SettingSaveParam item : list) {
-            SysSetting info = sysSettingMapper.selectByCode(item.getConfigCode());
-
-            if (SettingsCode.ENCRYPTED_KEYS.contains(item.getConfigCode())) {
-                // === 加密配置路径（通过 @SensitiveField 参数注解自动加密）===
-                if (info == null) {
-                    // 新增
-                    sysSettingMapper.insertWithEncryptedValue(
-                        IDGenerator.getNextULID(),
-                        item.getConfigName(),
-                        item.getConfigCode(),
-                        item.getConfigValue(),  // 明文，拦截器通过 @SensitiveField 自动加密
-                        item.getDescription(),
-                        DictionaryCodeEnum.ROLE_TYPE_INNER.getCode(), // 强制 003001
-                        currentUser.getUserId(),
-                        new Date()
-                    );
-                } else {
-                    // 更新（仅更新 configValue）
-                    sysSettingMapper.updateConfigValueEncrypted(
-                        item.getConfigCode(),
-                        item.getConfigValue(),  // 明文，拦截器通过 @SensitiveField 自动加密
-                        currentUser.getUserId(),
-                        new Date()
-                    );
-                }
-            } else {
-                // === 非加密配置路径（原有逻辑）===
-                SysSetting param = new SysSetting();
-                BeanUtils.copyProperties(item, param);
-                param.setUpdateUser(currentUser.getUserId());
-                param.setUpdateTime(new Date());
-
-                if (info == null) {
-                    param.setId(IDGenerator.getNextULID());
-                    param.setPublicType(DictionaryCodeEnum.ROLE_TYPE_INNER.getCode());
-                    sysSettingMapper.insert(param);
-                } else {
-                    // update 路径不设置 publicType（保持 null → 动态 SQL 跳过）
-                    param.setPublicType(null);
-                    sysSettingMapper.updateByCode(param);
-                }
-            }
-
-            // 发布事件
-            SysSetting newInfo = sysSettingMapper.selectByCode(item.getConfigCode());
-            if (info == null) {
-                this.publishEvent(BusinessOperationEnum.CREATE, SystemReturnCode.SUCCESS, null, newInfo);
-            } else {
-                this.publishEvent(BusinessOperationEnum.UPDATE, SystemReturnCode.SUCCESS, info, newInfo);
-            }
+            // 默认为内部配置（003001，需登录后获取）
+            item.setPublicType(DictionaryCodeEnum.ROLE_TYPE_INNER.getCode());
+            this.saveSetting(item, currentUser.getUserId());
         }
+    }
+
+    private void saveSetting(SettingSaveParam param, String userId) {
+        SysSetting info = new SysSetting();
+        BeanUtils.copyProperties(param, info);
+        info.setUpdateUser(userId);
+        info.setUpdateTime(new Date());
+
+        SysSetting old = sysSettingMapper.selectByCode(param.getConfigCode());
+        if (old == null) {
+            info.setId(IDGenerator.getNextULID());
+            sysSettingMapper.insert(info);
+        } else {
+            // 不更新公开范围，防止冲掉默认配置的公开范围
+            info.setPublicType(null);
+            sysSettingMapper.updateByCode(info);
+        }
+
+        // 发布事件
+        SysSetting newInfo = sysSettingMapper.selectByCode(param.getConfigCode());
+        if (DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode().equals(newInfo.getPublicType())) {
+            newInfo.setConfigValue(null);
+        }
+        if (old == null) {
+            this.publishEvent(BusinessOperationEnum.CREATE, SystemReturnCode.SUCCESS, null, newInfo);
+        } else {
+            if (DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode().equals(old.getPublicType())) {
+                old.setConfigValue(null);
+            }
+            this.publishEvent(BusinessOperationEnum.UPDATE, SystemReturnCode.SUCCESS, old, newInfo);
+        }
+
     }
 
     @Override
@@ -112,14 +194,22 @@ public class SysSettingServiceImpl implements SysSettingService {
 
     @Override
     public String getValueByCode(String code) {
-        if (SettingsCode.ENCRYPTED_KEYS.contains(code)) {
-            // 走加密查询（映射到 SettingDto，拦截器自动解密）
-            SettingDto enc = sysSettingMapper.selectEncryptedByCode(code);
-            return enc == null ? null : enc.getConfigValue();
-        }
-        // 非加密配置走原逻辑
         SysSetting info = sysSettingMapper.selectByCode(code);
         return info == null ? null : info.getConfigValue();
+    }
+
+    @Override
+    public SettingDto getInfoByCode(String code) {
+        SysSetting info = sysSettingMapper.selectByCode(code);
+        if (info == null) {
+            return null;
+        }
+        // 过滤私有配置
+        if (DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode().equals(info.getPublicType())) {
+            logger.warn("用户[{}]查询私有配置[{}]", CurrentUser.getInfo().getUserId(), code);
+            return null;
+        }
+        return this.convertToDto(info);
     }
 
     @Override
@@ -127,40 +217,53 @@ public class SysSettingServiceImpl implements SysSettingService {
         if (StringUtil.isNull(prefix)) {
             return Collections.emptyList();
         }
-        // 只查内置和通用的，不查私有（私有配置不对外公开）
+        // 只查公开和内置的，不查私有（私有配置不对外公开）
         Set<String> types = new HashSet<>();
-        types.add(DictionaryCodeEnum.ROLE_TYPE_NORMAL.getCode());
-        types.add(DictionaryCodeEnum.ROLE_TYPE_INNER.getCode());
-        List<SettingDto> result = sysSettingMapper.selectEncryptedByCodePrefix(prefix, types);
-        // 转换
-        for (SettingDto item : result) {
-            item.setSource("SYSTEM");
+        types.add(DictionaryCodeEnum.ROLE_TYPE_NORMAL.getCode()); // 公开
+        types.add(DictionaryCodeEnum.ROLE_TYPE_INNER.getCode());  // 内置
+        List<SysSetting> list = sysSettingMapper.listByCodePrefix(prefix, types);
+        // 对象转换
+        List<SettingDto> result = new ArrayList<>();
+        for (SysSetting item : list) {
+            result.add(this.convertToDto(item));
         }
+        // 按 config_code 排序
+        result.sort(Comparator.comparing(SettingDto::getConfigCode));
         return result;
     }
 
     @Override
     public List<SettingDto> listPublicSettings() {
         // mybatis会对加密的内容自动解密
-        List<SettingDto> list = sysSettingMapper.selectEncryptedByPublicType(DictionaryCodeEnum.ROLE_TYPE_NORMAL.getCode());
-        for (SettingDto item : list) {
-            item.setSource("SYSTEM");
+        List<SysSetting> list = sysSettingMapper.listByPublicType(DictionaryCodeEnum.ROLE_TYPE_NORMAL.getCode());
+        // 对象转换
+        List<SettingDto> result = new ArrayList<>();
+        for (SysSetting item : list) {
+            result.add(this.convertToDto(item));
         }
+        // 手动添加当前服务器时间
+        SettingDto time = new SettingDto();
+        time.setConfigCode("server.time");
+        time.setConfigValue(System.currentTimeMillis() + "");
+        time.setSource("SYSTEM");
+        result.add(time);
         // 按 config_code 排序
-        list.sort(Comparator.comparing(SettingDto::getConfigCode));
-        return list;
+        result.sort(Comparator.comparing(SettingDto::getConfigCode));
+        return result;
     }
 
     @Override
     public List<SettingDto> listPrivateSettings() {
         // mybatis会对加密的内容自动解密
-        List<SettingDto> list = sysSettingMapper.selectEncryptedByPublicType(DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode());
-        for (SettingDto item : list) {
-            item.setSource("SYSTEM");
+        List<SysSetting> list = sysSettingMapper.listByPublicType(DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode());
+        // 对象转换
+        List<SettingDto> result = new ArrayList<>();
+        for (SysSetting item : list) {
+            result.add(this.convertToDto(item));
         }
         // 按 config_code 排序
-        list.sort(Comparator.comparing(SettingDto::getConfigCode));
-        return list;
+        result.sort(Comparator.comparing(SettingDto::getConfigCode));
+        return result;
     }
 
     private SettingDto convertToDto(SysSetting setting) {

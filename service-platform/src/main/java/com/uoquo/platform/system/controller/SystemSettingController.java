@@ -1,15 +1,7 @@
 package com.uoquo.platform.system.controller;
 
-import com.uoquo.platform.system.model.dto.SettingDto;
-import com.uoquo.platform.system.model.param.SettingCodeParam;
-import com.uoquo.platform.system.model.param.SettingSearchParam;
-import com.uoquo.platform.system.model.param.SettingSaveParam;
-import com.uoquo.platform.system.service.SysSettingService;
-import com.uoquo.utils.json.JsonUtil;
-import com.uoquo.web.ReturnData;
-import com.uoquo.annotation.web.IgnoreAuth;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +11,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uoquo.annotation.web.IgnoreAuth;
+import com.uoquo.platform.system.model.dto.SettingDto;
+import com.uoquo.platform.system.model.param.SettingCodeParam;
+import com.uoquo.platform.system.model.param.SettingSaveParam;
+import com.uoquo.platform.system.model.param.SettingSearchParam;
+import com.uoquo.platform.system.service.SysSettingService;
+import com.uoquo.utils.json.JsonUtil;
+import com.uoquo.web.ReturnData;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 
 @Tag(name = "system", description = "系统设置")
 @Validated
@@ -73,8 +75,8 @@ public class SystemSettingController {
 
     @Operation(summary = "查询单个系统配置", operationId = "getSystemSetting", method = "POST")
     @PostMapping("/code")
-    public ReturnData<String> getSystemSetting(@RequestBody @Valid SettingCodeParam param) {
-        String result = sysSettingService.getValueByCode(param.getConfigCode());
+    public ReturnData<SettingDto> getSystemSetting(@RequestBody @Valid SettingCodeParam param) {
+        SettingDto result = sysSettingService.getInfoByCode(param.getConfigCode());
         return new ReturnData<>(result);
     }
 }

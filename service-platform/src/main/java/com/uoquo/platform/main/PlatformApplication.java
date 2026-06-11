@@ -5,6 +5,7 @@ import com.uoquo.platform.role.model.dto.ResourceInfoDto;
 import com.uoquo.platform.role.service.ResourceInfoService;
 import com.uoquo.platform.role.service.RoleInfoService;
 import com.uoquo.platform.system.service.AppInfoService;
+import com.uoquo.platform.system.service.SysSettingService;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.ThreadPoolUtil;
 import com.uoquo.web.ServiceApplication;
@@ -70,14 +71,22 @@ public class PlatformApplication extends ServiceApplication {
     @Autowired
     private ResourceInfoService resourceInfoService;
 
+    @Autowired
+    private SysSettingService sysSettingService;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        // 缓存字典、缓存配置、缓存菜单、缓存角色
-//        ThreadPoolUtil.execute(()->{
-//            log.info("auto print.");
-//        }, "10/10 * * * * ?");
+        // 系统初始化检查（同步）
+        sysSettingService.checkInitialization();
         // 缓存配置（同步）
+        try {
+            sysSettingService.cache2Redis();
+            log.info("cache system config to redis success.");
+        } catch (Exception e) {
+            log.error("cache system config to redis error.", e);
+        }
+
+        // 缓存字典
 
         // 缓存应用信息
         ThreadPoolUtil.executeOnce(()->{
@@ -123,8 +132,8 @@ public class PlatformApplication extends ServiceApplication {
     private void flushResourceCache() {
         List<ResourceInfoDto> list = resourceInfoService.listAllResource();
         Set<String> allUrls = list.stream()
-                .filter(item -> StringUtil.notNull(item.getResourceUrl()))
                 .map(ResourceInfoDto::getResourceUrl)
+                .filter(StringUtil::notNull)
                 .collect(Collectors.toSet());
         RedisUtil.remove(BaseCacheKey.GLOBAL_ALL_RESOURCE);
         RedisUtil.putSetAll(BaseCacheKey.GLOBAL_ALL_RESOURCE, allUrls, null);

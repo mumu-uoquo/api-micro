@@ -44,9 +44,6 @@ public class GatewayApplication implements ApplicationRunner {
 		RedisUtil.putSetItem(BaseCacheKey.GLOBAL_PERMISSION, "/api/dfs/v1/file/upload/transfer", null);
 
 		// 3. 初始数据
-		if (!RedisUtil.exist(BaseCacheKey.GLOBAL_SECRET)) {
-			RedisUtil.put(BaseCacheKey.GLOBAL_SECRET, "TuIOlewhLFXHfPoPBYiYP4RLAHX8HHUS", null);
-		}
 		if (!RedisUtil.exist(BaseCacheKey.GLOBAL_TIMEOUT)) {
 			RedisUtil.put(BaseCacheKey.GLOBAL_TIMEOUT, 30, null);
 		}

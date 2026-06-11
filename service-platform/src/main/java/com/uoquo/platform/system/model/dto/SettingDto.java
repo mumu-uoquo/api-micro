@@ -1,14 +1,12 @@
 package com.uoquo.platform.system.model.dto;
 
-import com.uoquo.mybatis.sensitive.SensitiveData;
-import com.uoquo.mybatis.sensitive.SensitiveField;
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * 配置信息DTO（支持配置来源标识）
- * MyBatis 拦截器检测 @SensitiveData 类中的 @SensitiveField 字段自动解密
  */
-@SensitiveData
 @Schema(description = "配置信息")
 public class SettingDto {
 
@@ -18,7 +16,7 @@ public class SettingDto {
     @Schema(description = "配置标识", requiredMode = Schema.RequiredMode.REQUIRED)
     private String configCode;
 
-    @SensitiveField
+    @Sensitive(type = SensitiveType.CRYPT_TAES) // JSON加解密标记
     @Schema(description = "配置内容")
     private String configValue;
 

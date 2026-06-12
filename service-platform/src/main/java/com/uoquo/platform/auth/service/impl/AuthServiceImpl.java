@@ -123,7 +123,7 @@ public class AuthServiceImpl implements AuthService {
         paramUser.setId(info.getId());
         paramUser.setLastedLoginIp(clientIp);
         paramUser.setLastedLoginTime(new Date());
-        String password = UserUtils.decryptPassword(param.getPassword());
+        String password = param.getPassword();
         boolean checkPassword = UserUtils.checkPassword(password, info.getPassword());
         if (!checkPassword) {
             int loginErrorCount = info.getLoginErrorCount() == null ? 0 : info.getLoginErrorCount();
@@ -288,7 +288,7 @@ public class AuthServiceImpl implements AuthService {
         // 1.1 校验状态
         this.checkAppStatus(param.getAccount(), app);
         // 1.2 校验密码
-        String password = UserUtils.decryptPassword(param.getPassword());
+        String password = param.getPassword();
         if (!app.getSecret().equals(password)) {
             logger.warn("应用[{}]授权秘钥[{}]错误", param.getAccount(), password);
             this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.PASSWORD_ERROR, "APP", app.getId(), app.getInstituteId(), param.getAccount(), null, password);

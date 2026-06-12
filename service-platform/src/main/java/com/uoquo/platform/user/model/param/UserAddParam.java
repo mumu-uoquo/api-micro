@@ -1,5 +1,7 @@
 package com.uoquo.platform.user.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 
@@ -27,6 +29,7 @@ public class UserAddParam {
 
     @Schema(description = "用戶密码")
     @NotBlank
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String password;
 
     @Schema(description = "密码强度")

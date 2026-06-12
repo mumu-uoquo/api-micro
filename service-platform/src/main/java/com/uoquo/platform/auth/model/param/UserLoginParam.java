@@ -1,5 +1,7 @@
 package com.uoquo.platform.auth.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -12,6 +14,7 @@ public class UserLoginParam {
     private String account;
 
     @Schema(description = "登录密码")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String password;
 
     @Schema(description = "双因子动态码")

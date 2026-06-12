@@ -123,7 +123,7 @@ public class UserInfoServiceImpl implements UserInfoService {
             user.setPinYin(PinYinUtil.getPinYin4FirstChar(user.getRealName()));
         }
         // 密码
-        String password = UserUtils.decryptPassword(param.getPassword());
+        String password = param.getPassword();
         user.setPassword(UserUtils.hashPassword(password));
         // 状态
         user.setStatus(DictionaryCodeEnum.STATE_NORMAL.getCode());
@@ -185,7 +185,7 @@ public class UserInfoServiceImpl implements UserInfoService {
         }
         // 密码
         if (StringUtil.notNull(param.getPassword())) {
-            String password = UserUtils.decryptPassword(param.getPassword());
+            String password = param.getPassword();
             user.setPassword(UserUtils.hashPassword(password));
         }
         // 手机号含有“*”则不更新
@@ -237,7 +237,7 @@ public class UserInfoServiceImpl implements UserInfoService {
             throw new ResourceNotFoundException("用户信息不存在");
         }
         // 旧密码校验
-        String oldPassword = UserUtils.decryptPassword(param.getOldPassword());
+        String oldPassword = param.getOldPassword();
         if (validateOldPassword && !UserUtils.checkPassword(oldPassword, old.getPassword())) {
             throw new UoquoException(AccountReturnCode.OLD_PASSWORD_ERROR);
         }
@@ -246,7 +246,7 @@ public class UserInfoServiceImpl implements UserInfoService {
         UserInfo user = new UserInfo();
         user.setId(param.getId());
         // 新密码
-        String newPassword = UserUtils.decryptPassword(param.getNewPassword());
+        String newPassword = param.getNewPassword();
         user.setPassword(UserUtils.hashPassword(newPassword));
         user.setPwdLevel(param.getNewPwdLevel());
         user.setPwdExpired(false);

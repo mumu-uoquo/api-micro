@@ -1,5 +1,7 @@
 package com.uoquo.platform.user.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 
@@ -15,10 +17,12 @@ public class ChangePasswordParam {
     private String id;
 
     @Schema(description = "旧密碼")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String oldPassword;
 
     @Schema(description = "新密碼")
     @NotBlank
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String newPassword;
 
     @Schema(description = "新密码强度")

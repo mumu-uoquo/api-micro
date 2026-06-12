@@ -1,7 +1,5 @@
 package com.uoquo.platform.common.utils;
 
-import com.uoquo.utils.StringUtil;
-import com.uoquo.utils.crypto.AES;
 import com.uoquo.utils.crypto.OTPUtils;
 import com.uoquo.utils.DataUtil;
 import org.slf4j.Logger;
@@ -9,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.text.NumberFormat;
 import java.util.Locale;
 
@@ -18,40 +15,6 @@ import java.util.Locale;
  */
 public class UserUtils {
     private final static Logger logger = LoggerFactory.getLogger(UserUtils.class);
-
-    private static final int[] windows = new int[]{0, -1, 1};
-
-    /**
-     * 密码解密<br/>
-     * 方案：与前端约定对密码MD5后再用AES进行加密传输
-     * 秘钥：按5秒为梯度的时间因子，后置补0凑为16位的字符串
-     */
-    public static String decryptPassword(String password) {
-        if (StringUtil.isNull(password)) {
-            return null;
-        }
-        // 生成时间因子秘钥（5秒内相同）
-        long time = System.currentTimeMillis() / 5_000;
-        // 解码
-        for( int i : windows) {
-            try {
-                return decryptPassword(time + i, password);
-            } catch (GeneralSecurityException e) {
-                logger.info("密码[{}]采用时间[{}]窗口[{}]解密失败", password, time, i);
-            }
-        }
-        throw new RuntimeException("密码解密失败");
-    }
-
-    private static String decryptPassword(long time, String password) throws GeneralSecurityException {
-        // 生成16位的时间因子秘钥
-        StringBuilder sb = new StringBuilder();
-        sb.append(time);
-        if (sb.length() < 16) {
-            sb.append("0".repeat(Math.max(0, 16 - sb.length())));
-        }
-        return AES.decrypt(password, sb.toString());
-    }
 
     /**
      * 生成哈希密码
@@ -93,6 +56,7 @@ public class UserUtils {
             numberFormat.setGroupingUsed(false);
             return numberFormat.format(token);
         } catch (Exception e) {
+            logger.warn("根据[{}, {}]生成推荐码失败：{}", s1, s2, e.getMessage());
             return null;
         }
     }

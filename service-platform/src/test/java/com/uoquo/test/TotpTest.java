@@ -1,8 +1,14 @@
 package com.uoquo.test;
 
 import com.uoquo.platform.common.utils.TotpAuthUtils;
+import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.crypto.AES;
 import com.uoquo.utils.crypto.Base32;
+import com.uoquo.utils.crypto.RSA;
+import com.uoquo.utils.crypto.SM2;
 import org.junit.jupiter.api.Test;
+
+import java.security.GeneralSecurityException;
 
 public class TotpTest {
 
@@ -69,5 +75,39 @@ public class TotpTest {
             replacementLen = Math.ceilDiv(replacementLen, replacement.length());
         }
         return value.substring(0, prefixLen) + replacement.repeat(replacementLen) + value.substring(value.length() - suffixLen);
+    }
+
+    @Test
+    public void testCryptoKey() {
+        try {
+            String gatewayKey = StringUtil.getRandomString(32);
+            System.out.printf("gatewayKey key: len=%d, value=%s%n", gatewayKey.length(), gatewayKey);
+
+            String aesKey = AES.generateKey();
+            System.out.printf("aes key: len=%d, value=%s%n", aesKey.length(), aesKey);
+
+            RSA.KeyPair rsaKeyPair = RSA.generateKeyPair();
+            String rsaPubKey = rsaKeyPair.getPublicKey();
+            String rsaPriKey = rsaKeyPair.getPrivateKey();
+            System.out.printf("rsa public  key: len=%d, value=%s%n", rsaPubKey.length(), rsaPubKey);
+            System.out.printf("rsa private key: len=%d, value=%s%n", rsaPriKey.length(), rsaPriKey);
+            rsaPubKey = AES.encrypt(rsaPubKey, aesKey);
+            rsaPriKey = AES.encrypt(rsaPriKey, aesKey);
+            System.out.printf("rsa public  key: len=%d, value=%s%n", rsaPubKey.length(), rsaPubKey);
+            System.out.printf("rsa private key: len=%d, value=%s%n", rsaPriKey.length(), rsaPriKey);
+
+            SM2.KeyPair sm2KeyPair = SM2.generateKeyPair();
+            String sm2PubKey = sm2KeyPair.getPublicKey();
+            String sm2PriKey = sm2KeyPair.getPrivateKey();
+            System.out.printf("sm2 public  key: len=%d, value=%s%n", sm2PubKey.length(), sm2PubKey);
+            System.out.printf("sm2 private key: len=%d, value=%s%n", sm2PriKey.length(), sm2PriKey);
+            sm2PubKey = AES.encrypt(sm2PubKey, aesKey);
+            sm2PriKey = AES.encrypt(sm2PriKey, aesKey);
+            System.out.printf("sm2 public  key: len=%d, value=%s%n", sm2PubKey.length(), sm2PubKey);
+            System.out.printf("sm2 private key: len=%d, value=%s%n", sm2PriKey.length(), sm2PriKey);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

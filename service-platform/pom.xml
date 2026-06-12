@@ -76,6 +76,7 @@
 
   <!-- 项目必须引入的plugin -->
   <build>
+    <finalName>${project.artifactId}</finalName>
     <plugins>
       <!-- 打包jar文件时，配置manifest文件，加入config和lib包的jar依赖 -->
       <plugin>

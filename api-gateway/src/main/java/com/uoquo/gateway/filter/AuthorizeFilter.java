@@ -34,7 +34,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * 描述：全局鉴权拦截器. <br>
- * 参考：https://segmentfault.com/a/1190000016227780<br>
+ * 参考：https://segmentfault.com/a/1190000016227780 <br>
  * 日期：2018-01-18 16:28 <br>
  * 变更：
  * <pre>
@@ -136,11 +136,15 @@ public class AuthorizeFilter implements GlobalFilter, Ordered {
         // 2.2 其他接口都需要登录后调用
         String token = CurrentUser.getToken();
         if (StringUtil.isNull(token)) {
-            throw new TokenInvalidException();
+//            // token丢失，前端需要重新登录
+//            throw new TokenInvalidException();
+            // 2026-06-12：改由应用层判断（更灵活）
+            log.debug("当前请求[{}]无token.", path);
+            return;
         }
 //        // 2.2 若无token
-//        // 一是第三方发起的调用，此时跟用户无关，仅需判断应用的权限
-//        // 二是token丢失，前端需要重新登录
+//        // 第三方发起的调用，此时跟用户无关，仅需判断应用的权限
+//        // 2026-06-12：改为与普通账号一样由应用层判断
 //        if (StringUtil.isNull(token)) {
 //            accept = RedisUtil.existSetItem(BaseCacheKey.APPKEY_PERMISSION_PREFIX + appid, path);
 //            if (accept) {

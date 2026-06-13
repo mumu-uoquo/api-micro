@@ -1,6 +1,7 @@
 package com.uoquo.platform.logs.service.impl;
 
 import com.uoquo.platform.auth.service.AuthService;
+import com.uoquo.platform.common.utils.UserUtils;
 import com.uoquo.platform.logs.mapper.LogUserOnlineMapper;
 import com.uoquo.platform.logs.model.dto.LogUserOnlineDto;
 import com.uoquo.platform.logs.model.param.OnlineUserSearchParam;
@@ -93,7 +94,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
             LogUserOnlineDto dto = new LogUserOnlineDto();
             BeanUtils.copyProperties(item, dto);
             // 返回简短token，防止泄露
-            dto.setToken(this.formatToken(item.getToken()));
+            dto.setToken(UserUtils.formatToken(item.getToken()));
             // TODO 补充机构信息
             dtoList.add(dto);
         }
@@ -113,12 +114,6 @@ public class OnlineUserServiceImpl implements OnlineUserService {
     }
 
     private String formatToken(String token) {
-        if (StringUtil.isNull(token)) {
-            return "";
-        } else if (token.length() <= 16) {
-            return token;
-        } else {
-            return token.substring(0, 16);
-        }
+        return UserUtils.formatToken(token);
     }
 }

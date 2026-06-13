@@ -61,4 +61,19 @@ public class UserUtils {
         }
     }
 
+    /**
+     * 取 token 前26字符.<br>
+     * 双 token 机制下会话 token 会定期刷新，但前26字符（ULID 部分，26位 Base32）保持不变，
+     * 可唯一标识同一会话，兼容 token 刷新后仍能精准寻址。<br>
+     * token 为空时返回空字符串。
+     *
+     * @param token 原始 token
+     * @return 前26字符，token 为空时返回空字符串
+     */
+    public static String formatToken(String token) {
+        if (token == null || token.isEmpty()) {
+            return "";
+        }
+        return token.length() <= 26 ? token : token.substring(0, 26);
+    }
 }

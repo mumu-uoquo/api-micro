@@ -59,7 +59,16 @@ public class SendWebMessageEventListener {
             message.setEventName(eventName);
         }
         try {
-            // 定向推送（指定了 targetAppKey）或推送到用户所有在线客户端
+            // 踢人通知：按被踢会话的 token 精准推送，不受新登录连接替换影响
+            Object kickToken = message.getBusinessExtend() != null
+                    ? message.getBusinessExtend().get("token") : null;
+            if (kickToken != null) {
+                boolean sent = sseEmitterService.publishByToken(kickToken.toString(), message);
+                logger.info("给用户[{}]按 token 推送[{}]踢人消息完成，连接存在[{}].",
+                        message.getReceiverId(), message.getEventName(), sent);
+                return;
+            }
+            // 普通消息：定向推送（指定了 targetAppKey）或推送到用户所有在线客户端
             int count = sseEmitterService.publish(message.getReceiverId(), message.getTargetAppKey(), message);
             logger.info("给用户[{}]推送[{}]事件消息[{}]完成，送达连接数[{}].",
                     message.getReceiverId(), message.getEventName(), message.getMessageContent(), count);

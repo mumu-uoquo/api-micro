@@ -47,6 +47,7 @@ public class ServerSentEventsController {
         Map<String, String> endpoint = new HashMap<>();
         endpoint.put("userId", CurrentUser.getInfo().getUserId());
         endpoint.put("appkey", CurrentUser.getAppkey());
+        endpoint.put("token", CurrentUser.getToken());
         String lastEventId = WebUtil.getHeader("Last-Event-ID", request);
         if (StringUtil.notNull(lastEventId)) {
             endpoint.put("lastEventId", lastEventId);
@@ -74,7 +75,7 @@ public class ServerSentEventsController {
             throw new ParamEmtpyException("用户ID或APPKEY不能为空");
         }
 
-        SseEmitter emitter = sseEmitterService.subscribe(userId, appkey);
+        SseEmitter emitter = sseEmitterService.subscribe(userId, appkey, endpoint.getOrDefault("token", ""));
 //        // 使用nginx做反向代理时需要将proxy_buffering关闭
 //        // 或者加上响应头部x-accel-buffering，这样nginx就不会给后端响应数据加buffer
 //        response.addHeader("x-accel-buffering", "no");
@@ -89,7 +90,7 @@ public class ServerSentEventsController {
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeByToken(HttpServletRequest request, HttpServletResponse response) {
         SseEmitter emitter = new SseEmitter(10 * 60 * 1000L);
-        emitter = sseEmitterService.subscribe(CurrentUser.getInfo().getUserId(), CurrentUser.getAppkey(), emitter);
+        emitter = sseEmitterService.subscribe(CurrentUser.getInfo().getUserId(), CurrentUser.getAppkey(), CurrentUser.getToken(), emitter);
 //        // 使用nginx做反向代理时需要将proxy_buffering关闭
 //        // 或者加上响应头部x-accel-buffering，这样nginx就不会给后端响应数据加buffer
 //        response.addHeader("x-accel-buffering", "no");
@@ -104,7 +105,7 @@ public class ServerSentEventsController {
     @PostMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeByPost(HttpServletRequest request, HttpServletResponse response) {
         SseEmitter emitter = new SseEmitter(10 * 60 * 1000L);
-        emitter = sseEmitterService.subscribe(CurrentUser.getInfo().getUserId(), CurrentUser.getAppkey(), emitter);
+        emitter = sseEmitterService.subscribe(CurrentUser.getInfo().getUserId(), CurrentUser.getAppkey(), CurrentUser.getToken(), emitter);
 //        // 使用nginx做反向代理时需要将proxy_buffering关闭
 //        // 或者加上响应头部x-accel-buffering，这样nginx就不会给后端响应数据加buffer
 //        response.addHeader("x-accel-buffering", "no");

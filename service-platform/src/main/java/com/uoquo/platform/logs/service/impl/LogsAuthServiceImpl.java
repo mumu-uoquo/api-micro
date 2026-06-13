@@ -1,6 +1,7 @@
 package com.uoquo.platform.logs.service.impl;
 
 import com.uoquo.platform.common.exception.AccountReturnCode;
+import com.uoquo.platform.common.utils.UserUtils;
 import com.uoquo.platform.logs.mapper.LogUserLoginMapper;
 import com.uoquo.platform.logs.model.dto.LogUserLoginDto;
 import com.uoquo.platform.logs.model.param.LogUserLoginParam;
@@ -62,7 +63,7 @@ public class LogsAuthServiceImpl implements LogsAuthService {
         if (StringUtil.isNull(info.getId())) {
             info.setId(IDGenerator.getNextULID());
         }
-        info.setToken(this.formatToken(param.getToken()));
+        info.setToken(UserUtils.formatToken(param.getToken()));
         info.setLoginAddress(this.formatAddress(param.getLoginIp()));
         // 在登录不成功的情况下，userId为空，为了后续兼容分表策略，因此赋予默认值
         if (StringUtil.isNull(info.getUserId())) {
@@ -99,7 +100,7 @@ public class LogsAuthServiceImpl implements LogsAuthService {
     public String updateLogoutInfo(LogUserLogoutParam param) {
         // 1. 记录登出日志
         LogUserLogin info = new LogUserLogin();
-        info.setToken(this.formatToken(param.getToken()));
+        info.setToken(UserUtils.formatToken(param.getToken()));
         info.setLogoutStatus(param.getLogoutStatus());
         info.setLogoutTime(param.getLogoutTime());
         info.setLogoutDesc(param.getLogoutDesc());
@@ -171,14 +172,8 @@ public class LogsAuthServiceImpl implements LogsAuthService {
     /**
      * 格式化处理token，防止长度过长
      */
-    private String formatToken(String token){
-        if (StringUtil.isNull(token)) {
-            return "";
-        } else if (token.length() <= 16) {
-            return token;
-        } else {
-            return token.substring(0, 16);
-        }
+    private String formatToken(String token) {
+        return UserUtils.formatToken(token);
     }
 
     /**

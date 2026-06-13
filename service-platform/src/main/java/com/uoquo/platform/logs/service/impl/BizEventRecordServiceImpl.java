@@ -2,6 +2,7 @@ package com.uoquo.platform.logs.service.impl;
 
 import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.platform.common.exception.PlatformReturnCode;
+import com.uoquo.platform.common.utils.UserUtils;
 import com.uoquo.platform.logs.mapper.BizEventRecordMapper;
 import com.uoquo.platform.logs.mapper.BizEventRetryMapper;
 import com.uoquo.platform.logs.model.dto.BizEventRecordDto;
@@ -68,7 +69,7 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         if (StringUtil.isNull(record.getId())) {
             record.setId(IDGenerator.getNextULID());
         }
-        record.setToken(this.formatToken(record.getToken()));
+        record.setToken(UserUtils.formatToken(record.getToken()));
         record.setRetryCount(0);
         // 在某些场景下会为空，为了后续兼容分表策略，因此赋予默认值
         // 场景1：在登录时如果账号不存在，则userId为空
@@ -282,13 +283,7 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
      * 格式化处理 token，防止长度过长
      */
     private String formatToken(String token) {
-        if (StringUtil.isNull(token)) {
-            return "";
-        } else if (token.length() <= 16) {
-            return token;
-        } else {
-            return token.substring(0, 16);
-        }
+        return UserUtils.formatToken(token);
     }
 
     private BizEventRecordDto convert2Dto(BizEventRecord info) {

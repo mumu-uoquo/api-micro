@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.uoquo.platform.message.model.pojo.SseMessage;
+import com.uoquo.platform.common.utils.UserUtils;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
@@ -38,7 +39,10 @@ import jakarta.validation.constraints.NotNull;
 @Component
 public class SseEmitterService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    /** 主索引：userId → appkey → SseEmitter，用于按用户/appkey推送 */
     private final Map<String, Map<String, SseEmitter>> emitters = new ConcurrentHashMap<>();
+    /** token反向索引：tokenKey(前16字符) → SseEmitter，用于按token精准推送（如踢人通知） */
+    private final Map<String, SseEmitter> tokenIndex = new ConcurrentHashMap<>();
     /** 调度线程：仅负责触发心跳任务，不执行实际 IO */
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     /** 广播线程池：执行实际的 send IO，避免阻塞调度线程 */
@@ -62,25 +66,32 @@ public class SseEmitterService {
     /**
      * 订阅消息（默认10分钟超时）
      */
-    public SseEmitter subscribe(@NotNull String userId, @NotNull String appkey) {
+    public SseEmitter subscribe(@NotNull String userId, @NotNull String appkey, @NotNull String token) {
         SseEmitter emitter = new SseEmitter(10 * 60 * 1000L);
-        return subscribe(userId, appkey, emitter);
+        return subscribe(userId, appkey, token, emitter);
     }
 
     /**
      * 订阅消息
+     *
+     * @param userId  用户ID
+     * @param appkey  应用ID
+     * @param token   当前会话 token，用于精准寻址（如踢人通知）；使用前26字符作为索引 key，兼容 token 刷新
+     * @param emitter 外部传入的 SseEmitter（可自定义超时时长）
      */
-    public SseEmitter subscribe(@NotNull String userId, @NotNull String appkey, SseEmitter emitter) {
-        if (StringUtil.isNull(userId) || StringUtil.isNull(appkey)) {
+    public SseEmitter subscribe(@NotNull String userId, @NotNull String appkey,
+                                @NotNull String token, SseEmitter emitter) {
+        if (StringUtil.isNull(userId) || StringUtil.isNull(appkey) || StringUtil.isNull(token)) {
             return null;
         }
+        String tokenKey = UserUtils.formatToken(token);
         // 1. 注册相关事件（onTimeout 触发后 Spring 会自动调用 onCompletion，统一由 onCompletion 清理连接）
         String traceId = CurrentUser.getTraceId();
         emitter.onCompletion(() -> {
             try {
                 MDC.put("requestId", traceId);
                 logger.info("用户[{}]客户端[{}]的 SSE 连接已关闭", userId, appkey);
-                removeDeadEmitters(userId, List.of(appkey));
+                removeEmitter(userId, appkey, tokenKey);
             } catch (Exception e) {
                 logger.debug("用户[{}]客户端[{}]的 SSE 链接清理出错", userId, appkey, e);
             } finally {
@@ -88,19 +99,20 @@ public class SseEmitterService {
             }
         });
         emitter.onTimeout(() -> {
-            // 超时后 Spring 自动调用 onCompletion，此处只记录日志
             logger.warn("用户[{}]客户端[{}]的 SSE 连接已超时", userId, appkey);
             emitter.complete();
         });
         emitter.onError(e -> {
-            // 出错后调用 completeWithError，Spring 自动调用 onCompletion，此处只记录日志
             logger.error("用户[{}]客户端[{}]的 SSE 连接已出错", userId, appkey, e);
             emitter.completeWithError(e);
         });
-        // 2. 关闭同一 appkey 的旧连接（computeIfAbsent 避免并发订阅时 userId 对应的 map 被覆盖）
+        // 2. 关闭同一 appkey 的旧连接，并清理旧 tokenIndex
         Map<String, SseEmitter> appEmitters = emitters.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
         SseEmitter oldEmitter = appEmitters.get(appkey);
         if (oldEmitter != null) {
+            // 用 == 比较引用而非 equals，目的是找到与 oldEmitter 完全相同的实例
+            // SseEmitter 未重写 equals，但这里语义本就是"同一个对象"，== 更准确
+            tokenIndex.entrySet().removeIf(e -> e.getValue() == oldEmitter);
             try {
                 oldEmitter.complete();
                 logger.debug("关闭用户[{}]客户端[{}]的 SSE 旧链接成功", userId, appkey);
@@ -108,17 +120,57 @@ public class SseEmitterService {
                 logger.warn("关闭用户[{}]客户端[{}]的 SSE 旧链接出错", userId, appkey, e);
             }
         }
-        // 3. 先放入缓存，再发送初始事件（避免初始事件发送成功但缓存未更新的窗口期）
+        // 3. 先放入缓存，再发送初始事件
         appEmitters.put(appkey, emitter);
+        if (StringUtil.notNull(tokenKey)) {
+            tokenIndex.put(tokenKey, emitter);
+        }
         try {
             emitter.send(SseEmitter.event().name("CONNECTED").data(JsonUtil.serialize("连接已建立")));
             logger.info("用户[{}]客户端[{}]的 SSE 连接建立成功", userId, appkey);
         } catch (IOException e) {
             logger.error("用户[{}]客户端[{}]的 SSE 推送初始事件出错", userId, appkey, e);
             appEmitters.remove(appkey);
+            if (StringUtil.notNull(tokenKey)) {
+                tokenIndex.remove(tokenKey);
+            }
             emitter.completeWithError(e);
         }
         return emitter;
+    }
+
+    /**
+     * 按 token 精准推送，用于踢人等需要定位特定会话的场景.<br>
+     * 使用 token 前26字符匹配，兼容会话 token 刷新后仍能找到对应连接。
+     *
+     * @param token   被踢会话的 token（完整或截断均可）
+     * @param message 消息体（必须设置 eventName）
+     * @return true 表示推送成功，false 表示目标连接不存在或已断开
+     */
+    public boolean publishByToken(@NotNull String token, @NotNull SseMessage message) {
+        if (StringUtil.isNull(message.getEventName())) {
+            throw new SystemErrorException("SSE 消息 eventName 不能为空");
+        }
+        String tokenKey = UserUtils.formatToken(token);
+        if (StringUtil.isNull(tokenKey)) {
+            logger.debug("token 为空，无法按 token 精准推送");
+            return false;
+        }
+        SseEmitter emitter = tokenIndex.get(tokenKey);
+        if (emitter == null) {
+            logger.debug("token[{}]无对应的 SSE 连接，消息无需推送（连接已离线）", tokenKey);
+            return false;
+        }
+        SseEmitter.SseEventBuilder build = buildEvent(message.getEventName(), message);
+        try {
+            emitter.send(build);
+            logger.debug("按 token[{}]精准推送 SSE 消息成功.", tokenKey);
+            return true;
+        } catch (Exception e) {
+            logger.warn("按 token[{}]精准推送 SSE 消息失败，连接已失效. error={}", tokenKey, e.getMessage());
+            tokenIndex.remove(tokenKey);
+            return false;
+        }
     }
 
     /**
@@ -256,16 +308,38 @@ public class SseEmitterService {
     }
 
     /**
-     * 移除已关闭的SSE连接
+     * 移除已关闭的SSE连接，同步清理 tokenIndex
      * @return 剩余的连接数量
      */
     private int removeDeadEmitters(String userId, List<String> deadAppkeys) {
         Map<String, SseEmitter> appEmitters = emitters.getOrDefault(userId, new ConcurrentHashMap<>());
-        deadAppkeys.forEach(appEmitters::remove);
+        for (String appkey : deadAppkeys) {
+            SseEmitter dead = appEmitters.remove(appkey);
+            if (dead != null) {
+                // 用 == 比较引用：目的是找到 tokenIndex 中与 dead 完全相同的实例并移除
+                // SseEmitter 未重写 equals，但此处语义就是"同一个对象"，== 是正确选择
+                tokenIndex.entrySet().removeIf(e -> e.getValue() == dead);
+            }
+        }
         if (appEmitters.isEmpty()) {
             emitters.remove(userId);
         }
         return appEmitters.size();
+    }
+
+    /**
+     * 移除单个连接（onCompletion 回调使用），同步清理 tokenIndex.<br>
+     * tokenKey 为空时跳过 tokenIndex 清理。
+     */
+    private void removeEmitter(String userId, String appkey, String tokenKey) {
+        if (StringUtil.notNull(tokenKey)) {
+            tokenIndex.remove(tokenKey);
+        }
+        Map<String, SseEmitter> appEmitters = emitters.getOrDefault(userId, new ConcurrentHashMap<>());
+        appEmitters.remove(appkey);
+        if (appEmitters.isEmpty()) {
+            emitters.remove(userId);
+        }
     }
 
 }

@@ -56,7 +56,7 @@ public class LoggingFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         // 仅DEBUG模式才记录请求和响应日志
         // 若是SSE/WebSocket等流式请求，也不记录日志
-        if (!logger.isDebugEnabled() || isLongLivedRequest(exchange.getRequest())) {
+        if (!logger.isDebugEnabled() || GatewayUtil.isLongLivedRequest(exchange.getRequest())) {
             return chain.filter(exchange);
         }
         // 基本信息
@@ -237,24 +237,4 @@ public class LoggingFilter implements GlobalFilter, Ordered {
                 logData.getTargetServer(), logData.getAppid(), logData.getClientIp(), logData.getDeviceId(), logData.getToken(), JsonUtil.serialize(CurrentUser.getInfo()),
                 JsonUtil.serialize(logData.getHeaders()), logData.getRequestParams(), logData.getRequestBody(),logData.getResponseData());
     }
-
-    /**
-     * 判断是否是长连接请求（SSE 或 WebSocket）.<br>
-     * 长连接请求不记录日志，避免 .buffer() 阻塞永不结束的响应流。
-     */
-    private boolean isLongLivedRequest(ServerHttpRequest request) {
-        // 1. Accept: text/event-stream → SSE（协议标准，优先判断）
-        String accept = request.getHeaders().getFirst(HttpHeaders.ACCEPT);
-        if (accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE)) {
-            return true;
-        }
-        // 2. Upgrade: websocket → WebSocket 升级请求
-        String upgrade = request.getHeaders().getFirst(HttpHeaders.UPGRADE);
-        if ("websocket".equalsIgnoreCase(upgrade)) {
-            return true;
-        }
-        // 3. 路径约定 /sse/ → 直接跳过，不检查 Content-Type（text/event-stream 是响应头，请求阶段不存在）
-        return request.getPath().toString().contains("/sse/");
-    }
-
 }

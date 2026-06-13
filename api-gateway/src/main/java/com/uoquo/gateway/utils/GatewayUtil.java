@@ -4,13 +4,10 @@
  */
 package com.uoquo.gateway.utils;
 
-import com.uoquo.utils.CurrentUser;
-import com.uoquo.utils.IDGenerator;
-import com.uoquo.utils.StringUtil;
-import com.uoquo.utils.crypto.MD5;
-import com.uoquo.web.BaseCacheKey;
-import com.uoquo.web.exception.ParamErrorException;
-import com.uoquo.utils.spring.RedisUtil;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -19,12 +16,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.server.ServerWebExchange;
-import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import com.uoquo.utils.CurrentUser;
+import com.uoquo.utils.IDGenerator;
+import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.crypto.MD5;
+import com.uoquo.utils.spring.RedisUtil;
+import com.uoquo.web.BaseCacheKey;
+import com.uoquo.web.exception.ParamErrorException;
+
+import reactor.core.publisher.Mono;
 
 
 public class GatewayUtil {
@@ -209,6 +210,22 @@ public class GatewayUtil {
         }
         // 放入当前线程
         CurrentUser.setInfo(user);
+    }
+
+    /**
+     * 判断是否是长连接请求（SSE 或 WebSocket）.<br>
+     * SSE 请求携带 {@code Accept: text/event-stream}，WebSocket 升级请求携带 {@code Upgrade: websocket}。<br>
+     * 长连接请求不应设置响应超时，也不应缓冲响应体。
+     */
+    public static boolean isLongLivedRequest(ServerHttpRequest request) {
+        // 1. Accept: text/event-stream → SSE（协议标准，优先判断）
+        String accept = request.getHeaders().getFirst(HttpHeaders.ACCEPT);
+        if (accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE)) {
+            return true;
+        }
+        // 2. Upgrade: websocket → WebSocket 升级请求
+        String upgrade = request.getHeaders().getFirst(HttpHeaders.UPGRADE);
+        return "websocket".equalsIgnoreCase(upgrade);
     }
 
     /**

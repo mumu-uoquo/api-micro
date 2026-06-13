@@ -4,7 +4,10 @@
  */
 package com.uoquo.gateway.filter;
 
-import com.uoquo.gateway.utils.GatewayUtil;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.route.Route;
@@ -12,10 +15,10 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.uoquo.gateway.utils.GatewayUtil;
+
+import reactor.core.publisher.Mono;
 
 /**
  * 描述：长连接响应超时动态覆盖过滤器.<br>
@@ -46,8 +49,9 @@ public class SseTimeoutFilter implements GlobalFilter, Ordered {
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
         if (route != null) {
             Map<String, Object> metadata = new HashMap<>(route.getMetadata());
-            // response-timeout=0 表示不超时，SSE/WebSocket 长连接必须
-            metadata.put("response-timeout", 0);
+            // response-timeout=0 表示不超时（Duration.ZERO），SSE/WebSocket 长连接必须
+            // NettyRoutingFilter 读取此值时期望 Duration 类型，直接写 Duration.ZERO
+            metadata.put("response-timeout", Duration.ZERO);
             Route longLivedRoute = Route.async()
                     .asyncPredicate(route.getPredicate())
                     .filters(route.getFilters())

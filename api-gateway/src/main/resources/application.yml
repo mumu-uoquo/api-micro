@@ -53,6 +53,10 @@ spring:
     gateway:
       server:
         webflux:
+          # ======================= httpclient配置 =======================
+          httpclient:
+            response-timeout: 30s  # 普通请求响应超时（SSE/WebSocket 由 SseTimeoutFilter 动态覆盖为不超时）
+            connect-timeout: 5000  # 连接超时（毫秒）
           # ======================= 注册中心 =======================
           # 从服务注册中心获取服务信息，然后以服务名作为前缀配置相应的路由
           discovery:

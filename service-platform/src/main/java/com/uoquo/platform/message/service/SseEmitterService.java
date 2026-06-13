@@ -16,8 +16,8 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.uoquo.platform.message.model.pojo.SseMessage;
 import com.uoquo.platform.common.utils.UserUtils;
+import com.uoquo.platform.message.model.pojo.SseMessage;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
@@ -106,19 +106,12 @@ public class SseEmitterService {
             logger.error("用户[{}]客户端[{}]的 SSE 连接已出错", userId, appkey, e);
             emitter.completeWithError(e);
         });
-        // 2. 关闭同一 appkey 的旧连接，并清理旧 tokenIndex
+        // 2. 替换主索引中 appkey 对应的连接为新连接，但不主动断开旧连接
+        //    旧连接保留在 tokenIndex 中，等待 kickOut 消息推送后由客户端自行断开，
+        //    或由 onCompletion / onTimeout / onError 回调自然清理
         Map<String, SseEmitter> appEmitters = emitters.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
-        SseEmitter oldEmitter = appEmitters.get(appkey);
-        if (oldEmitter != null) {
-            // 用 == 比较引用而非 equals，目的是找到与 oldEmitter 完全相同的实例
-            // SseEmitter 未重写 equals，但这里语义本就是"同一个对象"，== 更准确
-            tokenIndex.entrySet().removeIf(e -> e.getValue() == oldEmitter);
-            try {
-                oldEmitter.complete();
-                logger.debug("关闭用户[{}]客户端[{}]的 SSE 旧链接成功", userId, appkey);
-            } catch (Exception e) {
-                logger.warn("关闭用户[{}]客户端[{}]的 SSE 旧链接出错", userId, appkey, e);
-            }
+        if (appEmitters.containsKey(appkey)) {
+            logger.debug("用户[{}]客户端[{}]已有旧 SSE 连接，替换为新连接，旧连接保留至 kickOut 通知后断开", userId, appkey);
         }
         // 3. 先放入缓存，再发送初始事件
         appEmitters.put(appkey, emitter);

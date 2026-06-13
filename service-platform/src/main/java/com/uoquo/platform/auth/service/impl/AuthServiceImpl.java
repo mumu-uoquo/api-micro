@@ -4,7 +4,8 @@ import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.pojo.AuthInfo;
-import com.uoquo.platform.auth.model.param.UserLoginParam;
+import com.uoquo.platform.auth.model.param.AccountLoginParam;
+import com.uoquo.platform.auth.model.param.BasicLoginParam;
 import com.uoquo.platform.common.utils.TotpAuthUtils;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.common.*;
@@ -95,7 +96,7 @@ public class AuthServiceImpl implements AuthService {
 
     // 要更新连续出错信息，所以不能加事务控制！
     @Override
-    public UserAuthDto userLogin(UserLoginParam param, String clientIp) {
+    public UserAuthDto userLogin(AccountLoginParam param, String clientIp) {
         // 请求端信息放入CurrentUser，方便后续记录日志
         CurrentUser.setClientIp(clientIp);
         CurrentUser.setAppVersion(param.getAppVersion());
@@ -283,7 +284,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenDto appLogin(UserLoginParam param, String clientIp) {
+    public TokenDto appLogin(AccountLoginParam param, String clientIp) {
         AppInfo app = appInfoMapper.selectByAppkey(param.getAccount());
         // 1.1 校验状态
         this.checkAppStatus(param.getAccount(), app);
@@ -379,7 +380,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String getCaptcha(UserLoginParam param, String clientIp) {
+    public String getCaptcha(BasicLoginParam param, String clientIp) {
         String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
         String captchaFlag = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, String.class);
         // 不需要验证码

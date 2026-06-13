@@ -2,7 +2,10 @@ package com.uoquo.platform.auth.controller;
 
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
-import com.uoquo.platform.auth.model.param.UserLoginParam;
+import com.uoquo.platform.auth.model.param.AccountLoginParam;
+import com.uoquo.platform.auth.model.param.BasicLoginParam;
+import com.uoquo.platform.auth.model.param.TokenLoginParam;
+import com.uoquo.platform.auth.model.param.MfaLoginParam;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.utils.CurrentUser;
@@ -12,7 +15,6 @@ import com.uoquo.web.ReturnData;
 import com.uoquo.web.SystemReturnCode;
 import com.uoquo.annotation.web.IgnoreAuth;
 import com.uoquo.web.param.IdParam;
-import com.uoquo.web.exception.ParamEmtpyException;
 import com.uoquo.web.utils.WebUtil;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,34 +58,27 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "用户账号登录", operationId = "accountLogin", method = "POST")
     @PostMapping("/account/login")
-    public ReturnData<UserAuthDto> login(HttpServletRequest request, @RequestBody @Valid UserLoginParam param) {
+    public ReturnData<UserAuthDto> login(HttpServletRequest request, @RequestBody @Valid AccountLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("login param: {}", JsonUtil.serialize(param));
         }
-        if (StringUtil.isNull(param.getAccount())) {
-            throw new ParamEmtpyException("账号不能为空");
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
         }
-        if (StringUtil.isNull(param.getPassword())) {
-            throw new ParamEmtpyException("密码不能为空");
-        }
-        param.setUserAgent(request.getHeader("User-Agent"));
         String clientIp = WebUtil.getClientIp(request);
         UserAuthDto result = authService.userLogin(param, clientIp);
         return new ReturnData<>(result);
     }
 
     @IgnoreAuth(login = true)
-    @Operation(summary = "验证TOTP（登录二次验证）", operationId = "mfaLogin", method = "POST")
+    @Operation(summary = "验证MFA（登录二次验证）", operationId = "mfaLogin", method = "POST")
     @PostMapping("/mfa/login")
-    public ReturnData<UserAuthDto> mfaLogin(@RequestBody @Valid UserLoginParam param) {
+    public ReturnData<UserAuthDto> mfaLogin(HttpServletRequest request, @RequestBody @Valid MfaLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("mfaLogin: tempToken[{}]", param.getTempToken());
         }
-        if (StringUtil.isNull(param.getTempToken())) {
-            throw new ParamEmtpyException("临时Token不能为空");
-        }
-        if (StringUtil.isNull(param.getTotpCode())) {
-            throw new ParamEmtpyException("动态码不能为空");
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
         }
         UserAuthDto result = authService.totpLogin(param.getTempToken(), param.getTotpCode());
         return new ReturnData<>(result);
@@ -92,12 +87,12 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "刷新token登录", operationId = "tokenLogin", method = "POST")
     @PostMapping("/token/login")
-    public ReturnData<TokenDto> tokenLogin(HttpServletRequest request, @RequestBody @Valid UserLoginParam param) {
+    public ReturnData<TokenDto> tokenLogin(HttpServletRequest request, @RequestBody @Valid TokenLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("tokenLogin param: {}", JsonUtil.serialize(param));
         }
-        if (StringUtil.isNull(param.getRefreshToken())) {
-            throw new ParamEmtpyException("刷新码不能为空");
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
         }
         String clientIp = WebUtil.getClientIp(request);
         TokenDto result = authService.userRefreshLogin(param.getRefreshToken(), param.getCurrentRoleId(), clientIp);
@@ -107,9 +102,12 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "获取验证码图片", operationId = "getCaptcha", method = "POST")
     @PostMapping("/captcha")
-    public ReturnData<String> getCaptcha(HttpServletRequest request, @RequestBody UserLoginParam param) {
+    public ReturnData<String> getCaptcha(HttpServletRequest request, @RequestBody BasicLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("getCaptcha param: {}", JsonUtil.serialize(param));
+        }
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
         }
         String clientIp = WebUtil.getClientIp(request);
         String captcha = authService.getCaptcha(param, clientIp);
@@ -119,11 +117,13 @@ public class AuthController {
     @Hidden
     @IgnoreAuth(login = true)
     @PostMapping("/app/login")
-    public ReturnData<TokenDto> appLogin(HttpServletRequest request, @RequestBody @Valid UserLoginParam param) {
+    public ReturnData<TokenDto> appLogin(HttpServletRequest request, @RequestBody @Valid AccountLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("appLogin param: {}", JsonUtil.serialize(param));
         }
-        param.setUserAgent(request.getHeader("User-Agent"));
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
+        }
         String clientIp = WebUtil.getClientIp(request);
         TokenDto result = authService.appLogin(param, clientIp);
         return new ReturnData<>(result);
@@ -132,12 +132,12 @@ public class AuthController {
     @Hidden
     @IgnoreAuth(login = true)
     @PostMapping("/app/token/login")
-    public ReturnData<TokenDto> appTokenLogin(HttpServletRequest request, @RequestBody UserLoginParam param) {
+    public ReturnData<TokenDto> appTokenLogin(HttpServletRequest request, @RequestBody @Valid TokenLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("appTokenLogin param: {}", JsonUtil.serialize(param));
         }
-        if (StringUtil.isNull(param.getRefreshToken())) {
-            throw new ParamEmtpyException("刷新码不能为空");
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
         }
         String clientIp = WebUtil.getClientIp(request);
         TokenDto result = authService.appRefreshLogin(param.getRefreshToken(), clientIp);
@@ -156,10 +156,7 @@ public class AuthController {
 
     @Operation(summary = "当前用户信息", operationId = "getInfo", method = "POST")
     @PostMapping("/info")
-    public ReturnData<UserAuthDto> getInfo(@RequestBody UserLoginParam param) {
-        if (logger.isInfoEnabled()) {
-            logger.info("getInfo param: {}", JsonUtil.serialize(param));
-        }
+    public ReturnData<UserAuthDto> getInfo() {
         UserAuthDto result = authService.getUserInfo();
         return new ReturnData<>(result);
     }

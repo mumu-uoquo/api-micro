@@ -2,7 +2,8 @@ package com.uoquo.platform.auth.service;
 
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
-import com.uoquo.platform.auth.model.param.UserLoginParam;
+import com.uoquo.platform.auth.model.param.AccountLoginParam;
+import com.uoquo.platform.auth.model.param.BasicLoginParam;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.web.BaseReturnCode;
 
@@ -19,7 +20,7 @@ public interface AuthService {
      *     <li>刷新码有效期：7天</li>
      * </ol>
      */
-    UserAuthDto userLogin(UserLoginParam param, String clientIp);
+    UserAuthDto userLogin(AccountLoginParam param, String clientIp);
 
     /**
      * 验证TOTP动态码（完成登录）
@@ -49,7 +50,7 @@ public interface AuthService {
      *     <li>刷新码有效期：7天</li>
      * </ol>
      */
-    TokenDto appLogin(UserLoginParam param, String clientIp);
+    TokenDto appLogin(AccountLoginParam param, String clientIp);
 
     /**
      * 三方认证：刷新码<br>
@@ -81,5 +82,5 @@ public interface AuthService {
      * 获取验证码
      * @return 验证码图片（Base64）
      */
-    String getCaptcha(UserLoginParam param, String clientIp);
+    String getCaptcha(BasicLoginParam param, String clientIp);
 }

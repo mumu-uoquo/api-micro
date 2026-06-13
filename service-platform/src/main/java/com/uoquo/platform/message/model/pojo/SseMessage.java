@@ -1,10 +1,10 @@
 package com.uoquo.platform.message.model.pojo;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * SSE消息，业务类型、操作动作、结果状态都与源事件信息一致
@@ -14,6 +14,12 @@ public class SseMessage {
 
     @Schema(description = "接收记录ID（唯一ID，receiverId + messageId）")
     private String recordId;
+
+    @Schema(description = "事件名称", requiredMode = Schema.RequiredMode.REQUIRED)
+    private String eventName;
+
+    @Schema(description = "指定展示端")
+    protected String targetAppKey;
 
     @Schema(description = "消息ID")
     private String messageId;
@@ -61,19 +67,28 @@ public class SseMessage {
     @Schema(description = "操作类型（即：业务动作，010）", requiredMode = Schema.RequiredMode.REQUIRED)
     protected String operationType;
 
-    @Schema(description = "执行状态（011）")
-    protected String operationStatus;
-
-    @Schema(description = "指定展示端")
-    protected String appKey;
-
-
     public String getRecordId() {
         return recordId;
     }
 
     public void setRecordId(String recordId) {
         this.recordId = recordId;
+    }
+
+    public String getEventName() {
+        return eventName;
+    }
+
+    public void setEventName(String eventName) {
+        this.eventName = eventName;
+    }
+
+    public String getTargetAppKey() {
+        return targetAppKey;
+    }
+
+    public void setTargetAppKey(String targetAppKey) {
+        this.targetAppKey = targetAppKey;
     }
 
     public String getMessageId() {
@@ -206,21 +221,4 @@ public class SseMessage {
     public void setOperationType(String operationType) {
         this.operationType = operationType;
     }
-
-    public String getOperationStatus() {
-        return operationStatus;
-    }
-
-    public void setOperationStatus(String operationStatus) {
-        this.operationStatus = operationStatus;
-    }
-
-    public String getAppKey() {
-        return appKey;
-    }
-
-    public void setAppKey(String appKey) {
-        this.appKey = appKey;
-    }
 }
-

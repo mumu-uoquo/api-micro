@@ -195,13 +195,12 @@ public class MessageInfoEventListener {
         message.setMessageType(info.getMessageType());
         message.setMessageLevel(info.getMessageLevel());
         // 发给所有客户端
-        message.setAppKey(null);
+        message.setTargetAppKey(null);
         // 业务相关（与源事件一致）
         message.setBusinessId(event.getBusinessId());
         message.setBusinessType(event.getBusinessType());
         message.setBusinessSubType(event.getBusinessSubType());
         message.setOperationType(event.getOperationType());
-        message.setOperationStatus(event.getOperationStatus());
         // 消息内容
         message.setMessageTitle(info.getMessageTitle());
         message.setMessageContent(info.getMessageContent());

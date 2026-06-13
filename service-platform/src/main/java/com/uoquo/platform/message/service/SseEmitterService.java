@@ -1,40 +1,52 @@
 package com.uoquo.platform.message.service;
 
-import com.uoquo.platform.common.SseMessageTypeEnum;
-import com.uoquo.platform.message.model.pojo.SseMessage;
-import com.uoquo.utils.CurrentUser;
-import com.uoquo.utils.StringUtil;
-import com.uoquo.utils.json.JsonUtil;
-import com.uoquo.web.exception.SystemErrorException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.uoquo.platform.message.model.pojo.SseMessage;
+import com.uoquo.utils.CurrentUser;
+import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.json.JsonUtil;
+import com.uoquo.web.exception.SystemErrorException;
+
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.validation.constraints.NotNull;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
- * SSE连接管理器<br>
- * 内置的消息类型：{@link SseMessageTypeEnum SseMessageTypeEnum}
+ * SSE连接管理器
+ * <p>
+ * eventName 统一从 {@link SseMessage#getEventName()} 取得，调用方必须在消息对象上设置。
+ * 内置 HEARTBEAT 心跳事件由服务端定时发送，不对外暴露。
+ * </p>
  * @author xuhz
  */
 @Component
 public class SseEmitterService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final Map<String, Map<String, SseEmitter>> emitters = new ConcurrentHashMap<>();
+    /** 调度线程：仅负责触发心跳任务，不执行实际 IO */
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    /** 广播线程池：执行实际的 send IO，避免阻塞调度线程 */
+    private final ExecutorService broadcastExecutor = Executors.newCachedThreadPool();
+
+    /** 内置心跳事件名，不对外暴露 */
+    private static final String EVENT_HEARTBEAT = "HEARTBEAT";
+
     @PostConstruct
     public void init() {
         // 全局心跳任务，每30秒执行一次
@@ -44,6 +56,7 @@ public class SseEmitterService {
     @PreDestroy
     public void cleanup() {
         scheduler.shutdown();
+        broadcastExecutor.shutdown();
     }
 
     /**
@@ -61,139 +74,122 @@ public class SseEmitterService {
         if (StringUtil.isNull(userId) || StringUtil.isNull(appkey)) {
             return null;
         }
-        // 1. 注册相关事件
+        // 1. 注册相关事件（onTimeout 触发后 Spring 会自动调用 onCompletion，统一由 onCompletion 清理连接）
         String traceId = CurrentUser.getTraceId();
-        emitter.onCompletion(() ->{
+        emitter.onCompletion(() -> {
             try {
                 MDC.put("requestId", traceId);
                 logger.info("用户[{}]客户端[{}]的 SSE 连接已关闭", userId, appkey);
                 removeDeadEmitters(userId, List.of(appkey));
             } catch (Exception e) {
-                logger.debug("用户[{}]客户端[{}]的 SSE 链接已出错", userId, appkey, e);
+                logger.debug("用户[{}]客户端[{}]的 SSE 链接清理出错", userId, appkey, e);
             } finally {
                 MDC.remove("requestId");
             }
         });
         emitter.onTimeout(() -> {
-            try {
-                MDC.put("requestId", traceId);
-                logger.warn("用户[{}]客户端[{}]的 SSE 连接已超时", userId, appkey);
-                removeDeadEmitters(userId, List.of(appkey));
-            } catch (Exception e) {
-                logger.debug("用户[{}]客户端[{}]的 SSE 链接已出错", userId, appkey, e);
-            } finally {
-                MDC.remove("requestId");
-            }
+            // 超时后 Spring 自动调用 onCompletion，此处只记录日志
+            logger.warn("用户[{}]客户端[{}]的 SSE 连接已超时", userId, appkey);
+            emitter.complete();
         });
         emitter.onError(e -> {
-            try {
-                MDC.put("requestId", traceId);
-                logger.error("用户[{}]客户端[{}]的 SSE 连接已出错", userId, appkey, e);
-                removeDeadEmitters(userId, List.of(appkey));
-            } catch (Exception err) {
-                logger.debug("用户[{}]客户端[{}]的 SSE 链接已出错", userId, appkey, err);
-            } finally {
-                MDC.remove("requestId");
-            }
+            // 出错后调用 completeWithError，Spring 自动调用 onCompletion，此处只记录日志
+            logger.error("用户[{}]客户端[{}]的 SSE 连接已出错", userId, appkey, e);
+            emitter.completeWithError(e);
         });
-        // 2. 关闭旧链接
-        Map<String, SseEmitter> appEmitters = emitters.getOrDefault(userId, new ConcurrentHashMap<>());
+        // 2. 关闭同一 appkey 的旧连接（computeIfAbsent 避免并发订阅时 userId 对应的 map 被覆盖）
+        Map<String, SseEmitter> appEmitters = emitters.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
         SseEmitter oldEmitter = appEmitters.get(appkey);
         if (oldEmitter != null) {
             try {
                 oldEmitter.complete();
-                logger.debug("关闭用户[{}]的 SSE 旧链接成功", userId);
+                logger.debug("关闭用户[{}]客户端[{}]的 SSE 旧链接成功", userId, appkey);
             } catch (Exception e) {
-                logger.warn("关闭用户[{}]的 SSE 旧链接出错", userId, e);
+                logger.warn("关闭用户[{}]客户端[{}]的 SSE 旧链接出错", userId, appkey, e);
             }
         }
-        // 3. 初始化
+        // 3. 先放入缓存，再发送初始事件（避免初始事件发送成功但缓存未更新的窗口期）
+        appEmitters.put(appkey, emitter);
         try {
-            // 发送一个初始事件保持连接
-            emitter.send(SseEmitter.event().data(JsonUtil.serialize("连接已建立")));
-            // 加入缓存
-            appEmitters.put(appkey, emitter);
-            logger.info("用户[{}]的 SSE 连接建立成功", userId);
+            emitter.send(SseEmitter.event().name("CONNECTED").data(JsonUtil.serialize("连接已建立")));
+            logger.info("用户[{}]客户端[{}]的 SSE 连接建立成功", userId, appkey);
         } catch (IOException e) {
-            logger.error("用户[{}]的 SSE 推送初始事件出错", userId, e);
+            logger.error("用户[{}]客户端[{}]的 SSE 推送初始事件出错", userId, appkey, e);
+            appEmitters.remove(appkey);
             emitter.completeWithError(e);
         }
-        // 4. 缓存连接信息
-        emitters.put(userId, appEmitters);
         return emitter;
     }
 
     /**
-     * 下推消息：业务消息
+     * 定向推送消息.<br>
+     * eventName 取自 {@link SseMessage#getEventName()}，为空时抛出异常。
+     *
+     * @param userId  接收用户 ID
+     * @param appkey  目标客户端（为空时推送给该用户所有在线客户端）
+     * @param message 消息体（必须设置 eventName）
+     * @return 实际送达的连接数
      */
-    public void publishMessage(@NotNull String userId, @Nullable String appkey, @NotNull SseMessage message) {
+    public int publish(@NotNull String userId, @Nullable String appkey, @NotNull SseMessage message) {
         if (StringUtil.isNull(userId)) {
-            return;
+            return 0;
         }
-        // 构建消息
-        SseEmitter.SseEventBuilder build = getMessageBuilder(SseMessageTypeEnum.MESSAGE, message);
-        // 定向推送
+        if (StringUtil.isNull(message.getEventName())) {
+            throw new SystemErrorException("SSE 消息 eventName 不能为空");
+        }
+        SseEmitter.SseEventBuilder build = buildEvent(message.getEventName(), message);
         Map<String, SseEmitter> appEmitters = getEmitters(userId, appkey);
-        List<String> deadAppkeys = this.publish(userId, appEmitters, List.of(build));
-        // 删除无效链接
-        int count = removeDeadEmitters(userId, deadAppkeys);
-        // 如果无连接则抛出异常
-        if (count == 0) {
-            throw new SystemErrorException("用户[%s]无 SSE 连接，无法推送消息", userId);
-        }
+        List<String> deadAppkeys = this.doPublish(userId, appEmitters, List.of(build));
+        // 从全局缓存清理死连接
+        removeDeadEmitters(userId, deadAppkeys);
+        // 送达数 = 本次参与推送的连接数 - 失败数
+        return appEmitters.size() - deadAppkeys.size();
     }
 
     /**
-     * 定向推送：系统通知（如被踢下线等）
-     */
-    public void publishNotice(@NotNull String userId, @Nullable String appkey, @NotNull SseMessage message) {
-        if (StringUtil.isNull(userId) || StringUtil.isNull(appkey)) {
-            return;
-        }
-        // 构建消息
-        SseEmitter.SseEventBuilder build = getMessageBuilder(SseMessageTypeEnum.WARNING, message);
-        // 定向推送
-        Map<String, SseEmitter> appEmitters = getEmitters(userId, appkey);
-        List<String> deadAppkeys = this.publish(userId, appEmitters, List.of(build));
-        // 删除无效链接
-        int count = removeDeadEmitters(userId, deadAppkeys);
-        // 如果无连接则抛出异常
-        if (count == 0) {
-            throw new SystemErrorException("用户[%s]无 SSE 连接，无法推送消息", userId);
-        }
-    }
-
-    /**
-     * 全员广播：消息
+     * 全员广播.<br>
+     * eventName 取自 {@link SseMessage#getEventName()}，为空时抛出异常。
+     *
+     * @param message 消息体（必须设置 eventName）
      */
     public void broadcast(@NotNull SseMessage message) {
-        this.broadcast(SseMessageTypeEnum.MESSAGE, message);
+        if (StringUtil.isNull(message.getEventName())) {
+            throw new SystemErrorException("SSE 消息 eventName 不能为空");
+        }
+        doBroadcast(message.getEventName(), message);
     }
 
     /**
-     * 全员广播
+     * 发送心跳包（内部使用，不对外暴露）.<br>
+     * 调度线程只负责提交任务，实际 IO 由 broadcastExecutor 异步执行，避免阻塞调度线程。
      */
-    private void broadcast(@NotNull SseMessageTypeEnum type, @Nullable SseMessage message) {
-        // 消息构建
-        SseEmitter.SseEventBuilder build = getMessageBuilder(type, message);
-        // 消息广播
-        List<String> deadUsers = new ArrayList<>();
-        for (String userId : emitters.keySet()) {
-            Map<String, SseEmitter> appEmitters = emitters.get(userId);
-            List<String> deadAppkeys = this.publish(userId, appEmitters, List.of(build));
-            // 删除失效的链接
-            deadAppkeys.forEach(appEmitters::remove);
-            // 记录无连接的用户信息
-            if (appEmitters.isEmpty()) {
-                deadUsers.add(userId);
-            }
-        }
-        // 删除失效的用户连接
-        deadUsers.forEach(emitters::remove);
+    private void sendHeartbeats() {
+        broadcastExecutor.submit(() -> {
+            doBroadcast(EVENT_HEARTBEAT, null);
+            logger.debug("发送全局心跳，当前在线用户数: {}", emitters.size());
+        });
     }
 
-    private SseEmitter.SseEventBuilder getMessageBuilder(@NotNull SseMessageTypeEnum type, @Nullable SseMessage message) {
-        SseEmitter.SseEventBuilder builder = SseEmitter.event().name(type.name());
+    /**
+     * 广播内部实现，供 broadcast 公开方法和心跳复用
+     */
+    private void doBroadcast(@NotNull String eventName, @Nullable SseMessage message) {
+        SseEmitter.SseEventBuilder build = buildEvent(eventName, message);
+        for (String userId : emitters.keySet()) {
+            Map<String, SseEmitter> appEmitters = emitters.get(userId);
+            if (appEmitters == null) {
+                continue;
+            }
+            List<String> deadAppkeys = this.doPublish(userId, appEmitters, List.of(build));
+            removeDeadEmitters(userId, deadAppkeys);
+        }
+    }
+
+    /**
+     * 构建 SSE 事件
+     */
+    private SseEmitter.SseEventBuilder buildEvent(@NotNull String eventName, @Nullable SseMessage message) {
+        SseEmitter.SseEventBuilder builder = SseEmitter.event().name(eventName);
         if (message != null) {
             builder.data(JsonUtil.serialize(message));
             if (StringUtil.notNull(message.getRecordId())) {
@@ -201,6 +197,9 @@ public class SseEmitterService {
             } else if (StringUtil.notNull(message.getMessageId())) {
                 builder.id(message.getMessageId());
             }
+        } else {
+            // SSE 规范要求至少有 data 字段，否则部分客户端不触发事件
+            builder.data("");
         }
         return builder;
     }
@@ -230,34 +229,27 @@ public class SseEmitterService {
     }
 
     /**
-     * 给用户下发消息
-     * @return 返回无效链接对应的appkey列表
+     * 实际发送逻辑.<br>
+     * 推送失败时仅记录日志并标记为死连接，不主动 complete，避免触发回调形成双重 complete。
+     *
+     * @return 返回无效链接对应的 appkey 列表
      */
-    private List<String> publish(String userId, Map<String, SseEmitter> appEmitters, List<SseEmitter.SseEventBuilder> list) {
-        // 发送失败的列表
+    private List<String> doPublish(String userId, Map<String, SseEmitter> appEmitters, List<SseEmitter.SseEventBuilder> list) {
         List<String> deadAppkeys = new ArrayList<>();
-        // 遍历用户的每个appkey
-        for (String appkey : appEmitters.keySet()) {
-            SseEmitter emitter = appEmitters.get(appkey);
+        for (Map.Entry<String, SseEmitter> entry : appEmitters.entrySet()) {
+            String appkey = entry.getKey();
+            SseEmitter emitter = entry.getValue();
             try {
-                logger.debug("广播 SSE 消息给用户[{}]客户端[{}]开始.", userId, appkey);
+                logger.debug("推送 SSE 消息给用户[{}]客户端[{}]开始.", userId, appkey);
                 for (SseEmitter.SseEventBuilder item : list) {
                     emitter.send(item);
                 }
-                logger.debug("广播 SSE 消息给用户[{}]客户端[{}]成功.", userId, appkey);
+                logger.debug("推送 SSE 消息给用户[{}]客户端[{}]成功.", userId, appkey);
             } catch (Exception e) {
+                // 推送失败说明连接已失效，标记为死连接，由 removeDeadEmitters 统一清理缓存
+                // 不调用 completeWithError：连接已坏时调用会抛 IllegalStateException，且会触发 onError 再次 complete
+                logger.warn("推送 SSE 消息给用户[{}]客户端[{}]失败，标记为死连接. error={}", userId, appkey, e.getMessage());
                 deadAppkeys.add(appkey);
-                try {
-                    // 此处不打印详细日志，交由 emitter.onError 处理
-                    StringBuilder sb = new StringBuilder();
-                    for (SseEmitter.SseEventBuilder item : list) {
-                        item.build().forEach(d -> sb.append(d.getData()).append("\n"));
-                    }
-                    logger.error("广播 SSE 消息给用户[{}]客户端[{}]失败：{}, error={}", userId, appkey, sb.toString(), e.getMessage());
-                    emitter.completeWithError(e);
-                } catch (Exception e2) {
-                    // do nothing
-                }
             }
         }
         return deadAppkeys;
@@ -276,28 +268,4 @@ public class SseEmitterService {
         return appEmitters.size();
     }
 
-    /**
-     * 发送心跳包
-     */
-    private void sendHeartbeats() {
-        synchronized (emitters) {
-            this.broadcast(SseMessageTypeEnum.HEARTBEAT, null);
-            logger.debug("发送全局心跳，当前在线用户数: {}", emitters.size());
-        }
-    }
-
-//    @Async
-//    public void testPublish(String userId, String lastId) {
-//        int prevId = lastId == null ? 0 : Integer.parseInt(lastId) ;
-//        for (int i = prevId; i < prevId+10; i++) {
-//            String message = "测试消息-" + i;
-//            try {
-//                publish(userId, i+"", "MESSAGE", message);
-//                Thread.sleep(1000L * 5);
-//            } catch (Exception e) {
-//                logger.error("轮询给用户[{}]发送SSE消息[{}]出错：", userId, message, e);
-//                return;
-//            }
-//        }
-//    }
 }

@@ -1,5 +1,11 @@
 package com.uoquo.scheduler.platform.listener;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
 import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.scheduler.common.BusinessOperationEnum;
 import com.uoquo.scheduler.common.BusinessTypeEnum;
@@ -13,11 +19,6 @@ import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.web.SystemReturnCode;
 import com.uoquo.web.events.UoquoEventPublisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 
@@ -98,18 +99,20 @@ public class AuthEventListener {
             SseMessage message = new SseMessage();
             // 基本信息
             message.setRecordId(null);
+            message.setEventName("kickOut");
             message.setReceiverId(event.getBusinessId());
             message.setMessageId(null);
             message.setMessageType(DictionaryCodeEnum.MESSAGE_TYPE_NOTICE.getCode());
             message.setMessageLevel(DictionaryCodeEnum.LEVEL_IMPORTANT.getCode());
-            // 只发给指定类型的客户端
-            message.setAppKey(event.getAppKey());
+            // 发给指定客户端
+            message.setTargetAppKey(event.getAppKey());
+            // 被踢下线的会话
+            message.addBusinessExtend("token", event.getToken());
             // 业务相关（与源事件一致）
             message.setBusinessId(event.getBusinessId());
             message.setBusinessType(event.getBusinessType());
             message.setBusinessSubType(event.getBusinessSubType());
             message.setOperationType(event.getOperationType());
-            message.setOperationStatus(event.getOperationStatus());
             // 消息内容
             message.setMessageTitle("账号被踢下线");
             message.setMessageContent("您的账号在其他设备登录，当前会话将强制登出；若非本人操作，请立即重新登录修改密码。");

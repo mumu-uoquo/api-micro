@@ -40,7 +40,7 @@ public enum DictionaryCodeEnum {
 
     /** ********** 020 消息分类 ********** **/
     MESSAGE_TYPE_NOTICE("020001", "通知公告"),
-    MESSAGE_TYPE_SYSTEM("020002", "系统消息"),
+    MESSAGE_TYPE_SYSTEM("020002", "业务消息"),
     MESSAGE_TYPE_TODO("020003", "待办任务"),
 
     /** ********** 021 推送方式 ********** **/

@@ -1,18 +1,16 @@
 package com.uoquo.platform.events.listener;
 
-import com.uoquo.cloud.events.RemoteEvent;
-import com.uoquo.platform.common.BusinessTypeEnum;
-import com.uoquo.platform.message.model.dto.MsgInfoViewDto;
-import com.uoquo.platform.message.model.pojo.MsgInfo;
-import com.uoquo.platform.message.model.pojo.SseMessage;
-import com.uoquo.platform.message.service.SseEmitterService;
-import com.uoquo.utils.json.JsonUtil;
-import com.uoquo.web.SystemReturnCode;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+
+import com.uoquo.cloud.events.RemoteEvent;
+import com.uoquo.platform.common.DictionaryCodeEnum;
+import com.uoquo.platform.message.model.pojo.SseMessage;
+import com.uoquo.platform.message.service.SseEmitterService;
+import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.json.JsonUtil;
 
 import jakarta.annotation.PostConstruct;
 
@@ -39,7 +37,15 @@ public class SendWebMessageEventListener {
     }
 
     /**
-     * 处理账户登出事件
+     * 处理站内消息推送事件.<br>
+     * eventName 优先取 {@link SseMessage#getEventName()}；
+     * 未设置时根据 messageType 映射：
+     * <ul>
+     *   <li>020001（通知公告）→ notice</li>
+     *   <li>020002（业务消息）→ message</li>
+     *   <li>020003（待办任务）→ todo</li>
+     *   <li>其他 → message（兜底）</li>
+     * </ul>
      */
     @EventListener
     public void handleMessageEvent(RemoteEvent<SseMessage> event) {
@@ -47,38 +53,35 @@ public class SendWebMessageEventListener {
             logger.debug("处理站内消息事件：{}", JsonUtil.serialize(event));
         }
         SseMessage message = event.getNewData();
+        // 解析 eventName：优先使用消息自身携带的，否则按 messageType 映射，结果写回消息对象
+        if (StringUtil.isNull(message.getEventName())) {
+            String eventName = resolveEventName(message);
+            message.setEventName(eventName);
+        }
         try {
-            if (BusinessTypeEnum.AUTH.getCode().equals(message.getBusinessType()) &&
-                    SystemReturnCode.ACCOUNT_KICK_OUT.getCode().equals(message.getOperationStatus())) {
-                // 通知消息：被踢下线通知
-                sseEmitterService.publishNotice(message.getReceiverId(), message.getAppKey(), message);
-                logger.info("给用户[{}]推送到客户端[{}]的[NOTICE]消息[{}]完成.", message.getReceiverId(), message.getAppKey(), message.getMessageContent());
-            } else {
-                // 系统消息：如通知公告等
-                sseEmitterService.publishMessage(message.getReceiverId(), null, message);
-                // TODO 推送成功后，记录消息送达时间
-                logger.info("给用户[{}]推送[{}]消息[{}]完成.", message.getReceiverId(), message.getMessageId(), message.getMessageContent());
-            }
+            // 定向推送（指定了 targetAppKey）或推送到用户所有在线客户端
+            int count = sseEmitterService.publish(message.getReceiverId(), message.getTargetAppKey(), message);
+            logger.info("给用户[{}]推送[{}]事件消息[{}]完成，送达连接数[{}].",
+                    message.getReceiverId(), message.getEventName(), message.getMessageContent(), count);
         } catch (Exception e) {
-            logger.warn("给用户[{}]推送[{}]消息[{}]异常.", message.getReceiverId(), message.getMessageId(), message.getMessageContent(), e);
+            logger.warn("给用户[{}]推送[{}]事件消息[{}]异常：{}",
+                    message.getReceiverId(), message.getEventName(), JsonUtil.serialize(message), e);
         }
     }
 
-    @NotNull
-    private MsgInfoViewDto getMsgInfoViewDto(String receiverId, MsgInfo data) {
-        MsgInfoViewDto message = new MsgInfoViewDto();
-        message.setMessageId(data.getId());
-        message.setReceiverId(receiverId);
-        message.setMessageTitle(data.getMessageTitle());
-        message.setMessageContent(data.getMessageContent());
-        message.setMessageType(data.getMessageType());
-        message.setMessageLevel(data.getMessageLevel());
-        message.setBusinessType(data.getBusinessType());
-        message.setBusinessId(data.getBusinessId());
-        message.setBusinessExtend(data.getBusinessExtend());
-        message.setSenderId(data.getSenderId());
-        message.setSenderName(data.getSenderName());
-        message.setSenderTime(data.getSenderTime());
-        return message;
+    /**
+     * 解析 SSE 事件名.<br>
+     * 优先取 {@link SseMessage#getEventName()}，未设置时按 messageType 映射。
+     */
+    private String resolveEventName(SseMessage message) {
+        String messageType = message.getMessageType();
+        if (DictionaryCodeEnum.MESSAGE_TYPE_NOTICE.getCode().equals(messageType)) {
+            return "notice";
+        } else if (DictionaryCodeEnum.MESSAGE_TYPE_TODO.getCode().equals(messageType)) {
+            return "todo";
+        } else {
+            // MESSAGE_TYPE_SYSTEM 及未知类型，兜底为 message
+            return "message";
+        }
     }
 }

@@ -220,7 +220,7 @@ public class GatewayUtil {
     public static boolean isLongLivedRequest(ServerHttpRequest request) {
         // 1. Accept: text/event-stream → SSE（协议标准，优先判断）
         String accept = request.getHeaders().getFirst(HttpHeaders.ACCEPT);
-        if (accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE)) {
+        if (accept != null && accept.toLowerCase().contains(MediaType.TEXT_EVENT_STREAM_VALUE)) {
             return true;
         }
         // 2. Upgrade: websocket → WebSocket 升级请求

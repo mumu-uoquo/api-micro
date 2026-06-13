@@ -11,6 +11,7 @@ import com.uoquo.platform.logs.model.param.BizEventRecordSearchParam;
 import com.uoquo.platform.logs.model.pojo.BizEventRecord;
 import com.uoquo.platform.logs.model.pojo.BizEventRetry;
 import com.uoquo.platform.logs.service.BizEventRecordService;
+import com.uoquo.utils.CompressUtil;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
@@ -28,13 +29,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.bus.BusConstants;
-import org.springframework.cloud.stream.function.StreamBridge;
-import org.springframework.context.ApplicationContext;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -50,12 +48,6 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
 
     @Autowired
     private BizEventRetryMapper bizEventRetryMapper;
-
-    @Autowired
-    private StreamBridge streamBridge;
-
-    @Autowired
-    private ApplicationContext delegate;
 
     @Autowired
     private UoquoEventPublisher eventPublisher;
@@ -90,6 +82,15 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         if (StringUtil.isNull(record.getOperatorId())) {
             record.setOperatorId("unknown");
         }
+        // 对 eventContent 进行 gzip 压缩后转 Base64 再存储，节省数据库空间
+        if (StringUtil.notNull(record.getEventContent())) {
+            try {
+                byte[] compressed = CompressUtil.gzip(record.getEventContent().getBytes(StandardCharsets.UTF_8));
+                record.setEventContent(Base64.getEncoder().encodeToString(compressed));
+            } catch (Exception e) {
+                logger.warn("eventContent 压缩失败，将以原始内容存储：id={}", record.getId(), e);
+            }
+        }
         try {
             bizEventRecordMapper.insert(record);
             logger.info("新增事件记录：id={}, businessType={}, businessId={}, operationType={}",
@@ -112,7 +113,9 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
 
         try {
             // 2. 将 event_content 内容重新放入 spring-cloud-bus 队列
-            Map<String, Object> map = JsonUtil.deserialize(record.getEventContent());
+            // 对 eventContent 进行 Base64 解码 + gzip 解压还原，兼容未压缩的历史数据
+            String eventContent = decompressEventContent(record.getEventContent());
+            Map<String, Object> map = JsonUtil.deserialize(eventContent);
             // 20260603：显示转换为对象再发送
 //            map.put("retry", true);
 //            if (record.getRemoteEvent() == null || record.getRemoteEvent()) {
@@ -124,13 +127,13 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
             if (StringUtil.notNull(type) && "RemoteEvent".equals(type)) {
                 String dataType = (String) map.get("dataType");
                 Class<?> resolvedClass = dataTypeResolver.resolve(dataType, "RemoteEvent");
-                RemoteEvent<?> event = JsonUtil.deserialize(record.getEventContent(), RemoteEvent.class, resolvedClass);
+                RemoteEvent<?> event = JsonUtil.deserialize(eventContent, RemoteEvent.class, resolvedClass);
                 event.setRetry(true);
                 eventPublisher.publishEvent(event);
             } else if (StringUtil.notNull(type) && "AppEvent".equals(type)) {
                 String dataType = (String) map.get("dataType");
                 Class<?> resolvedClass = dataTypeResolver.resolve(dataType, "AppEvent");
-                AppEvent<?> event = JsonUtil.deserialize(record.getEventContent(), AppEvent.class, resolvedClass);
+                AppEvent<?> event = JsonUtil.deserialize(eventContent, AppEvent.class, resolvedClass);
                 event.setRetry(true);
                 eventPublisher.publishEvent(event);
             } else {
@@ -252,6 +255,27 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         // 保存
         bizEventRetryMapper.insert(retry);
         logger.info("新增重试记录：id={}, recordId={}", retry.getId(), retry.getRecordId());
+    }
+
+    /**
+     * 对 eventContent 进行解压还原。<br>
+     * 存储时已做 gzip 压缩 + Base64 编码；读取时先 Base64 解码再 gzip 解压。<br>
+     * 兼容未压缩的历史数据：若解压失败则直接返回原始字符串。
+     */
+    private String decompressEventContent(String eventContent) {
+        if (StringUtil.isNull(eventContent)) {
+            return eventContent;
+        }
+        try {
+            byte[] decoded = Base64.getDecoder().decode(eventContent);
+            if (CompressUtil.isGzip(decoded)) {
+                return new String(CompressUtil.unGzip(decoded), StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            logger.warn("eventContent 解压失败，使用原始内容：{}", e.getMessage());
+        }
+        // 兼容历史未压缩数据
+        return eventContent;
     }
 
     /**

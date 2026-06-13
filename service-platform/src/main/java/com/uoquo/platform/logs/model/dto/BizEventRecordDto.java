@@ -66,9 +66,6 @@ public class BizEventRecordDto {
     @Schema(description = "变更字段")
     private String changeFields;
 
-    @Schema(description = "事件类名")
-    private String eventClass;
-
     @Schema(description = "重试次数")
     private Integer retryCount;
 
@@ -226,14 +223,6 @@ public class BizEventRecordDto {
 
     public void setChangeFields(String changeFields) {
         this.changeFields = changeFields == null ? null : changeFields.trim();
-    }
-
-    public String getEventClass() {
-        return eventClass;
-    }
-
-    public void setEventClass(String eventClass) {
-        this.eventClass = eventClass;
     }
 
     public Integer getRetryCount() {

@@ -1,14 +1,15 @@
 package com.uoquo.platform.common.utils;
 
-import com.uoquo.utils.crypto.OTPUtils;
-import com.uoquo.utils.DataUtil;
+import java.nio.charset.StandardCharsets;
+import java.text.NumberFormat;
+import java.util.Locale;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
-import java.nio.charset.StandardCharsets;
-import java.text.NumberFormat;
-import java.util.Locale;
+import com.uoquo.utils.DataUtil;
+import com.uoquo.utils.crypto.OTPUtils;
 
 /**
  * 用户相关工具类
@@ -62,18 +63,18 @@ public class UserUtils {
     }
 
     /**
-     * 取 token 前26字符.<br>
-     * 双 token 机制下会话 token 会定期刷新，但前26字符（ULID 部分，26位 Base32）保持不变，
+     * 取 token 前16字符.<br>
+     * 双 token 机制下会话 token 会定期刷新，但前16字符（{@code getNextULID()} 部分）保持不变，
      * 可唯一标识同一会话，兼容 token 刷新后仍能精准寻址。<br>
      * token 为空时返回空字符串。
      *
      * @param token 原始 token
-     * @return 前26字符，token 为空时返回空字符串
+     * @return 前16字符，token 为空时返回空字符串
      */
     public static String formatToken(String token) {
         if (token == null || token.isEmpty()) {
             return "";
         }
-        return token.length() <= 26 ? token : token.substring(0, 26);
+        return token.length() <= 16 ? token : token.substring(0, 16);
     }
 }

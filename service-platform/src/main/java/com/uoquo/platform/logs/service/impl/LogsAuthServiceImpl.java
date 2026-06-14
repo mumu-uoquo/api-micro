@@ -170,13 +170,6 @@ public class LogsAuthServiceImpl implements LogsAuthService {
     }
 
     /**
-     * 格式化处理token，防止长度过长
-     */
-    private String formatToken(String token) {
-        return UserUtils.formatToken(token);
-    }
-
-    /**
      *  格式化处理IP对应的地理位置
      */
     private String formatAddress(String ip) {

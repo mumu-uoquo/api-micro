@@ -246,7 +246,7 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         retry.setOperationType(record.getOperationType());
         retry.setOperationStatus(SystemReturnCode.SUCCESS.getCode());
         // 重试时的token
-        retry.setToken(this.formatToken(CurrentUser.getToken()));
+        retry.setToken(UserUtils.formatToken(CurrentUser.getToken()));
         retry.setTraceId(CurrentUser.getTraceId());
         // 重试操作人
         retry.setOperatorId(CurrentUser.getInfo().getUserId());
@@ -277,13 +277,6 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         }
         // 兼容历史未压缩数据
         return eventContent;
-    }
-
-    /**
-     * 格式化处理 token，防止长度过长
-     */
-    private String formatToken(String token) {
-        return UserUtils.formatToken(token);
     }
 
     private BizEventRecordDto convert2Dto(BizEventRecord info) {

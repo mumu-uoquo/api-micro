@@ -113,8 +113,4 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         authService.logout(info.getToken(), info.getAppKey(), SystemReturnCode.ACCOUNT_KICK_OUT);
         return true;
     }
-
-    private String formatToken(String token) {
-        return UserUtils.formatToken(token);
-    }
 }

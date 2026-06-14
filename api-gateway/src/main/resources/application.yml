@@ -73,7 +73,7 @@ spring:
                 allowCredentials: true
                 allowedMethods: ["GET", "POST", "OPTIONS"]
 #                allowedHeaders: "*" # 允许的自定义头信息（常规默认头信息不受限制）
-                allowedHeaders: ["Content-Type", "Last-Event-ID", "appid", "token", "nonce", "device-id", "timestamp", "signature-app", "user-language"]
+                allowedHeaders: ["Content-Type", "Last-Event-ID", "logid", "appid", "token", "nonce", "device-id", "timestamp", "signature-app", "user-language"]
                 exposedHeaders: "*"
                 maxAge: 1800
           # ======================= 全局过滤器 =======================

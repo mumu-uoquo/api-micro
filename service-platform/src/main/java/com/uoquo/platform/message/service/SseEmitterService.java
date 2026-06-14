@@ -106,12 +106,16 @@ public class SseEmitterService {
             logger.error("用户[{}]客户端[{}]的 SSE 连接已出错", userId, appkey, e);
             emitter.completeWithError(e);
         });
-        // 2. 替换主索引中 appkey 对应的连接为新连接，但不主动断开旧连接
-        //    旧连接保留在 tokenIndex 中，等待 kickOut 消息推送后由客户端自行断开，
-        //    或由 onCompletion / onTimeout / onError 回调自然清理
+        // 2. 替换主索引，旧连接的 tokenIndex 条目暂时保留
+        //    原因：踢人通知（kickOut）通过 kafka 异步传递，可能在新连接建立后才到达，
+        //    需要通过旧 tokenKey 找到旧 emitter 推送踢人消息。
+        //    旧条目的清理由以下路径兜底，不会造成实质性泄漏：
+        //    - 旧连接超时/出错 → onCompletion → removeEmitter（精准按 tokenKey 删）
+        //    - 旧连接推送失败 → removeDeadEmitters（按引用遍历删）
+        //    - 心跳探活失败 → removeDeadEmitters 兜底清理
         Map<String, SseEmitter> appEmitters = emitters.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
         if (appEmitters.containsKey(appkey)) {
-            logger.debug("用户[{}]客户端[{}]已有旧 SSE 连接，替换为新连接，旧连接保留至 kickOut 通知后断开", userId, appkey);
+            logger.debug("用户[{}]客户端[{}]已有旧 SSE 连接，替换主索引为新连接，旧 tokenIndex 条目保留供踢人通知使用", userId, appkey);
         }
         // 3. 先放入缓存，再发送初始事件
         appEmitters.put(appkey, emitter);
@@ -146,12 +150,12 @@ public class SseEmitterService {
         }
         String tokenKey = UserUtils.formatToken(token);
         if (StringUtil.isNull(tokenKey)) {
-            logger.debug("token 为空，无法按 token 精准推送");
+            logger.debug("token 为空，无法按 token 精准推送消息：{}", JsonUtil.serialize(message));
             return false;
         }
         SseEmitter emitter = tokenIndex.get(tokenKey);
         if (emitter == null) {
-            logger.debug("token[{}]无对应的 SSE 连接，消息无需推送（连接已离线）", tokenKey);
+            logger.debug("token[{}]无对应的 SSE 连接，消息无需推送（连接已离线）：{}", tokenKey, JsonUtil.serialize(message));
             return false;
         }
         SseEmitter.SseEventBuilder build = buildEvent(message.getEventName(), message);

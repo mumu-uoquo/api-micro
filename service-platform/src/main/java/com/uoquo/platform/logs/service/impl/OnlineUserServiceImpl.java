@@ -1,5 +1,19 @@
 package com.uoquo.platform.logs.service.impl;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.uoquo.mybatis.page.PageList;
+import com.uoquo.mybatis.page.PageResult;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.common.utils.UserUtils;
 import com.uoquo.platform.logs.mapper.LogUserOnlineMapper;
@@ -13,24 +27,11 @@ import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.web.SystemReturnCode;
 import com.uoquo.web.mybatis.page.PageHelper;
-import com.uoquo.mybatis.page.PageList;
-import com.uoquo.mybatis.page.PageResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class OnlineUserServiceImpl implements OnlineUserService {
 
-    private static final Logger logger = LoggerFactory.getLogger(OnlineUserServiceImpl.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Autowired
     private LogUserOnlineMapper logUserOnlineMapper;

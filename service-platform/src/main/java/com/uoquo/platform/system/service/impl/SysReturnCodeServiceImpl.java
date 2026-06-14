@@ -1,5 +1,18 @@
 package com.uoquo.platform.system.service.impl;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.uoquo.mybatis.page.PageList;
+import com.uoquo.mybatis.page.PageResult;
 import com.uoquo.platform.system.mapper.SysReturnCodeMapper;
 import com.uoquo.platform.system.model.dto.SysReturnCodeDto;
 import com.uoquo.platform.system.model.param.SysReturnCodeParam;
@@ -10,24 +23,13 @@ import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.web.exception.ResourceNotFoundException;
 import com.uoquo.web.mybatis.page.PageHelper;
-import com.uoquo.mybatis.page.PageList;
-import com.uoquo.mybatis.page.PageResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class SysReturnCodeServiceImpl implements SysReturnCodeService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SysReturnCodeServiceImpl.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Resource
     private SysReturnCodeMapper sysReturnCodeMapper;

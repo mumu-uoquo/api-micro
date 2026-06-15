@@ -3,9 +3,10 @@ package com.uoquo.platform.auth.controller;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
-import com.uoquo.platform.auth.model.param.BasicLoginParam;
-import com.uoquo.platform.auth.model.param.TokenLoginParam;
+import com.uoquo.platform.auth.model.param.CaptchaParam;
 import com.uoquo.platform.auth.model.param.MfaLoginParam;
+import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.TokenLoginParam;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.utils.CurrentUser;
@@ -13,6 +14,7 @@ import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.web.ReturnData;
 import com.uoquo.web.SystemReturnCode;
+import com.uoquo.web.exception.ParamEmtpyException;
 import com.uoquo.annotation.web.IgnoreAuth;
 import com.uoquo.web.param.IdParam;
 import com.uoquo.web.utils.WebUtil;
@@ -100,18 +102,33 @@ public class AuthController {
     }
 
     @IgnoreAuth(login = true)
-    @Operation(summary = "获取验证码图片", operationId = "getCaptcha", method = "POST")
+    @Operation(summary = "获取图形验证码", operationId = "getCaptcha", method = "POST",
+            description = "scene: login=密码出错触发, register=用户注册, phone=获取短信码前人机验证")
     @PostMapping("/captcha")
-    public ReturnData<String> getCaptcha(HttpServletRequest request, @RequestBody BasicLoginParam param) {
+    public ReturnData<String> getCaptcha(HttpServletRequest request, @RequestBody CaptchaParam param) {
         if (logger.isInfoEnabled()) {
-            logger.info("getCaptcha param: {}", JsonUtil.serialize(param));
-        }
-        if (StringUtil.isNull(param.getUserAgent())) {
-            param.setUserAgent(request.getHeader("User-Agent"));
+            logger.info("getCaptcha scene={}", param.getScene());
         }
         String clientIp = WebUtil.getClientIp(request);
         String captcha = authService.getCaptcha(param, clientIp);
         return new ReturnData<>(captcha);
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "获取手机短信验证码", operationId = "sendPhoneCaptcha", method = "POST", description = "必须携带图像验证码进行人机交互验证")
+    @PostMapping("/phone/captcha")
+    public ReturnData<String> sendPhoneCaptcha(HttpServletRequest request, @RequestBody @Valid PhoneCaptchaParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("sendPhoneCaptcha scene={} phone={}",
+                    param.getScene(), param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
+        }
+        // 因为非登录状态也可发送短信码，所以必须做人机交互验证
+        if (StringUtil.isNull(param.getCaptcha())) {
+            throw new ParamEmtpyException("请输入图像验证码");
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        String result = authService.sendPhoneCaptcha(param, clientIp);
+        return new ReturnData<>(result);
     }
 
     @Hidden

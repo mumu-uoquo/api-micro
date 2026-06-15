@@ -1,13 +1,14 @@
 package com.uoquo.platform.auth.service;
 
+import java.util.List;
+
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
-import com.uoquo.platform.auth.model.param.BasicLoginParam;
+import com.uoquo.platform.auth.model.param.CaptchaParam;
+import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.web.BaseReturnCode;
-
-import java.util.List;
 
 public interface AuthService {
 
@@ -79,8 +80,23 @@ public interface AuthService {
     List<ModuleTreeDto> getPermissionByRoleId(String roleId);
 
     /**
-     * 获取验证码
-     * @return 验证码图片（Base64）
+     * 获取图形验证码
+     * <ul>
+     *     <li>scene=login    - 密码多次出错后触发，需检查 FLAG</li>
+     *     <li>scene=register - 注册场景，直接生成</li>
+     *     <li>scene=phone    - 获取短信码前的人机验证，直接生成</li>
+     * </ul>
+     * @return 验证码图片 Base64，无需验证码时返回空字符串
      */
-    String getCaptcha(BasicLoginParam param, String clientIp);
+    String getCaptcha(CaptchaParam param, String clientIp);
+
+    /**
+     * 发送手机短信验证码
+     * <ul>
+     *     <li>scene=login      - 短信码登录</li>
+     *     <li>scene=register   - 用户注册</li>
+     * </ul>
+     * 若请求中携带图形验证码，则先校验后再发送。
+     */
+    String sendPhoneCaptcha(PhoneCaptchaParam param, String clientIp);
 }

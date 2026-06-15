@@ -5,7 +5,8 @@ import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.pojo.AuthInfo;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
-import com.uoquo.platform.auth.model.param.BasicLoginParam;
+import com.uoquo.platform.auth.model.param.CaptchaParam;
+import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
 import com.uoquo.platform.common.utils.TotpAuthUtils;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.common.*;
@@ -27,7 +28,6 @@ import com.uoquo.platform.user.service.UserSettingService;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
-import com.uoquo.platform.common.BaseConstant;
 import com.uoquo.web.BaseCacheKey;
 import com.uoquo.web.BaseReturnCode;
 import com.uoquo.web.SystemReturnCode;
@@ -380,13 +380,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String getCaptcha(BasicLoginParam param, String clientIp) {
+    public String getCaptcha(CaptchaParam param, String clientIp) {
         String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
-        String captchaFlag = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, String.class);
-        // 不需要验证码
-        if (StringUtil.isNull(captchaFlag)) {
-            return "";
+        String scene = param.getScene();
+
+        // login 场景：仅在密码出错次数触发标识时才生成
+        if ("login".equals(scene)) {
+            String captchaFlag = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, String.class);
+            if (StringUtil.isNull(captchaFlag)) {
+                return "";
+            }
         }
+        // register / phone 场景：直接生成，无需检查 FLAG
+
         // 生成验证码
         String captchaValue = captchaUtil.getCaptchaValue();
         BufferedImage image = captchaUtil.generateCaptchaImage(captchaValue);
@@ -395,9 +401,24 @@ public class AuthServiceImpl implements AuthService {
             RedisUtil.put(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey, captchaValue, passwordErrorLockTime * 60);
             return base64Image;
         } catch (Exception e) {
-            logger.error("设备[{}]字符串[{}]生成验证码图片失败.", CurrentUser.getDeviceId(), captchaValue, e);
+            logger.error("设备[{}]场景[{}]生成验证码图片失败.", CurrentUser.getDeviceId(), scene, e);
             return "";
         }
+    }
+
+    @Override
+    public String sendPhoneCaptcha(PhoneCaptchaParam param, String clientIp) {
+        // 先校验图形码
+        String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
+        String cached = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey, String.class);
+        // 验证码只能用一次
+        RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey);
+        if (!param.getCaptcha().equalsIgnoreCase(cached)) {
+            logger.warn("设备[{}]场景[{}]输入的图形验证码[{}]与缓存[{}]不一致",
+                    CurrentUser.getDeviceId(), param.getScene(), param.getCaptcha(), cached);
+            throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "验证码不正确");
+        }
+        return userInfoService.sendPhoneCaptcha(param.getPhone());
     }
 
     /**

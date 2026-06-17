@@ -20,6 +20,8 @@ import com.uoquo.platform.auth.model.param.CredentialBindParam;
 import com.uoquo.platform.auth.model.param.CredentialLoginParam;
 import com.uoquo.platform.auth.model.param.MfaLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.RegisterParam;
+import com.uoquo.platform.auth.model.param.ResetPasswordParam;
 import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.auth.model.param.TokenLoginParam;
 import com.uoquo.platform.auth.service.AuthService;
@@ -108,7 +110,7 @@ public class AuthController {
 
     @IgnoreAuth(login = true)
     @Operation(summary = "获取图形验证码", operationId = "getCaptcha", method = "POST",
-            description = "scene: login=密码出错触发, register=用户注册, phone=获取短信码前人机验证")
+            description = "scene 需与后续流程一致：login=密码出错触发, register=用户注册, sms_login=短信登录发码前人机验证（非 login 场景的验证码 key 会按 scene 隔离）")
     @PostMapping("/captcha")
     public ReturnData<String> getCaptcha(HttpServletRequest request, @RequestBody CaptchaParam param) {
         if (logger.isInfoEnabled()) {
@@ -179,6 +181,33 @@ public class AuthController {
         }
         String clientIp = WebUtil.getClientIp(request);
         return new ReturnData<>(authService.credentialBind(param, clientIp));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "密码找回", operationId = "resetPassword", method = "POST")
+    @PostMapping("/password/reset")
+    public ReturnData<String> resetPassword(HttpServletRequest request,
+                                            @RequestBody @Valid ResetPasswordParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("resetPassword: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        authService.resetPassword(param, clientIp);
+        return new ReturnData<>();
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "用户注册", operationId = "register", method = "POST")
+    @PostMapping("/register")
+    public ReturnData<String> register(HttpServletRequest request,
+                                       @RequestBody @Valid RegisterParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("register: userName={} phone={}", param.getUserName(),
+                    param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        authService.register(param, clientIp);
+        return new ReturnData<>();
     }
 
     @Hidden

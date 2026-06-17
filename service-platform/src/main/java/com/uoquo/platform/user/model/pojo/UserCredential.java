@@ -23,7 +23,7 @@ public class UserCredential {
     /**
      * Column: credential_type
      * Type: VARCHAR(20)
-     * Remark: 凭证类型（weixin/wecom）
+     * Remark: 凭证类型（wechat/wecom）
      */
     private String credentialType;
 

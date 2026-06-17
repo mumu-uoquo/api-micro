@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 public class CredentialLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "凭证类型不能为空")
-    @Schema(description = "凭证类型（weixin/wecom）")
+    @Schema(description = "凭证类型（wechat/wecom）")
     private String credentialType;
 
     @NotBlank(message = "凭证标识不能为空")

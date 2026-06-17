@@ -1,13 +1,14 @@
 package com.uoquo.platform.user.mapper;
 
-import com.uoquo.platform.user.model.pojo.UserCredential;
 import org.apache.ibatis.annotations.Param;
+
+import com.uoquo.platform.user.model.pojo.UserCredential;
 
 public interface UserCredentialMapper {
 
     /**
      * 按凭证类型+值+机构查询凭证记录
-     * weixin 等全局类型传 instituteId=null
+     * wechat 等全局类型传 instituteId=null
      */
     UserCredential selectByCredentialType(
             @Param("credentialType")  String credentialType,

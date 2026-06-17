@@ -9,6 +9,8 @@ import com.uoquo.platform.auth.model.param.CaptchaParam;
 import com.uoquo.platform.auth.model.param.CredentialBindParam;
 import com.uoquo.platform.auth.model.param.CredentialLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.RegisterParam;
+import com.uoquo.platform.auth.model.param.ResetPasswordParam;
 import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.web.BaseReturnCode;
@@ -138,4 +140,29 @@ public interface AuthService {
      * @return 完整用户认证信息
      */
     UserAuthDto credentialBind(CredentialBindParam param, String clientIp);
+
+    /**
+     * 密码找回（手机号 + 短信码验证 + 重置密码）
+     * <ul>
+     *     <li>通过手机号查找用户，以 userId 为 TOTP 密钥校验短信码</li>
+     *     <li>校验通过后重置密码，不需要旧密码</li>
+     * </ul>
+     *
+     * @param param    密码找回参数（phone + smsCode + newPassword）
+     * @param clientIp 客户端 IP
+     */
+    void resetPassword(ResetPasswordParam param, String clientIp);
+
+    /**
+     * 用户注册（需系统开启注册开关）
+     * <ul>
+     *     <li>校验系统是否开启注册（sys.register.enable）</li>
+     *     <li>以手机号为 TOTP 密钥校验短信码</li>
+     *     <li>创建用户</li>
+     * </ul>
+     *
+     * @param param    注册参数
+     * @param clientIp 客户端 IP
+     */
+    void register(RegisterParam param, String clientIp);
 }

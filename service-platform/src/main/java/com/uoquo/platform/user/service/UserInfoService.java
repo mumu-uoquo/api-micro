@@ -28,6 +28,14 @@ public interface UserInfoService {
     void updateUserPassword(ChangePasswordParam param, boolean validateOldPassword);
 
     /**
+     * 重置密码（密码找回场景，无需校验旧密码）
+     *
+     * @param userId      用户ID
+     * @param rawPassword 新密码明文（解密后）
+     */
+    void resetPassword(String userId, String rawPassword);
+
+    /**
      * 修改状态
      */
     void updateState(UserStateParam param);

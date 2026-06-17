@@ -1,7 +1,7 @@
 package com.uoquo.platform.auth.model.enums;
 
 public enum CredentialTypeEnum {
-    WEIXIN("weixin"),
+    WECHAT("wechat"),
     WECOM("wecom");
 
     private final String code;

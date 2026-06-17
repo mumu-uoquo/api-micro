@@ -23,7 +23,7 @@ public class PhoneCaptchaParam {
      * </ul>
      */
     @NotBlank(message = "场景不能为空")
-    @Schema(description = "使用场景：login / register", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "使用场景：sms_login / register（需与获取图形验证码时的 scene 一致）", requiredMode = Schema.RequiredMode.REQUIRED)
     private String scene;
 
     @Schema(description = "图形验证码（若当前场景需要则必填）")

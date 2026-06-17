@@ -7,19 +7,15 @@ import java.util.Set;
  * 优先级：用户 > 机构 > 系统
  */
 public class SettingsCode {
-    /**
-     * 是否启用 MFA 认证
-     */
+    /* ************************ 安全相关 ************************** */
+    /** 是否启用 MFA 认证 */
     public static final String MFA_AUTH_ENABLED = "security.mfa.enabled";
-
     /** 会话超时时间控制 */
     public static final String SESSION_TIMEOUT = "security.session.timeout";
-
     /** RSA 公钥 */
     public static final String RSA_PUBLIC_KEY  = "security.rsa.public-key";
     /** RSA 私钥 */
     public static final String RSA_PRIVATE_KEY = "security.rsa.private-key";
-
     /** AES 密钥 */
     public static final String AES_KEY         = "security.aes.key";
     /** TAES时间片长度（秒） */
@@ -28,11 +24,29 @@ public class SettingsCode {
     /** 网关通信秘钥 */
     public static final String GLOBAL_GATEWAY_KEY = "security.gateway.key";
 
+    /* ************************ 登录相关 ************************** */
+    /** 是否开启注册 */
+    public static final String REGISTER_ENABLE     = "sys.register.enable";
+    /** 是否开启水印 */
+    public static final String WATERMARK_ENABLE    = "sys.watermark.enable";
+    /** 是否开启短信码登录 */
+    public static final String LOGIN_SMS_ENABLE    = "login.sms.enable";
+    /** 是否开启微信登录 */
+    public static final String LOGIN_WECHAT_ENABLE = "login.wechat.enable";
+    /** 是否开启企业微信登录 */
+    public static final String LOGIN_WECOM_ENABLE  = "login.wecom.enable";
+
+
     /**
      * 需要公开的配置编码集合（不登录即可获取）
      */
     public static final Set<String> PUBLIC_KEYS = Set.of(
-        RSA_PUBLIC_KEY    // security.rsa.publicKey
+        RSA_PUBLIC_KEY,     // security.rsa.publicKey
+        REGISTER_ENABLE,    // sys.register.enable
+        WATERMARK_ENABLE,   // sys.watermark.enable
+        LOGIN_SMS_ENABLE,   // login.sms.enable
+        LOGIN_WECHAT_ENABLE,// login.wechat.enable
+        LOGIN_WECOM_ENABLE  // login.wecom.enable
     );
 
     /**

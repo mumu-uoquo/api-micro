@@ -23,6 +23,8 @@ import com.uoquo.platform.auth.model.param.CaptchaParam;
 import com.uoquo.platform.auth.model.param.CredentialBindParam;
 import com.uoquo.platform.auth.model.param.CredentialLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.RegisterParam;
+import com.uoquo.platform.auth.model.param.ResetPasswordParam;
 import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.auth.model.pojo.AuthInfo;
 import com.uoquo.platform.auth.service.AuthService;
@@ -41,11 +43,14 @@ import com.uoquo.platform.institute.model.pojo.InstituteInfo;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.platform.role.service.ModuleInfoService;
 import com.uoquo.platform.system.mapper.AppInfoMapper;
+import com.uoquo.platform.system.model.dto.SettingDto;
 import com.uoquo.platform.system.model.pojo.AppInfo;
+import com.uoquo.platform.system.service.SysSettingService;
 import com.uoquo.platform.user.mapper.UserCredentialMapper;
 import com.uoquo.platform.user.mapper.UserInfoMapper;
 import com.uoquo.platform.user.model.dto.GroupDto;
 import com.uoquo.platform.user.model.dto.UserRoleDto;
+import com.uoquo.platform.user.model.param.UserAddParam;
 import com.uoquo.platform.user.model.pojo.UserCredential;
 import com.uoquo.platform.user.model.pojo.UserInfo;
 import com.uoquo.platform.user.service.UserInfoService;
@@ -93,6 +98,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private UserCredentialMapper credentialMapper;
+
+    @Autowired
+    private SysSettingService sysSettingService;
 
     @Autowired
     private UoquoEventPublisher eventPublisher;
@@ -354,10 +362,23 @@ public class AuthServiceImpl implements AuthService {
         return moduleTree;
     }
 
+    /**
+     * 构建图形验证码缓存 key。
+     * 登录场景（login 或空）沿用 deviceId:appkey，与密码错误锁定 FLAG 保持一致；
+     * 其他场景（register、phone 等）追加场景类型，避免不同场景的图形验证码相互覆盖。
+     */
+    private String buildCaptchaKey(String scene) {
+        String base = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
+        if (StringUtil.isNull(scene) || "login".equals(scene)) {
+            return base;
+        }
+        return base + ":" + scene;
+    }
+
     @Override
     public String getCaptcha(CaptchaParam param, String clientIp) {
-        String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
         String scene = param.getScene();
+        String captchaKey = buildCaptchaKey(scene);
 
         // login 场景：仅在密码出错次数触发标识时才生成
         if ("login".equals(scene)) {
@@ -384,7 +405,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String sendPhoneCaptcha(PhoneCaptchaParam param, String clientIp) {
         // 先校验图形码
-        String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
+        String captchaKey = buildCaptchaKey(param.getScene());
         String cached = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey, String.class);
         // 验证码只能用一次
         RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey);
@@ -514,6 +535,57 @@ public class AuthServiceImpl implements AuthService {
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
                 "USER", info.getId(), info.getInstituteId(), param.getAccount(), dto.getAccessToken(), null);
         return dto;
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordParam param, String clientIp) {
+        CurrentUser.setClientIp(clientIp);
+
+        // 1. 查找用户（按手机号）
+        UserInfo info = userInfoMapper.selectByPhone(null, param.getPhone());
+        // 防枚举：用户不存在与短信码错误返回同一错误码
+        if (info == null) {
+            logger.info("resetPassword: phone={} 未注册", param.getPhone());
+            throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "验证码错误或手机号未注册");
+        }
+
+        // 2. 校验短信码（以 userId 为 TOTP 密钥，与发码逻辑一致）
+        String secret = Base32.encode(info.getId());
+        boolean valid = TotpAuthUtils.verifyDynamicCode(secret, param.getSmsCode());
+        if (!valid) {
+            throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "短信验证码不正确");
+        }
+
+        // 3. 重置密码（无需旧密码）
+        userInfoService.resetPassword(info.getId(), param.getNewPassword());
+    }
+
+    @Override
+    public void register(RegisterParam param, String clientIp) {
+        CurrentUser.setClientIp(clientIp);
+
+        // 1. 校验系统是否开启注册
+        SettingDto registerSetting = sysSettingService.getInfoByCode(SettingsCode.REGISTER_ENABLE);
+        boolean registerEnabled = registerSetting != null && "true".equals(registerSetting.getConfigValue());
+        if (!registerEnabled) {
+            throw new UoquoException(AccountReturnCode.REGISTER_DISABLED);
+        }
+
+        // 2. 校验短信码（注册场景：用户尚不存在，以 phone 为 TOTP 密钥，与发码逻辑一致）
+        String secret = Base32.encode(param.getPhone());
+        boolean valid = TotpAuthUtils.verifyDynamicCode(secret, param.getSmsCode());
+        if (!valid) {
+            throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "短信验证码不正确");
+        }
+
+        // 3. 创建用户（唯一性校验由 addUserInfo 内部完成）
+        UserAddParam addParam = new UserAddParam();
+        addParam.setInstituteId(param.getInstituteId());
+        addParam.setPhone(param.getPhone());
+        addParam.setUserName(param.getUserName());
+        addParam.setPassword(param.getPassword());
+        addParam.setRealName(param.getRealName());
+        userInfoService.addUserInfo(addParam);
     }
 
     /**
@@ -858,10 +930,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 解析 instituteId：当前版本 weixin 全局类型返回 null，wecom 返回当前 appkey 对应机构
+     * 解析 instituteId：当前版本 wechat 全局类型返回 null，wecom 返回当前 appkey 对应机构
      */
     private String resolveInstituteId(String credentialType) {
-        if (CredentialTypeEnum.WEIXIN.getCode().equals(credentialType)) {
+        if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
             return null;
         }
         // TODO 根据请求域名、请求入参等信息来判断

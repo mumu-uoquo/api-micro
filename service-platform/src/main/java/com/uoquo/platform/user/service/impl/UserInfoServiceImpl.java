@@ -266,6 +266,29 @@ public class UserInfoServiceImpl implements UserInfoService {
     }
 
     @Override
+    public void resetPassword(String userId, String rawPassword) {
+        // 1. 基础校验
+        UserInfo old = userInfoMapper.selectByPrimaryKey(userId);
+        if (old == null) {
+            throw new ResourceNotFoundException("用户信息不存在");
+        }
+        // 2. 重置密码
+        UserInfo user = new UserInfo();
+        user.setId(userId);
+        user.setPassword(UserUtils.hashPassword(rawPassword));
+        user.setPwdExpired(false);
+        user.setPwdEditTime(new Date());
+        // 重置密码后清空登录失败计数
+        user.setLoginErrorCount(0);
+        user.setUpdateUser(userId);
+        user.setUpdateTime(new Date());
+        userInfoMapper.updateByPrimaryKey(user);
+        // 3. 发布事件（找回密码）
+        user = userInfoMapper.selectByPrimaryKey(userId);
+        this.publishEvent(BusinessOperationEnum.RETRIEVE_PASSWORD, SystemReturnCode.SUCCESS, old, user, null);
+    }
+
+    @Override
     public void updateState(UserStateParam param) {
         // 1. 基础校验
         UserInfo old = userInfoMapper.selectByPrimaryKey(param.getId());

@@ -46,6 +46,8 @@ public class AccountReturnCode extends BaseReturnCode {
     public static BaseReturnCode CAPTCHA_CODE_ERROR          = new AccountReturnCode("21042", "验证码错误");
     public static BaseReturnCode CAPTCHA_CODE_ATTEMPT_EXCEED = new AccountReturnCode("21043", "验证码错误次数过多，请重新获取");
 
+    public static BaseReturnCode REGISTER_DISABLED = new AccountReturnCode("21050", "系统未开启注册");
+
     /** =============================== 211XX 角色相关 =============================== **/
     public static BaseReturnCode ROLE_NAME_EXIST = new AccountReturnCode("22101", "角色名称重复");
 

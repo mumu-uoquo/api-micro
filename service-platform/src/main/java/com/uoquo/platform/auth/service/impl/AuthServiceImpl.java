@@ -381,7 +381,7 @@ public class AuthServiceImpl implements AuthService {
         String captchaKey = buildCaptchaKey(scene);
 
         // login 场景：仅在密码出错次数触发标识时才生成
-        if ("login".equals(scene)) {
+        if (StringUtil.isNull(scene) || "login".equals(scene)) {
             String captchaFlag = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, String.class);
             if (StringUtil.isNull(captchaFlag)) {
                 return "";

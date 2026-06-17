@@ -1,12 +1,13 @@
 package com.uoquo.platform.user.model.param;
 
+import java.util.List;
+
 import com.uoquo.annotation.json.Sensitive;
 import com.uoquo.annotation.json.SensitiveType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
-
-
 import jakarta.validation.constraints.NotBlank;
-import java.util.List;
+import jakarta.validation.constraints.Pattern;
 
 /**
  * 入参：新增用户信息
@@ -37,6 +38,7 @@ public class UserAddParam {
 
     @Schema(description = "用户账号")
     @NotBlank
+    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_-]*$", message = "用户账号只能包含字母、数字、下划线、中横线，且必须以字母开头")
     private String userName;
 
     @Schema(description = "真实姓名")

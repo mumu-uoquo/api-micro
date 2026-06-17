@@ -1,40 +1,12 @@
 package com.uoquo.platform.auth.service.impl;
 
-import com.uoquo.cloud.events.RemoteEvent;
-import com.uoquo.platform.auth.model.dto.TokenDto;
-import com.uoquo.platform.auth.model.dto.UserAuthDto;
-import com.uoquo.platform.auth.model.pojo.AuthInfo;
-import com.uoquo.platform.auth.model.param.AccountLoginParam;
-import com.uoquo.platform.auth.model.param.CaptchaParam;
-import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
-import com.uoquo.platform.common.utils.TotpAuthUtils;
-import com.uoquo.platform.auth.service.AuthService;
-import com.uoquo.platform.common.*;
-import com.uoquo.platform.common.exception.AccountReturnCode;
-import com.uoquo.platform.common.exception.InstituteReturnCode;
-import com.uoquo.platform.common.utils.UserUtils;
-import com.uoquo.platform.institute.mapper.InstituteInfoMapper;
-import com.uoquo.platform.institute.model.pojo.InstituteInfo;
-import com.uoquo.platform.role.model.dto.ModuleTreeDto;
-import com.uoquo.platform.role.service.ModuleInfoService;
-import com.uoquo.platform.system.mapper.AppInfoMapper;
-import com.uoquo.platform.system.model.pojo.AppInfo;
-import com.uoquo.platform.user.mapper.UserInfoMapper;
-import com.uoquo.platform.user.model.dto.GroupDto;
-import com.uoquo.platform.user.model.dto.UserRoleDto;
-import com.uoquo.platform.user.model.pojo.UserInfo;
-import com.uoquo.platform.user.service.UserInfoService;
-import com.uoquo.platform.user.service.UserSettingService;
-import com.uoquo.utils.CurrentUser;
-import com.uoquo.utils.IDGenerator;
-import com.uoquo.utils.StringUtil;
-import com.uoquo.web.BaseCacheKey;
-import com.uoquo.web.BaseReturnCode;
-import com.uoquo.web.SystemReturnCode;
-import com.uoquo.web.events.UoquoEventPublisher;
-import com.uoquo.web.exception.*;
-import com.uoquo.utils.spring.CaptchaUtil;
-import com.uoquo.utils.spring.RedisUtil;
+import java.awt.image.BufferedImage;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -42,9 +14,59 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.awt.image.BufferedImage;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.uoquo.cloud.events.RemoteEvent;
+import com.uoquo.platform.auth.model.dto.TokenDto;
+import com.uoquo.platform.auth.model.dto.UserAuthDto;
+import com.uoquo.platform.auth.model.enums.CredentialTypeEnum;
+import com.uoquo.platform.auth.model.param.AccountLoginParam;
+import com.uoquo.platform.auth.model.param.CaptchaParam;
+import com.uoquo.platform.auth.model.param.CredentialBindParam;
+import com.uoquo.platform.auth.model.param.CredentialLoginParam;
+import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.SmsLoginParam;
+import com.uoquo.platform.auth.model.pojo.AuthInfo;
+import com.uoquo.platform.auth.service.AuthService;
+import com.uoquo.platform.common.BaseConstant;
+import com.uoquo.platform.common.BusinessOperationEnum;
+import com.uoquo.platform.common.BusinessTypeEnum;
+import com.uoquo.platform.common.DictionaryCodeEnum;
+import com.uoquo.platform.common.PlatformCacheKey;
+import com.uoquo.platform.common.SettingsCode;
+import com.uoquo.platform.common.exception.AccountReturnCode;
+import com.uoquo.platform.common.exception.InstituteReturnCode;
+import com.uoquo.platform.common.utils.TotpAuthUtils;
+import com.uoquo.platform.common.utils.UserUtils;
+import com.uoquo.platform.institute.mapper.InstituteInfoMapper;
+import com.uoquo.platform.institute.model.pojo.InstituteInfo;
+import com.uoquo.platform.role.model.dto.ModuleTreeDto;
+import com.uoquo.platform.role.service.ModuleInfoService;
+import com.uoquo.platform.system.mapper.AppInfoMapper;
+import com.uoquo.platform.system.model.pojo.AppInfo;
+import com.uoquo.platform.user.mapper.UserCredentialMapper;
+import com.uoquo.platform.user.mapper.UserInfoMapper;
+import com.uoquo.platform.user.model.dto.GroupDto;
+import com.uoquo.platform.user.model.dto.UserRoleDto;
+import com.uoquo.platform.user.model.pojo.UserCredential;
+import com.uoquo.platform.user.model.pojo.UserInfo;
+import com.uoquo.platform.user.service.UserInfoService;
+import com.uoquo.platform.user.service.UserSettingService;
+import com.uoquo.utils.CurrentUser;
+import com.uoquo.utils.IDGenerator;
+import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.crypto.Base32;
+import com.uoquo.utils.json.JsonUtil;
+import com.uoquo.utils.spring.CaptchaUtil;
+import com.uoquo.utils.spring.RedisUtil;
+import com.uoquo.web.BaseCacheKey;
+import com.uoquo.web.BaseReturnCode;
+import com.uoquo.web.SystemReturnCode;
+import com.uoquo.web.events.UoquoEventPublisher;
+import com.uoquo.web.exception.ForbiddenException;
+import com.uoquo.web.exception.ParamEmtpyException;
+import com.uoquo.web.exception.ParamErrorException;
+import com.uoquo.web.exception.ResourceNotFoundException;
+import com.uoquo.web.exception.TokenEmptyException;
+import com.uoquo.web.exception.UoquoException;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -68,6 +90,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private InstituteInfoMapper instituteInfoMapper;
+
+    @Autowired
+    private UserCredentialMapper credentialMapper;
 
     @Autowired
     private UoquoEventPublisher eventPublisher;
@@ -117,65 +142,16 @@ public class AuthServiceImpl implements AuthService {
             }
         }
         // 1. 账号校验
-        UserInfo info = userInfoMapper.selectByLogin(null, param.getAccount());
+        UserInfo info = this.findUserByAccount(param.getAccount());
         this.checkUserStatus(param.getAccount(), info);
-        // 2. 密码校验
-        UserInfo paramUser = new UserInfo();
-        paramUser.setId(info.getId());
-        paramUser.setLastedLoginIp(clientIp);
-        paramUser.setLastedLoginTime(new Date());
-        String password = param.getPassword();
-        boolean checkPassword = UserUtils.checkPassword(password, info.getPassword());
-        if (!checkPassword) {
-            int loginErrorCount = info.getLoginErrorCount() == null ? 0 : info.getLoginErrorCount();
-            if (loginErrorCount >= 1) {
-                // TODO 应该采用“增强验证码流程”多维度风险评估（失败次数、时间密度、IP地址、设备指纹等）， 连续两次出错，则需要填验证码
-                RedisUtil.put(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, "1", passwordErrorLockTime * 60);
-            }
-            paramUser.setLoginErrorCount(++loginErrorCount);
-            userInfoMapper.updateLastLoginInfo(paramUser);
-            logger.warn("用户[{}][{}]密码连续输错[{}]次，不允许登录", param.getAccount(), info.getId(), loginErrorCount);
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.PASSWORD_ERROR, "USER", info.getId(), info.getInstituteId(), param.getAccount(), null, password);
-            throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "密码错误,还可以输入 %d 次", (passwordErrorMaxNum - loginErrorCount));
-        } else {
-            paramUser.setLoginErrorCount(0);
-            userInfoMapper.updateLastLoginInfo(paramUser);
-        }
-        // TODO 增加地理位置验证增强方案
+        // 2. 密码校验（含错误计数与验证码锁定逻辑）
+        this.checkAndVerifyPassword(info, param.getPassword(), param.getAccount(), clientIp);
+        // TODO 应该采用“增强验证码流程”多维度风险评估（失败次数、时间密度、IP地址、设备指纹等）， 连续两次出错，则需要填验证码
 
         // 删除验证码标识
         RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey);
-
-        // 3. 校验通过，判断MFA双因子状态
-        CurrentUser.setToken(null);
-        UserAuthDto dto = this.getUserAuthDto(info);
-        // 获取MFA配置（用户 > 机构 > 系统)
-        String setting = userSettingService.getValueByCode(info.getId(), SettingsCode.MFA_AUTH_ENABLED);
-        if (!"true".equals(setting)) {
-            dto.setTotpStatus("disabled");
-        } else if (StringUtil.notNull(info.getTotpSecret())) {
-            dto.setTotpStatus("enabled");
-        } else {
-            dto.setTotpStatus("unbound");
-        }
-        if ("enabled".equals(dto.getTotpStatus())) {
-            // MFA已绑定：生成临时Token，不缓存用户信息
-            // 生成临时Token（仅用于TOTP验证）
-            String tempToken = this.generateToken();
-            dto.setAccessToken(tempToken);
-            dto.setRefreshToken(null);
-            // 设置用户信息（主要用于日志记录）
-            this.setCurrentUserInfo(dto);
-            // 临时Token缓存用户ID（5分钟有效）
-            RedisUtil.put(PlatformCacheKey.TOTP_TEMP_TOKEN + tempToken, info.getId(), 300);
-        } else {
-            // MFA未开启或未绑定：正常登录流程
-            // 缓存用户信息
-            this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
-            // 发布事件（登录）
-            this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), param.getAccount(), dto.getAccessToken(), null);
-        }
-        return dto;
+        // 3. 校验通过，MFA 判断 + 完成登录
+        return this.completeLoginWithMfa(info, param.getAccount());
     }
 
     @Override
@@ -223,8 +199,7 @@ public class AuthServiceImpl implements AuthService {
         this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
 
         // 6. 发布事件（登录）
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
-                "USER", info.getId(), info.getInstituteId(), info.getUserName(), dto.getAccessToken(), null);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), info.getUserName(), dto.getAccessToken(), null);
         return dto;
     }
 
@@ -418,7 +393,127 @@ public class AuthServiceImpl implements AuthService {
                     CurrentUser.getDeviceId(), param.getScene(), param.getCaptcha(), cached);
             throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "验证码不正确");
         }
-        return userInfoService.sendPhoneCaptcha(param.getPhone());
+
+        String scene = param.getScene();
+        UserInfo user = userInfoMapper.selectByPhone(null, param.getPhone());
+        if ("register".equals(scene)) {
+            // 注册场景：手机号已存在则拒绝，否则用手机号作为 TOTP 密钥
+            if (user != null) {
+                throw new UoquoException(AccountReturnCode.PHONE_EXIST);
+            }
+            return userInfoService.sendPhoneCaptcha(param.getPhone(), param.getPhone());
+        } else {
+            // 登录场景（sms_login 及其他）：先查 userId，未注册则静默返回防枚举
+            if (user == null) {
+                logger.info("sendPhoneCaptcha: phone={} 未注册，静默返回", param.getPhone());
+                return "";
+            }
+            return userInfoService.sendPhoneCaptcha(param.getPhone(), user.getId());
+        }
+    }
+
+    @Override
+    public UserAuthDto smsLogin(SmsLoginParam param, String clientIp) {
+        CurrentUser.setClientIp(clientIp);
+        CurrentUser.setAppVersion(param.getAppVersion());
+
+        // 1. 查找用户（按手机号）
+        UserInfo info = userInfoMapper.selectByPhone(null, param.getPhone());
+        this.checkUserStatus(param.getPhone(), info);
+
+        // 2. 验证短信码（以 userId 为 TOTP 密钥）
+        String secret = Base32.encode(info.getId());
+        boolean valid = TotpAuthUtils.verifyDynamicCode(secret, param.getSmsCode());
+        if (!valid) {
+            throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "短信验证码不正确");
+        }
+
+        // 3. 跳过密码校验，走 MFA + Token 流程
+        return this.completeLoginWithMfa(info, info.getPhone());
+    }
+
+    @Override
+    public UserAuthDto credentialLogin(CredentialLoginParam param, String clientIp) {
+        CurrentUser.setClientIp(clientIp);
+        CurrentUser.setAppVersion(param.getAppVersion());
+
+        // 1. 枚举校验
+        if (!CredentialTypeEnum.contains(param.getCredentialType())) {
+            throw new ParamErrorException("不支持的凭证类型：" + param.getCredentialType());
+        }
+
+        // 2. 查询凭证表（全局类型 instituteId=null）
+        String instituteId = resolveInstituteId(param.getCredentialType());
+        UserCredential credential = credentialMapper.selectByCredentialType(param.getCredentialType(), param.getCredentialValue(), instituteId);
+
+        if (credential != null) {
+            // 3a. 已绑定 → 正常登录（含 MFA 判断）
+            UserInfo info = userInfoMapper.selectByPrimaryKey(credential.getUserId());
+            this.checkUserStatus(param.getCredentialValue(), info);
+            return this.completeLoginWithMfa(info, info.getUserName());
+        } else {
+            // 3b. 未绑定 → 生成 tempToken，返回最小 UserAuthDto
+            String tempToken = IDGenerator.getUUID().toUpperCase();
+            Map<String, String> bindInfo = new HashMap<>();
+            bindInfo.put("credentialType",  param.getCredentialType());
+            bindInfo.put("credentialValue", param.getCredentialValue());
+            RedisUtil.put(PlatformCacheKey.BIND_TEMP_TOKEN + tempToken, JsonUtil.serialize(bindInfo), 300);
+            UserAuthDto dto = new UserAuthDto();
+            dto.setAccessToken(tempToken);
+            return dto;
+        }
+    }
+
+    @Override
+    public UserAuthDto credentialBind(CredentialBindParam param, String clientIp) {
+        CurrentUser.setClientIp(clientIp);
+        CurrentUser.setAppVersion(param.getAppVersion());
+
+        // 1. 读取绑定上下文
+        String bindJson = RedisUtil.get(PlatformCacheKey.BIND_TEMP_TOKEN + param.getTempToken(), String.class);
+        if (StringUtil.isNull(bindJson)) {
+            throw new TokenEmptyException();
+        }
+        Map<String, Object> bindInfo = JsonUtil.deserialize(bindJson);
+        String credentialType  = (String) bindInfo.get("credentialType");
+        String credentialValue = (String) bindInfo.get("credentialValue");
+
+        // 2. 账号查询 + 状态校验（复用 findUserByAccount）
+        // 2.1 验证码判断（与 userLogin 一致）
+        String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
+        String captchaFlag = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, String.class);
+        if (StringUtil.notNull(captchaFlag)) {
+            if (StringUtil.isNull(param.getCaptcha())) {
+                throw new ParamEmtpyException("验证码不能为空");
+            }
+            String captcha = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey, String.class);
+            RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_CODE + captchaKey);
+            if (!param.getCaptcha().equalsIgnoreCase(captcha)) {
+                throw new UoquoException(AccountReturnCode.CAPTCHA_ERROR, "验证码不正确");
+            }
+        }
+        // 2.2 用户状态判断
+        UserInfo info = findUserByAccount(param.getAccount());
+        this.checkUserStatus(param.getAccount(), info);
+
+        // 3. 密码校验（复用 checkAndVerifyPassword，含错误计数与验证码锁定）
+        this.checkAndVerifyPassword(info, param.getPassword(), param.getAccount(), clientIp);
+
+        // 4. 写入凭证（upsert） — id 由 IDGenerator.getNextULID() 生成
+        String instituteId = resolveInstituteId(credentialType);
+        credentialMapper.upsertCredential(IDGenerator.getNextULID(), info.getId(), credentialType, credentialValue, instituteId);
+
+        // 5. 清理 tempToken 
+        RedisUtil.remove(PlatformCacheKey.BIND_TEMP_TOKEN + param.getTempToken());
+        RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey);
+
+        // 6. 完成登录
+        CurrentUser.setToken(null);
+        UserAuthDto dto = this.getUserAuthDto(info);
+        this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                "USER", info.getId(), info.getInstituteId(), param.getAccount(), dto.getAccessToken(), null);
+        return dto;
     }
 
     /**
@@ -471,6 +566,76 @@ public class AuthServiceImpl implements AuthService {
             this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DISABLE, "USER", info.getId(), info.getInstituteId(), account, null, null);
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "账户不可用！");
         }
+    }
+
+    /**
+     * 密码校验：验证密码哈希，并维护连续失败计数和验证码锁定。
+     * 失败时抛出 ACCOUNT_PASSWORD_ERROR，成功时重置计数。
+     *
+     * @param info        已查到的用户信息
+     * @param rawPassword 入参密码（解密后的明文）
+     * @param account     登录账号（仅用于日志/事件）
+     * @param clientIp    客户端 IP，写入最近登录信息
+     */
+    private void checkAndVerifyPassword(UserInfo info, String rawPassword, String account, String clientIp) {
+        UserInfo paramUser = new UserInfo();
+        paramUser.setId(info.getId());
+        paramUser.setLastedLoginIp(clientIp);
+        paramUser.setLastedLoginTime(new Date());
+        boolean ok = UserUtils.checkPassword(rawPassword, info.getPassword());
+        if (!ok) {
+            int errorCount = info.getLoginErrorCount() == null ? 0 : info.getLoginErrorCount();
+            if (errorCount >= 1) {
+                String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
+                RedisUtil.put(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, "1", passwordErrorLockTime * 60);
+            }
+            paramUser.setLoginErrorCount(++errorCount);
+            userInfoMapper.updateLastLoginInfo(paramUser);
+            logger.warn("用户[{}][{}]密码连续输错[{}]次，不允许登录", account, info.getId(), errorCount);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.PASSWORD_ERROR,
+                    "USER", info.getId(), info.getInstituteId(), account, null, rawPassword);
+            throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR,
+                    "密码错误,还可以输入 %d 次", (passwordErrorMaxNum - errorCount));
+        }
+        paramUser.setLoginErrorCount(0);
+        userInfoMapper.updateLastLoginInfo(paramUser);
+    }
+
+    /**
+     * MFA 判断 + 完成登录。
+     * 若 MFA 已启用且已绑定：生成 TOTP 临时 Token，返回最小化 UserAuthDto；
+     * 否则：缓存用户信息，发布登录事件，返回完整 UserAuthDto。
+     *
+     * @param info    已通过状态校验的用户信息
+     * @param account 登录账号（用于事件日志，可传手机号/用户名/凭证值）
+     */
+    private UserAuthDto completeLoginWithMfa(UserInfo info, String account) {
+        CurrentUser.setToken(null);
+        UserAuthDto dto = this.getUserAuthDto(info);
+        // 获取 MFA 配置（用户 > 机构 > 系统）
+        String setting = userSettingService.getValueByCode(info.getId(), SettingsCode.MFA_AUTH_ENABLED);
+        if (!"true".equals(setting)) {
+            dto.setTotpStatus("disabled");
+        } else if (StringUtil.notNull(info.getTotpSecret())) {
+            dto.setTotpStatus("enabled");
+        } else {
+            dto.setTotpStatus("unbound");
+        }
+        if ("enabled".equals(dto.getTotpStatus())) {
+            // MFA 已绑定：生成临时 Token，不缓存用户信息
+            String tempToken = this.generateToken();
+            dto.setAccessToken(tempToken);
+            dto.setRefreshToken(null);
+            this.setCurrentUserInfo(dto);
+            RedisUtil.put(PlatformCacheKey.TOTP_TEMP_TOKEN + tempToken, info.getId(), 300);
+        } else {
+            // MFA 未开启或未绑定：正常登录流程
+            this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+            // 发布事件（登录）
+            this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                    "USER", info.getId(), info.getInstituteId(), account, dto.getAccessToken(), null);
+        }
+        return dto;
     }
 
     /**
@@ -677,5 +842,31 @@ public class AuthServiceImpl implements AuthService {
         event.setNewData(info);
 
         eventPublisher.publishEvent(event);
+    }
+
+    /**
+     * 按账号自动识别类型查询用户
+     * 匹配手机号正则 ^1[3-9]\d{9}$ → selectByPhone
+     * 其他 → selectByUserName
+     */
+    private UserInfo findUserByAccount(String account) {
+        if (account.matches("^1[3-9]\\d{9}$")) {
+            return userInfoMapper.selectByPhone(null, account);
+        } else {
+            return userInfoMapper.selectByUserName(null, account);
+        }
+    }
+
+    /**
+     * 解析 instituteId：当前版本 weixin 全局类型返回 null，wecom 返回当前 appkey 对应机构
+     */
+    private String resolveInstituteId(String credentialType) {
+        if (CredentialTypeEnum.WEIXIN.getCode().equals(credentialType)) {
+            return null;
+        }
+        // TODO 根据请求域名、请求入参等信息来判断
+        // wecom 等机构范围类型：从当前 AppInfo 中取机构ID
+        AppInfo appInfo = appInfoMapper.selectByAppkey(CurrentUser.getAppkey());
+        return appInfo != null ? appInfo.getInstituteId() : null;
     }
 }

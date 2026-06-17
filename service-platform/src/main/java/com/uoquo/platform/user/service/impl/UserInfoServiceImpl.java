@@ -545,7 +545,7 @@ public class UserInfoServiceImpl implements UserInfoService {
     }
 
     @Override
-    public String sendPhoneCaptcha(String phone) {
+    public String sendPhoneCaptcha(String phone, String userId) {
         // 1. 校验发送频率限制
         // 1.1 同一手机号（60秒内只能发送一次）
         String limitKey = PlatformCacheKey.PHONE_CAPTCHA_LIMIT + phone;
@@ -559,8 +559,8 @@ public class UserInfoServiceImpl implements UserInfoService {
         if (limitValue != null) {
             throw new UoquoException(AccountReturnCode.CAPTCHA_SEND_TOO_FREQUENT);
         }
-        // 2. 生成验证码（用phone做秘钥）
-        String secret = Base32.encode(phone);
+        // 2. 生成验证码（用 userId 做密钥，而非 phone）
+        String secret = Base32.encode(userId);
         String code = TotpAuthUtils.generateDynamicCode(secret);
         // 3. 设置发送频率限制（60秒）
         RedisUtil.put(limitKey, "1", 60);
@@ -587,7 +587,7 @@ public class UserInfoServiceImpl implements UserInfoService {
         // 1.3 校验手机号是否已被使用
         checkPhoneRepeat(userId, param.getPhone());
         // 5. 验证验证码
-        String secret = Base32.encode(param.getPhone());
+        String secret = Base32.encode(userId);
         boolean verified = TotpAuthUtils.verifyDynamicCode(secret, param.getCaptcha());
         if (!verified) {
             errors = (errors == null) ? 1 : errors + 1;

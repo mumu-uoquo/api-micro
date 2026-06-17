@@ -101,9 +101,10 @@ public interface UserInfoService {
     /**
      * 发送手机验证码
      *
-     * @param phone 手机号
+     * @param phone  手机号
+     * @param userId 用户ID（用作 TOTP 密钥，而非 phone）
      */
-    String sendPhoneCaptcha(String phone);
+    String sendPhoneCaptcha(String phone, String userId);
 
     /**
      * 更换手机号

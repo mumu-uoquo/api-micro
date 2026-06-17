@@ -111,7 +111,9 @@ public class UserProfileController {
         if (logger.isInfoEnabled()) {
             logger.info("sendPhoneCaptcha: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
         }
-        String result = userInfoService.sendPhoneCaptcha(param.getPhone());
+        // 已登录场景：直接取 userId，无需查库
+        String userId = CurrentUser.getInfo().getUserId();
+        String result = userInfoService.sendPhoneCaptcha(param.getPhone(), userId);
         return new ReturnData<>(result);
     }
 

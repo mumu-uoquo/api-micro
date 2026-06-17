@@ -222,22 +222,6 @@
     WHERE referral_code = #{referralCode,jdbcType=VARCHAR}
   </select>
 
-  <select id="selectByLogin" resultMap="BaseResultMap">
-    SELECT
-    <include refid="Base_Column_List" />
-    FROM bko_user
-    WHERE delete_state = 0
-    AND ( phone = #{account,jdbcType=VARCHAR}
-      OR user_name = #{account,jdbcType=VARCHAR}
-<!--      OR referral_code = #{account,jdbcType=VARCHAR} -->
-      <if test="instituteId != null and instituteId != ''">
-        OR ( institute_id = #{instituteId,jdbcType=VARCHAR}
-          AND user_code = #{account,jdbcType=VARCHAR}
-        )
-      </if>
-    )
-  </select>
-
   <select id="selectBySearch" parameterType="map" resultMap="DtoResultMap">
     SELECT
       u.id, u.institute_id, u.dept_id, u.referral_code, u.user_code, u.user_name, u.real_name, u.phone,

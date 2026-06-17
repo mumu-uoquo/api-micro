@@ -6,7 +6,10 @@ import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
 import com.uoquo.platform.auth.model.param.CaptchaParam;
+import com.uoquo.platform.auth.model.param.CredentialBindParam;
+import com.uoquo.platform.auth.model.param.CredentialLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.web.BaseReturnCode;
 
@@ -99,4 +102,40 @@ public interface AuthService {
      * 若请求中携带图形验证码，则先校验后再发送。
      */
     String sendPhoneCaptcha(PhoneCaptchaParam param, String clientIp);
+
+    /**
+     * 手机号短信码登录
+     *
+     * @param param    短信码登录参数（phone + smsCode）
+     * @param clientIp 客户端 IP
+     * @return 用户认证信息
+     */
+    UserAuthDto smsLogin(SmsLoginParam param, String clientIp);
+
+    /**
+     * 第三方凭证登录
+     * <ul>
+     *     <li>已绑定：返回完整 UserAuthDto</li>
+     *     <li>未绑定：返回仅含 accessToken=tempToken 的 UserAuthDto，需进行凭证绑定</li>
+     * </ul>
+     *
+     * @param param    凭证登录参数（credentialType + credentialValue）
+     * @param clientIp 客户端 IP
+     * @return 用户认证信息（已绑定）或含 tempToken 的最小 UserAuthDto（未绑定）
+     */
+    UserAuthDto credentialLogin(CredentialLoginParam param, String clientIp);
+
+    /**
+     * 凭证绑定（账号密码验证 + 写入凭证 + 完成登录）
+     * <ul>
+     *     <li>从 Redis 读取 BIND_TEMP:{tempToken}，验证有效性</li>
+     *     <li>校验账号密码，复用与 userLogin 相同的密码哈希校验和连续失败锁定逻辑</li>
+     *     <li>验证成功后写入凭证，删除临时 Token，完成登录返回完整 UserAuthDto</li>
+     * </ul>
+     *
+     * @param param    凭证绑定参数（account + password + tempToken）
+     * @param clientIp 客户端 IP
+     * @return 完整用户认证信息
+     */
+    UserAuthDto credentialBind(CredentialBindParam param, String clientIp);
 }

@@ -73,4 +73,9 @@ public class PlatformCacheKey extends BaseCacheKey {
      */
     public static final String EMAIL_CAPTCHA_LIMIT      = "UOQUO:EMAIL:CAPTCHA:LIMIT:";
 
+    /**
+     * 第三方凭证绑定临时Token前缀（凭证未绑定时生成，TTL=300s）
+     */
+    public static final String BIND_TEMP_TOKEN = "UOQUO:BIND_TEMP:";
+
 }

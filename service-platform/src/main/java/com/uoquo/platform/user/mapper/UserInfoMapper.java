@@ -61,11 +61,6 @@ public interface UserInfoMapper {
     UserInfo selectByReferralCode(String referralCode);
 
     /**
-     * 登录查询：手机号、工号、用户名
-     */
-    UserInfo selectByLogin(@Param("instituteId") String instituteId, @SensitiveField @Param("account") String account);
-
-    /**
      * 列表查询
      */
     List<UserInfoDto> selectBySearch(Map<String, Object> map);

@@ -1,26 +1,7 @@
 package com.uoquo.platform.auth.controller;
 
-import com.uoquo.platform.auth.model.dto.TokenDto;
-import com.uoquo.platform.auth.model.dto.UserAuthDto;
-import com.uoquo.platform.auth.model.param.AccountLoginParam;
-import com.uoquo.platform.auth.model.param.CaptchaParam;
-import com.uoquo.platform.auth.model.param.MfaLoginParam;
-import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
-import com.uoquo.platform.auth.model.param.TokenLoginParam;
-import com.uoquo.platform.auth.service.AuthService;
-import com.uoquo.platform.role.model.dto.ModuleTreeDto;
-import com.uoquo.utils.CurrentUser;
-import com.uoquo.utils.StringUtil;
-import com.uoquo.utils.json.JsonUtil;
-import com.uoquo.web.ReturnData;
-import com.uoquo.web.SystemReturnCode;
-import com.uoquo.web.exception.ParamEmtpyException;
-import com.uoquo.annotation.web.IgnoreAuth;
-import com.uoquo.web.param.IdParam;
-import com.uoquo.web.utils.WebUtil;
-import io.swagger.v3.oas.annotations.Hidden;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +11,33 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uoquo.annotation.web.IgnoreAuth;
+import com.uoquo.platform.auth.model.dto.TokenDto;
+import com.uoquo.platform.auth.model.dto.UserAuthDto;
+import com.uoquo.platform.auth.model.param.AccountLoginParam;
+import com.uoquo.platform.auth.model.param.CaptchaParam;
+import com.uoquo.platform.auth.model.param.CredentialBindParam;
+import com.uoquo.platform.auth.model.param.CredentialLoginParam;
+import com.uoquo.platform.auth.model.param.MfaLoginParam;
+import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
+import com.uoquo.platform.auth.model.param.SmsLoginParam;
+import com.uoquo.platform.auth.model.param.TokenLoginParam;
+import com.uoquo.platform.auth.service.AuthService;
+import com.uoquo.platform.role.model.dto.ModuleTreeDto;
+import com.uoquo.utils.CurrentUser;
+import com.uoquo.utils.StringUtil;
+import com.uoquo.utils.json.JsonUtil;
+import com.uoquo.web.ReturnData;
+import com.uoquo.web.SystemReturnCode;
+import com.uoquo.web.exception.ParamEmtpyException;
+import com.uoquo.web.param.IdParam;
+import com.uoquo.web.utils.WebUtil;
+
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.util.List;
 
 /**
  * 后缀为“/login”的接口，将忽略登录校验
@@ -129,6 +134,51 @@ public class AuthController {
         String clientIp = WebUtil.getClientIp(request);
         String result = authService.sendPhoneCaptcha(param, clientIp);
         return new ReturnData<>(result);
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "手机号短信码登录", operationId = "smsLogin", method = "POST")
+    @PostMapping("/phone/login")
+    public ReturnData<UserAuthDto> smsLogin(HttpServletRequest request,
+                                            @RequestBody @Valid SmsLoginParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("smsLogin: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
+        }
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        return new ReturnData<>(authService.smsLogin(param, clientIp));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "第三方凭证登录", operationId = "credentialLogin", method = "POST")
+    @PostMapping("/credential/login")
+    public ReturnData<UserAuthDto> credentialLogin(HttpServletRequest request,
+                                                   @RequestBody @Valid CredentialLoginParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("credentialLogin: type={}", param.getCredentialType());
+        }
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        return new ReturnData<>(authService.credentialLogin(param, clientIp));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "凭证绑定", operationId = "credentialBind", method = "POST")
+    @PostMapping("/credential/bind")
+    public ReturnData<UserAuthDto> credentialBind(HttpServletRequest request,
+                                                  @RequestBody @Valid CredentialBindParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("credentialBind: account={}", param.getAccount());
+        }
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        return new ReturnData<>(authService.credentialBind(param, clientIp));
     }
 
     @Hidden

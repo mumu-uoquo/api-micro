@@ -1,8 +1,10 @@
 package com.uoquo.platform.auth.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 
 /**
  * 入参：手机号短信码登录
@@ -11,8 +13,8 @@ import jakarta.validation.constraints.Pattern;
 public class SmsLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "手机号不能为空")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
-    @Schema(description = "手机号")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
+    @Schema(description = "手机号（RSA 加密）")
     private String phone;
 
     @NotBlank(message = "短信验证码不能为空")

@@ -683,25 +683,29 @@ public class AuthServiceImpl implements AuthService {
      */
     private UserAuthDto completeLoginWithMfa(UserInfo info, String account) {
         CurrentUser.setToken(null);
-        UserAuthDto dto = this.getUserAuthDto(info);
         // 获取 MFA 配置（用户 > 机构 > 系统）
         String setting = userSettingService.getValueByCode(info.getId(), SettingsCode.MFA_AUTH_ENABLED);
+        String totpStatus = "unbound";
         if (!"true".equals(setting)) {
-            dto.setTotpStatus("disabled");
+            totpStatus = "disabled";
         } else if (StringUtil.notNull(info.getTotpSecret())) {
-            dto.setTotpStatus("enabled");
-        } else {
-            dto.setTotpStatus("unbound");
+            totpStatus = "enabled";
         }
-        if ("enabled".equals(dto.getTotpStatus())) {
-            // MFA 已绑定：生成临时 Token，不缓存用户信息
+        UserAuthDto dto;
+        if ("enabled".equals(totpStatus)) {
+            // MFA 已绑定：生成临时 Token，不返回和缓存用户信息
             String tempToken = this.generateToken();
+            dto = new UserAuthDto();
+            dto.setTotpStatus(totpStatus);
             dto.setAccessToken(tempToken);
             dto.setRefreshToken(null);
-            this.setCurrentUserInfo(dto);
             RedisUtil.put(PlatformCacheKey.TOTP_TEMP_TOKEN + tempToken, info.getId(), 300);
+            // 仅用于本次日志
+            this.setCurrentUserInfo(this.getUserAuthDto(info));
         } else {
             // MFA 未开启或未绑定：正常登录流程
+            dto = this.getUserAuthDto(info);
+            dto.setTotpStatus(totpStatus);
             this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
             // 发布事件（登录）
             this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,

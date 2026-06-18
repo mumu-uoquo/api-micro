@@ -32,6 +32,7 @@ import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.web.ReturnData;
 import com.uoquo.web.SystemReturnCode;
 import com.uoquo.web.exception.ParamEmtpyException;
+import com.uoquo.web.exception.ParamErrorException;
 import com.uoquo.web.param.IdParam;
 import com.uoquo.web.utils.WebUtil;
 
@@ -122,9 +123,11 @@ public class AuthController {
     }
 
     @IgnoreAuth(login = true)
-    @Operation(summary = "获取手机短信验证码", operationId = "sendPhoneCaptcha", method = "POST", description = "必须携带图像验证码进行人机交互验证")
+    @Operation(summary = "获取手机短信验证码", operationId = "sendSmsCaptcha", method = "POST", description = "必须携带图像验证码进行人机交互验证")
     @PostMapping("/phone/captcha")
-    public ReturnData<String> sendPhoneCaptcha(HttpServletRequest request, @RequestBody @Valid PhoneCaptchaParam param) {
+    public ReturnData<String> sendSmsCaptcha(HttpServletRequest request, @RequestBody @Valid PhoneCaptchaParam param) {
+        // 手机号经 RSA 解密后校验格式（解密在反序列化阶段完成，此处已是明文）
+        this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("sendPhoneCaptcha scene={} phone={}",
                     param.getScene(), param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
@@ -143,6 +146,7 @@ public class AuthController {
     @PostMapping("/phone/login")
     public ReturnData<UserAuthDto> smsLogin(HttpServletRequest request,
                                             @RequestBody @Valid SmsLoginParam param) {
+        this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("smsLogin: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
         }
@@ -188,6 +192,7 @@ public class AuthController {
     @PostMapping("/password/reset")
     public ReturnData<String> resetPassword(HttpServletRequest request,
                                             @RequestBody @Valid ResetPasswordParam param) {
+        this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("resetPassword: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
         }
@@ -201,6 +206,7 @@ public class AuthController {
     @PostMapping("/register")
     public ReturnData<String> register(HttpServletRequest request,
                                        @RequestBody @Valid RegisterParam param) {
+        this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("register: userName={} phone={}", param.getUserName(),
                     param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
@@ -267,5 +273,16 @@ public class AuthController {
         }
         List<ModuleTreeDto> result = authService.getPermissionByRoleId(param.getId());
         return new ReturnData<>(result);
+    }
+
+    /**
+     * 校验手机号格式。
+     * 手机号字段采用 RSA 加密传输（@Sensitive(CRYPT_RSA)），解密在 JSON 反序列化阶段完成，
+     * 进入控制器方法时已是明文，因此格式校验放在此处而非用 @Pattern 注解（避免对密文做正则校验）。
+     */
+    private void validatePhone(String phone) {
+        if (StringUtil.isNull(phone) || !phone.matches("^1[3-9]\\d{9}$")) {
+            throw new ParamErrorException("手机号格式不正确");
+        }
     }
 }

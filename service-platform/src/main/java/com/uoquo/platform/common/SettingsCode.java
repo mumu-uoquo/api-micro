@@ -52,6 +52,12 @@ public class SettingsCode {
     /** 企业微信回调地址 */
     public static final String WECOM_REDIRECT_URI  = "login.wecom.redirect-uri";
 
+    /* ************************ 微信消息推送配置 ************************** */
+    /** 微信消息推送 Token（服务器配置中的 Token，用于签名校验） */
+    public static final String WECHAT_MSG_TOKEN  = "wechat.push.token";
+    /** 微信消息推送 EncodingAESKey（安全模式消息体加解密） */
+    public static final String WECHAT_MSG_AESKEY = "wechat.push.aeskey";
+
 
     /**
      * 需要公开的配置编码集合（不登录即可获取）
@@ -73,7 +79,9 @@ public class SettingsCode {
         AES_KEY,            // security.aes.key
         GLOBAL_GATEWAY_KEY, // security.gateway.key
         WECHAT_SECRET,      // login.wechat.secret
-        WECOM_SECRET        // login.wecom.secret
+        WECOM_SECRET,       // login.wecom.secret
+        WECHAT_MSG_AESKEY,  // wechat.push.aeskey
+        WECHAT_MSG_TOKEN    // wechat.push.token
     );
 
     /**

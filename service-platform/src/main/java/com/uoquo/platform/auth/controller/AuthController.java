@@ -193,7 +193,7 @@ public class AuthController {
 
     @IgnoreAuth(login = true)
     @Operation(summary = "第三方扫码登录配置", operationId = "credentialConfig", method = "GET")
-    @GetMapping("/credential/config")
+    @PostMapping("/credential/config")
     public ReturnData<CredentialConfigDto> credentialConfig(@RequestParam("scene") String scene) {
         if (logger.isInfoEnabled()) {
             logger.info("credentialConfig: scene={}", scene);
@@ -201,8 +201,8 @@ public class AuthController {
         return new ReturnData<>(authService.credentialConfig(scene));
     }
 
-    @IgnoreAuth(login = true)
-    @Operation(summary = "第三方授权回调", operationId = "credentialCallback", method = "GET")
+    @IgnoreAuth(all = true)
+    @Operation(summary = "第三方授权回调", hidden = true)
     @GetMapping("/credential/callback")
     public ReturnData<String> credentialCallback(@RequestParam("code") String code,
                                                  @RequestParam("state") String state) {
@@ -215,7 +215,7 @@ public class AuthController {
 
     @IgnoreAuth(login = true)
     @Operation(summary = "第三方扫码登录状态轮询", operationId = "credentialStatus", method = "GET")
-    @GetMapping("/credential/status")
+    @PostMapping("/credential/status")
     public ReturnData<CredentialStatusDto> credentialStatus(@RequestParam("scene") String scene,
                                                             @RequestParam("state") String state) {
         return new ReturnData<>(authService.credentialStatus(scene, state));

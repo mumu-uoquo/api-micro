@@ -1,6 +1,13 @@
 package com.uoquo.platform.auth.service.impl;
 
 import java.awt.image.BufferedImage;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +22,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.uoquo.cloud.events.RemoteEvent;
+import com.uoquo.platform.auth.model.dto.CredentialConfigDto;
+import com.uoquo.platform.auth.model.dto.CredentialStatusDto;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.enums.CredentialTypeEnum;
@@ -459,25 +468,34 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setAppVersion(param.getAppVersion());
 
         // 1. 枚举校验
-        if (!CredentialTypeEnum.contains(param.getCredentialType())) {
-            throw new ParamErrorException("不支持的凭证类型：" + param.getCredentialType());
+        String credentialType = param.getCredentialType();
+        if (!CredentialTypeEnum.contains(credentialType)) {
+            throw new ParamErrorException("不支持的凭证类型：" + credentialType);
         }
 
-        // 2. 查询凭证表（全局类型 instituteId=null）
-        String instituteId = resolveInstituteId(param.getCredentialType());
-        UserCredential credential = credentialMapper.selectByCredentialType(param.getCredentialType(), param.getCredentialValue(), instituteId);
+        // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
+        String credentialValue = param.getCredentialValue();
+        if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
+            credentialValue = this.exchangeWechatOpenId(credentialValue);
+        } else if (CredentialTypeEnum.WECOM.getCode().equals(credentialType)) {
+            credentialValue = this.exchangeWecomUserId(credentialValue);
+        }
+
+        // 3. 查询凭证表（全局类型 instituteId=null）
+        String instituteId = resolveInstituteId(credentialType);
+        UserCredential credential = credentialMapper.selectByCredentialType(credentialType, credentialValue, instituteId);
 
         if (credential != null) {
-            // 3a. 已绑定 → 正常登录（含 MFA 判断）
+            // 4a. 已绑定 → 正常登录（含 MFA 判断）
             UserInfo info = userInfoMapper.selectByPrimaryKey(credential.getUserId());
-            this.checkUserStatus(param.getCredentialValue(), info);
+            this.checkUserStatus(credentialValue, info);
             return this.completeLoginWithMfa(info, info.getUserName());
         } else {
-            // 3b. 未绑定 → 生成 tempToken，返回最小 UserAuthDto
+            // 4b. 未绑定 → 生成 tempToken，返回最小 UserAuthDto
             String tempToken = IDGenerator.getUUID().toUpperCase();
             Map<String, String> bindInfo = new HashMap<>();
-            bindInfo.put("credentialType",  param.getCredentialType());
-            bindInfo.put("credentialValue", param.getCredentialValue());
+            bindInfo.put("credentialType",  credentialType);
+            bindInfo.put("credentialValue", credentialValue);
             RedisUtil.put(PlatformCacheKey.BIND_TEMP_TOKEN + tempToken, JsonUtil.serialize(bindInfo), 300);
             UserAuthDto dto = new UserAuthDto();
             dto.setAccessToken(tempToken);
@@ -930,6 +948,160 @@ public class AuthServiceImpl implements AuthService {
             return userInfoMapper.selectByPhone(null, account);
         } else {
             return userInfoMapper.selectByUserName(null, account);
+        }
+    }
+
+    @Override
+    public CredentialConfigDto credentialConfig(String scene) {
+        if (!CredentialTypeEnum.contains(scene)) {
+            throw new ParamErrorException("不支持的凭证类型：" + scene);
+        }
+        String state = IDGenerator.getUUID().toUpperCase();
+
+        String appid;
+        String agentId = null;
+        String redirectUri;
+        if (CredentialTypeEnum.WECHAT.getCode().equals(scene)) {
+            appid       = this.getSysConfig(SettingsCode.WECHAT_APPID);
+            redirectUri = this.getSysConfig(SettingsCode.WECHAT_REDIRECT_URI);
+        } else {
+            appid       = this.getSysConfig(SettingsCode.WECOM_CORPID);
+            agentId     = this.getSysConfig(SettingsCode.WECOM_AGENTID);
+            redirectUri = this.getSysConfig(SettingsCode.WECOM_REDIRECT_URI);
+        }
+
+        // 缓存 state → {scene, appid, agentId, status, code}，供回调与轮询使用
+        Map<String, String> cache = new HashMap<>();
+        cache.put("scene",   scene);
+        cache.put("appid",   appid);
+        cache.put("agentId", agentId);
+        cache.put("status",  "waiting");
+        cache.put("code",    "");
+        RedisUtil.put(PlatformCacheKey.CREDENTIAL_STATE + state, JsonUtil.serialize(cache), 600);
+
+        CredentialConfigDto dto = new CredentialConfigDto();
+        dto.setScene(scene);
+        dto.setAppid(appid);
+        dto.setAgentId(agentId);
+        dto.setRedirectUri(redirectUri);
+        dto.setState(state);
+        return dto;
+    }
+
+    @Override
+    public void credentialCallback(String code, String state) {
+        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
+        String json = RedisUtil.get(key, String.class);
+        if (StringUtil.isNull(json)) {
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+        }
+        Map<String, Object> cache = JsonUtil.deserialize(json);
+        cache.put("code", code);
+        cache.put("status", "confirmed");
+        // 写回缓存（沿用 600s TTL）
+        RedisUtil.put(key, JsonUtil.serialize(cache), 600);
+    }
+
+    @Override
+    public CredentialStatusDto credentialStatus(String scene, String state) {
+        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
+        String json = RedisUtil.get(key, String.class);
+        if (StringUtil.isNull(json)) {
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+        }
+        Map<String, Object> cache = JsonUtil.deserialize(json);
+        // 校验场景一致，避免串用
+        if (StringUtil.notNull(scene) && !scene.equals(cache.get("scene"))) {
+            throw new ParamErrorException("场景与授权请求不一致");
+        }
+        String status = (String) cache.get("status");
+        Object code   = cache.get("code");
+        return new CredentialStatusDto(status, code == null ? null : code.toString());
+    }
+
+    /**
+     * 读取系统级配置项，缺失则抛参数异常
+     */
+    private String getSysConfig(String code) {
+        SettingDto setting = sysSettingService.getInfoByCode(code);
+        if (setting == null || StringUtil.isNull(setting.getConfigValue())) {
+            throw new ParamErrorException("缺少配置项：" + code);
+        }
+        return setting.getConfigValue();
+    }
+
+    /**
+     * 微信网页授权：用 code 换取 openid。
+     * 参考：https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
+     */
+    private String exchangeWechatOpenId(String code) {
+        String appid  = this.getSysConfig(SettingsCode.WECHAT_APPID);
+        String secret = this.getSysConfig(SettingsCode.WECHAT_SECRET);
+        String url = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=" + urlEncode(appid)
+                + "&secret=" + urlEncode(secret)
+                + "&code=" + urlEncode(code)
+                + "&grant_type=authorization_code";
+        Map<String, Object> resp = this.httpGetJson(url);
+        Object openid = resp.get("openid");
+        if (openid == null) {
+            logger.warn("微信换取 openid 失败：{}", resp);
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "微信授权失败：" + resp.get("errmsg"));
+        }
+        return openid.toString();
+    }
+
+    /**
+     * 企业微信：先取 access_token，再用 code 换取 userid。
+     * 参考：https://developer.work.weixin.qq.com/document/path/91507
+     */
+    private String exchangeWecomUserId(String code) {
+        String corpid = this.getSysConfig(SettingsCode.WECOM_CORPID);
+        String secret = this.getSysConfig(SettingsCode.WECOM_SECRET);
+        String tokenUrl = "https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=" + urlEncode(corpid)
+                + "&corpsecret=" + urlEncode(secret);
+        Map<String, Object> tokenResp = this.httpGetJson(tokenUrl);
+        Object accessToken = tokenResp.get("access_token");
+        if (accessToken == null) {
+            logger.warn("企业微信获取 access_token 失败：{}", tokenResp);
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信授权失败：" + tokenResp.get("errmsg"));
+        }
+        String userUrl = "https://qyapi.weixin.qq.com/cgi-bin/auth/getuserinfo?access_token=" + urlEncode(accessToken.toString())
+                + "&code=" + urlEncode(code);
+        Map<String, Object> userResp = this.httpGetJson(userUrl);
+        Object userid = userResp.get("userid");
+        if (userid == null) {
+            logger.warn("企业微信换取 userid 失败：{}", userResp);
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信授权失败：" + userResp.get("errmsg"));
+        }
+        return userid.toString();
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 发起 GET 请求并将 JSON 响应解析为 Map
+     */
+    private Map<String, Object> httpGetJson(String url) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return JsonUtil.deserialize(response.body());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("请求第三方接口被中断：{}", url, e);
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
+        } catch (Exception e) {
+            logger.error("请求第三方接口失败：{}", url, e);
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
         }
     }
 

@@ -36,6 +36,22 @@ public class SettingsCode {
     /** 是否开启企业微信登录 */
     public static final String LOGIN_WECOM_ENABLE  = "login.wecom.enable";
 
+    /* ************************ 第三方登录应用配置 ************************** */
+    /** 微信 appid */
+    public static final String WECHAT_APPID        = "login.wechat.appid";
+    /** 微信 secret */
+    public static final String WECHAT_SECRET       = "login.wechat.secret";
+    /** 微信回调地址 */
+    public static final String WECHAT_REDIRECT_URI = "login.wechat.redirect-uri";
+    /** 企业微信 corpid（appid） */
+    public static final String WECOM_CORPID        = "login.wecom.corpid";
+    /** 企业微信 agentid */
+    public static final String WECOM_AGENTID       = "login.wecom.agentid";
+    /** 企业微信 secret */
+    public static final String WECOM_SECRET        = "login.wecom.secret";
+    /** 企业微信回调地址 */
+    public static final String WECOM_REDIRECT_URI  = "login.wecom.redirect-uri";
+
 
     /**
      * 需要公开的配置编码集合（不登录即可获取）
@@ -53,9 +69,11 @@ public class SettingsCode {
      * 内部使用的配置编码集合（不可返回给前端）
      */
     public static final Set<String> PRIVATE_KEYS = Set.of(
-        RSA_PRIVATE_KEY,   // security.rsa.privateKey
+        RSA_PRIVATE_KEY,    // security.rsa.privateKey
         AES_KEY,            // security.aes.key
-        GLOBAL_GATEWAY_KEY // security.gateway.key
+        GLOBAL_GATEWAY_KEY, // security.gateway.key
+        WECHAT_SECRET,      // login.wechat.secret
+        WECOM_SECRET        // login.wecom.secret
     );
 
     /**

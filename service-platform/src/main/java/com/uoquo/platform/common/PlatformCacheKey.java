@@ -78,4 +78,9 @@ public class PlatformCacheKey extends BaseCacheKey {
      */
     public static final String BIND_TEMP_TOKEN = "UOQUO:BIND_TEMP:";
 
+    /**
+     * 第三方扫码登录 state 缓存前缀（记录 scene/appid/agentId/status/code，TTL=600s）
+     */
+    public static final String CREDENTIAL_STATE = "UOQUO:CREDENTIAL:STATE:";
+
 }

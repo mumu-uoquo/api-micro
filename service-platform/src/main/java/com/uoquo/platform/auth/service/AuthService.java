@@ -2,6 +2,8 @@ package com.uoquo.platform.auth.service;
 
 import java.util.List;
 
+import com.uoquo.platform.auth.model.dto.CredentialConfigDto;
+import com.uoquo.platform.auth.model.dto.CredentialStatusDto;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
@@ -165,4 +167,30 @@ public interface AuthService {
      * @param clientIp 客户端 IP
      */
     void register(RegisterParam param, String clientIp);
+
+    /**
+     * 获取第三方扫码登录配置（按场景返回 appid/agentId/redirectUri/state）。
+     * 同时以 state 为 key 缓存 {scene, appid, agentId, status, code}，供回调与轮询使用。
+     *
+     * @param scene 场景（wechat/wecom）
+     * @return 扫码登录配置
+     */
+    CredentialConfigDto credentialConfig(String scene);
+
+    /**
+     * 第三方授权回调：根据 state 取出缓存并写入 code、置状态为 confirmed。
+     *
+     * @param code  第三方返回的授权码
+     * @param state 发起授权时下发的 state
+     */
+    void credentialCallback(String code, String state);
+
+    /**
+     * 查询第三方扫码登录状态（轮询）：根据 scene + state 返回缓存的 status 与 code。
+     *
+     * @param scene 场景（wechat/wecom）
+     * @param state 发起授权时下发的 state
+     * @return 状态与 code
+     */
+    CredentialStatusDto credentialStatus(String scene, String state);
 }

@@ -6,12 +6,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uoquo.annotation.web.IgnoreAuth;
+import com.uoquo.platform.auth.model.dto.CredentialConfigDto;
+import com.uoquo.platform.auth.model.dto.CredentialStatusDto;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
@@ -185,6 +189,36 @@ public class AuthController {
         }
         String clientIp = WebUtil.getClientIp(request);
         return new ReturnData<>(authService.credentialBind(param, clientIp));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "第三方扫码登录配置", operationId = "credentialConfig", method = "GET")
+    @GetMapping("/credential/config")
+    public ReturnData<CredentialConfigDto> credentialConfig(@RequestParam("scene") String scene) {
+        if (logger.isInfoEnabled()) {
+            logger.info("credentialConfig: scene={}", scene);
+        }
+        return new ReturnData<>(authService.credentialConfig(scene));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "第三方授权回调", operationId = "credentialCallback", method = "GET")
+    @GetMapping("/credential/callback")
+    public ReturnData<String> credentialCallback(@RequestParam("code") String code,
+                                                 @RequestParam("state") String state) {
+        if (logger.isInfoEnabled()) {
+            logger.info("credentialCallback: state={}", state);
+        }
+        authService.credentialCallback(code, state);
+        return new ReturnData<>();
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "第三方扫码登录状态轮询", operationId = "credentialStatus", method = "GET")
+    @GetMapping("/credential/status")
+    public ReturnData<CredentialStatusDto> credentialStatus(@RequestParam("scene") String scene,
+                                                            @RequestParam("state") String state) {
+        return new ReturnData<>(authService.credentialStatus(scene, state));
     }
 
     @IgnoreAuth(login = true)

@@ -48,6 +48,9 @@ public class AccountReturnCode extends BaseReturnCode {
 
     public static BaseReturnCode REGISTER_DISABLED = new AccountReturnCode("21050", "系统未开启注册");
 
+    public static BaseReturnCode CREDENTIAL_STATE_INVALID  = new AccountReturnCode("21060", "授权状态已失效，请重新发起");
+    public static BaseReturnCode CREDENTIAL_EXCHANGE_FAILED = new AccountReturnCode("21061", "第三方授权换取用户标识失败");
+
     /** =============================== 211XX 角色相关 =============================== **/
     public static BaseReturnCode ROLE_NAME_EXIST = new AccountReturnCode("22101", "角色名称重复");
 

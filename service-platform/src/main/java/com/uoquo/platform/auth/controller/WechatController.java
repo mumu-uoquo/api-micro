@@ -63,7 +63,7 @@ public class WechatController {
                          @RequestParam("timestamp") String timestamp,
                          @RequestParam("nonce") String nonce,
                          @RequestParam("echostr") String echostr) {
-        String token = this.getConfig(SettingsCode.WECHAT_MSG_TOKEN);
+        String token = sysSettingService.getValueByCode(SettingsCode.WECHAT_MSG_TOKEN);
         if (WechatMsgCrypt.checkSignature(token, timestamp, nonce, signature)) {
             return echostr;
         }
@@ -88,7 +88,7 @@ public class WechatController {
             return "success";
         }
 
-        String token = this.getConfig(SettingsCode.WECHAT_MSG_TOKEN);
+        String token = sysSettingService.getValueByCode(SettingsCode.WECHAT_MSG_TOKEN);
         String plainXml;
         boolean encrypted = "aes".equalsIgnoreCase(encryptType) || body.contains("<Encrypt>");
         if (encrypted) {
@@ -102,7 +102,7 @@ public class WechatController {
                 logger.warn("微信消息体签名不通过：msg_signature={}", msgSignature);
                 return "success";
             }
-            String aesKey = this.getConfig(SettingsCode.WECHAT_MSG_AESKEY);
+            String aesKey = sysSettingService.getValueByCode(SettingsCode.WECHAT_MSG_AESKEY);
             plainXml = WechatMsgCrypt.decrypt(aesKey, encrypt);
         } else {
             // 明文模式：校验普通 signature（如配置了）
@@ -180,13 +180,5 @@ public class WechatController {
             return null;
         }
         return sb.toString();
-    }
-
-    /**
-     * 读取系统级配置项。
-     */
-    private String getConfig(String code) {
-        SettingDto setting = sysSettingService.getInfoByCode(code);
-        return setting == null ? null : setting.getConfigValue();
     }
 }

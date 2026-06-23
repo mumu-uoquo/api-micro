@@ -1,10 +1,12 @@
 package com.uoquo.test;
 
 import com.uoquo.platform.common.utils.UserUtils;
+import com.uoquo.platform.common.utils.WechatMsgCrypt;
 import com.uoquo.platform.user.model.pojo.UserInfo;
 import com.uoquo.utils.ObjectUtil;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.crypto.MD5;
+import com.uoquo.utils.crypto.SHA;
 import com.uoquo.utils.spring.CaptchaUtil;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +17,58 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class UserTest {
+
+    @Test
+    public void testWx() {
+        String token = "yocaly_wx_YdQ8YkDAiLiDDnN6t97A";
+        String timestamp = "1782182846";
+        String nonce = "1634291692";
+        String signature = "ba571b4aa17e897df2db489a26731185fb1f3e5a";
+        String echostr = "";
+
+
+        String[] arr = {timestamp, nonce, token};
+        Arrays.sort(arr);
+        String str2 = String.join("", arr);
+        System.out.println(str2);
+        System.out.println(SHA.sha1(str2));
+        System.out.println(WechatMsgCrypt.checkSignature(token, timestamp, nonce, signature));
+    }
+
+    @Test
+    public void testWx2() {
+        String token = "AAAAA";
+        String timestamp = "1714112445";
+        String nonce = "415670741";
+        String signature = "6c5c811b55cc85e0e1b54100749188c20beb3f5d";
+        String msg_signature = "046e02f8204d34f8ba5fa3b1db94908f3df2e9b3";
+        String EncodingAESKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        String Encrypt = "+qdx1OKCy+5JPCBFWw70tm0fJGb2Jmeia4FCB7kao+/Q5c/ohsOzQHi8khUOb05JCpj0JB4RvQMkUyus8TPxLKJGQqcvZqzDpVzazhZv6JsXUnnR8XGT740XgXZUXQ7vJVnAG+tE8NUd4yFyjPy7GgiaviNrlCTj+l5kdfMuFUPpRSrfMZuMcp3Fn2Pede2IuQrKEYwKSqFIZoNqJ4M8EajAsjLY2km32IIjdf8YL/P50F7mStwntrA2cPDrM1kb6mOcfBgRtWygb3VIYnSeOBrebufAlr7F9mFUPAJGj04=";
+
+        Map<String, String> map = new TreeMap<>();
+        map.put("timestamp", timestamp);
+        map.put("nonce", nonce);
+        map.put("Encrypt", Encrypt);
+        map.put("token", token);
+
+        StringBuilder sb = new StringBuilder();
+        map.forEach((key, value) -> {
+            System.out.println(key);
+            sb.append(value);
+        });
+        String str = sb.toString();
+        System.out.println(str);
+        System.out.println(SHA.sha1(str));
+
+        String[] arr = {timestamp, nonce, Encrypt, token};
+        Arrays.sort(arr);
+        String str2 = String.join("", arr);
+        System.out.println(str2);
+        System.out.println(SHA.sha1(str2));
+        System.out.println(WechatMsgCrypt.checkMsgSignature(token, timestamp, nonce, Encrypt, msg_signature));
+
+        System.out.println(WechatMsgCrypt.decrypt(EncodingAESKey, Encrypt));
+    }
 
     @Test
     public void testListSteam() {

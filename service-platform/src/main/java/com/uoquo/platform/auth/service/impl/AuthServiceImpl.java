@@ -52,7 +52,6 @@ import com.uoquo.platform.institute.model.pojo.InstituteInfo;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.platform.role.service.ModuleInfoService;
 import com.uoquo.platform.system.mapper.AppInfoMapper;
-import com.uoquo.platform.system.model.dto.SettingDto;
 import com.uoquo.platform.system.model.pojo.AppInfo;
 import com.uoquo.platform.system.service.SysSettingService;
 import com.uoquo.platform.user.mapper.UserCredentialMapper;
@@ -447,6 +446,12 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setClientIp(clientIp);
         CurrentUser.setAppVersion(param.getAppVersion());
 
+        // 验证系统是否开启短信码登录
+        String enableSetting = sysSettingService.getValueByCode(SettingsCode.LOGIN_SMS_ENABLE);
+        if (!"true".equals(enableSetting)) {
+            throw new ForbiddenException("系统未开启[短信码]的登录方式");
+        }
+
         // 1. 查找用户（按手机号）
         UserInfo info = userInfoMapper.selectByPhone(null, param.getPhone());
         this.checkUserStatus(param.getPhone(), info);
@@ -473,6 +478,10 @@ public class AuthServiceImpl implements AuthService {
             throw new ParamErrorException("不支持的凭证类型：" + credentialType);
         }
         // 验证对应场景是否开启登录
+        String enableSetting = sysSettingService.getValueByCode("login." + credentialType + ".enable");
+        if (!"true".equals(enableSetting)) {
+            throw new ForbiddenException(String.format("系统未开启[%s]的登录方式", credentialType));
+        }
 
         // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
         String credentialValue = param.getCredentialValue();
@@ -549,12 +558,7 @@ public class AuthServiceImpl implements AuthService {
         RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey);
 
         // 6. 完成登录
-        CurrentUser.setToken(null);
-        UserAuthDto dto = this.getUserAuthDto(info);
-        this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
-                "USER", info.getId(), info.getInstituteId(), param.getAccount(), dto.getAccessToken(), null);
-        return dto;
+        return this.completeLoginWithMfa(info, info.getUserName());
     }
 
     @Override
@@ -585,9 +589,8 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setClientIp(clientIp);
 
         // 1. 校验系统是否开启注册
-        SettingDto registerSetting = sysSettingService.getInfoByCode(SettingsCode.REGISTER_ENABLE);
-        boolean registerEnabled = registerSetting != null && "true".equals(registerSetting.getConfigValue());
-        if (!registerEnabled) {
+        String registerSetting = sysSettingService.getValueByCode(SettingsCode.REGISTER_ENABLE);
+        if (!"true".equals(registerSetting)) {
             throw new UoquoException(AccountReturnCode.REGISTER_DISABLED);
         }
 

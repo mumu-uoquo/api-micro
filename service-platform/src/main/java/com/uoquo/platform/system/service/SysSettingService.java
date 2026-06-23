@@ -63,7 +63,7 @@ public interface SysSettingService {
     /**
      * 查询通用配置（无需登录查询的配置）
      */
-    List<SettingDto> listPublicSettings();
+    List<SettingDto> listPublicSettings(String prefix);
 
     /**
      * 内部方法：查询私有配置

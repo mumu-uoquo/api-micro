@@ -233,9 +233,9 @@ public class SysSettingServiceImpl implements SysSettingService {
     }
 
     @Override
-    public List<SettingDto> listPublicSettings() {
+    public List<SettingDto> listPublicSettings(String prefix) {
         // mybatis会对加密的内容自动解密
-        List<SysSetting> list = sysSettingMapper.listByPublicType(DictionaryCodeEnum.ROLE_TYPE_NORMAL.getCode());
+        List<SysSetting> list = sysSettingMapper.listByPublicType(prefix, DictionaryCodeEnum.ROLE_TYPE_NORMAL.getCode());
         // 对象转换
         List<SettingDto> result = new ArrayList<>();
         for (SysSetting item : list) {
@@ -255,7 +255,7 @@ public class SysSettingServiceImpl implements SysSettingService {
     @Override
     public List<SettingDto> listPrivateSettings() {
         // mybatis会对加密的内容自动解密
-        List<SysSetting> list = sysSettingMapper.listByPublicType(DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode());
+        List<SysSetting> list = sysSettingMapper.listByPublicType(null, DictionaryCodeEnum.ROLE_TYPE_PRIVATE.getCode());
         // 对象转换
         List<SettingDto> result = new ArrayList<>();
         for (SysSetting item : list) {

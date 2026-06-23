@@ -44,6 +44,6 @@ public interface SysSettingMapper {
     /**
      * 查询作用范围查询
      */
-    List<SysSetting> listByPublicType(@Param("publicType") String publicType);
+    List<SysSetting> listByPublicType(@Param("prefix") String prefix, @Param("publicType") String publicType);
 
 }

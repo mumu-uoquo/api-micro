@@ -40,8 +40,8 @@ public class SystemSettingController {
     @IgnoreAuth(all = true)
     @Operation(summary = "获取通用配置信息（无需认证）", operationId = "listPublicSettings", method = "POST")
     @PostMapping("/list/public")
-    public ReturnData<List<SettingDto>> listPublicSettings() {
-        return new ReturnData<>(sysSettingService.listPublicSettings());
+    public ReturnData<List<SettingDto>> listPublicSettings(@RequestBody @Valid SettingSearchParam param) {
+        return new ReturnData<>(sysSettingService.listPublicSettings(param.getPrefix()));
     }
 
     @Operation(summary = "获取指定开头的配置信息", operationId = "listSettingsByCode", method = "POST")

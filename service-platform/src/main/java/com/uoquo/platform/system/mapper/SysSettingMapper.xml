@@ -94,6 +94,9 @@
     SELECT <include refid="Base_Column_List" />
     FROM sys_setting
     WHERE public_type = #{publicType,jdbcType=CHAR}
+    <if test="prefix != null and prefix.length() > 0">
+      AND config_code LIKE CONCAT(#{prefix,jdbcType=VARCHAR},'%')
+    </if>
     ORDER BY config_code ASC
   </select>
 

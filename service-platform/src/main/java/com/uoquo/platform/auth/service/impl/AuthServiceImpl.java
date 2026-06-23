@@ -472,14 +472,16 @@ public class AuthServiceImpl implements AuthService {
         if (!CredentialTypeEnum.contains(credentialType)) {
             throw new ParamErrorException("不支持的凭证类型：" + credentialType);
         }
+        // 验证对应场景是否开启登录
 
         // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
         String credentialValue = param.getCredentialValue();
-        if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
-            credentialValue = this.exchangeWechatOpenId(credentialValue);
-        } else if (CredentialTypeEnum.WECOM.getCode().equals(credentialType)) {
-            credentialValue = this.exchangeWecomUserId(credentialValue);
-        }
+        // TODO 临时去除，直接用传入的value作为唯一值验证业务流程
+//        if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
+//            credentialValue = this.exchangeWechatOpenId(credentialValue);
+//        } else if (CredentialTypeEnum.WECOM.getCode().equals(credentialType)) {
+//            credentialValue = this.exchangeWecomUserId(credentialValue);
+//        }
 
         // 3. 查询凭证表（全局类型 instituteId=null）
         String instituteId = resolveInstituteId(credentialType);

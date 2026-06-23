@@ -1023,11 +1023,11 @@ public class AuthServiceImpl implements AuthService {
      * 读取系统级配置项，缺失则抛参数异常
      */
     private String getSysConfig(String code) {
-        SettingDto setting = sysSettingService.getInfoByCode(code);
-        if (setting == null || StringUtil.isNull(setting.getConfigValue())) {
+        String setting = sysSettingService.getValueByCode(code);
+        if (StringUtil.isNull(setting)) {
             throw new ParamErrorException("缺少配置项：" + code);
         }
-        return setting.getConfigValue();
+        return setting;
     }
 
     /**

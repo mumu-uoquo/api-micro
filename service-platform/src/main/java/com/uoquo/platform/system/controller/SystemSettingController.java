@@ -36,11 +36,10 @@ public class SystemSettingController {
     private SysSettingService sysSettingService;
 
     // ============ 批量操作 ============
-
-    @IgnoreAuth(all = true)
+    @IgnoreAuth(login = true)
     @Operation(summary = "获取通用配置信息（无需认证）", operationId = "listPublicSettings", method = "POST")
     @PostMapping("/list/public")
-    public ReturnData<List<SettingDto>> listPublicSettings(@RequestBody @Valid SettingSearchParam param) {
+    public ReturnData<List<SettingDto>> listPublicSettings(@RequestBody SettingSearchParam param) {
         return new ReturnData<>(sysSettingService.listPublicSettings(param.getPrefix()));
     }
 

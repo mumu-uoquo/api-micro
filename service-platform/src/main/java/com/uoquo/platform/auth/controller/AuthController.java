@@ -2,6 +2,7 @@ package com.uoquo.platform.auth.controller;
 
 import java.util.List;
 
+import com.uoquo.platform.auth.model.param.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,16 +19,6 @@ import com.uoquo.platform.auth.model.dto.CredentialConfigDto;
 import com.uoquo.platform.auth.model.dto.CredentialStatusDto;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
-import com.uoquo.platform.auth.model.param.AccountLoginParam;
-import com.uoquo.platform.auth.model.param.CaptchaParam;
-import com.uoquo.platform.auth.model.param.CredentialBindParam;
-import com.uoquo.platform.auth.model.param.CredentialLoginParam;
-import com.uoquo.platform.auth.model.param.MfaLoginParam;
-import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
-import com.uoquo.platform.auth.model.param.RegisterParam;
-import com.uoquo.platform.auth.model.param.ResetPasswordParam;
-import com.uoquo.platform.auth.model.param.SmsLoginParam;
-import com.uoquo.platform.auth.model.param.TokenLoginParam;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.utils.CurrentUser;
@@ -194,11 +185,11 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "第三方扫码登录配置", operationId = "credentialConfig", method = "GET")
     @PostMapping("/credential/config")
-    public ReturnData<CredentialConfigDto> credentialConfig(@RequestParam("scene") String scene) {
+    public ReturnData<CredentialConfigDto> credentialConfig(@RequestBody @Valid CredentialConfigParam param) {
         if (logger.isInfoEnabled()) {
-            logger.info("credentialConfig: scene={}", scene);
+            logger.info("credentialConfig: scene={}", param.getScene());
         }
-        return new ReturnData<>(authService.credentialConfig(scene));
+        return new ReturnData<>(authService.credentialConfig(param.getScene()));
     }
 
     @IgnoreAuth(all = true)
@@ -216,9 +207,8 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "第三方扫码登录状态轮询", operationId = "credentialStatus", method = "GET")
     @PostMapping("/credential/status")
-    public ReturnData<CredentialStatusDto> credentialStatus(@RequestParam("scene") String scene,
-                                                            @RequestParam("state") String state) {
-        return new ReturnData<>(authService.credentialStatus(scene, state));
+    public ReturnData<CredentialStatusDto> credentialStatus(@RequestBody @Valid CredentialStatusParam param) {
+        return new ReturnData<>(authService.credentialStatus(param.getScene(), param.getState()));
     }
 
     @IgnoreAuth(login = true)

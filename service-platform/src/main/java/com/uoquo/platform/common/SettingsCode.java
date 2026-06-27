@@ -7,19 +7,21 @@ import java.util.Set;
  * 优先级：用户 > 机构 > 系统
  */
 public class SettingsCode {
+    /** 序列号 */
+    public static final String SERIAL_NUMBER    = "sys.serial-number";
     /* ************************ 安全相关 ************************** */
     /** 是否启用 MFA 认证 */
     public static final String MFA_AUTH_ENABLED = "security.mfa.enabled";
     /** 会话超时时间控制 */
-    public static final String SESSION_TIMEOUT = "security.session.timeout";
+    public static final String SESSION_TIMEOUT  = "security.session.timeout";
     /** RSA 公钥 */
-    public static final String RSA_PUBLIC_KEY  = "security.rsa.public-key";
+    public static final String RSA_PUBLIC_KEY   = "security.rsa.public-key";
     /** RSA 私钥 */
-    public static final String RSA_PRIVATE_KEY = "security.rsa.private-key";
+    public static final String RSA_PRIVATE_KEY  = "security.rsa.private-key";
     /** AES 密钥 */
-    public static final String AES_KEY         = "security.aes.key";
+    public static final String AES_KEY          = "security.aes.key";
     /** TAES时间片长度（秒） */
-    public static final String AES_TOTP_STEP   = "security.aes.totp";
+    public static final String AES_TOTP_STEP    = "security.aes.totp";
 
     /** 网关通信秘钥 */
     public static final String GLOBAL_GATEWAY_KEY = "security.gateway.key";
@@ -33,8 +35,10 @@ public class SettingsCode {
     public static final String LOGIN_SMS_ENABLE    = "login.sms.enable";
     /** 是否开启微信登录 */
     public static final String LOGIN_WECHAT_ENABLE = "login.wechat.enable";
-    /** 是否开启企业微信登录 */
+    /** 是否开启企微在线登录 */
     public static final String LOGIN_WECOM_ENABLE  = "login.wecom.enable";
+    /** 是否开启仅MFA认证登录 */
+    public static final String LOGIN_MFA_ENABLE    = "login.mfa.enable";
 
     /* ************************ 第三方登录应用配置 ************************** */
     /** 微信 appid */
@@ -54,9 +58,9 @@ public class SettingsCode {
 
     /* ************************ 微信消息推送配置 ************************** */
     /** 微信消息推送 Token（服务器配置中的 Token，用于签名校验） */
-    public static final String WECHAT_MSG_TOKEN  = "wechat.push.token";
+    public static final String WECHAT_MSG_TOKEN  = "sys.wechat.push.token";
     /** 微信消息推送 EncodingAESKey（安全模式消息体加解密） */
-    public static final String WECHAT_MSG_AESKEY = "wechat.push.aeskey";
+    public static final String WECHAT_MSG_AESKEY = "sys.wechat.push.aeskey";
 
 
     /**
@@ -68,20 +72,20 @@ public class SettingsCode {
         WATERMARK_ENABLE,   // sys.watermark.enable
         LOGIN_SMS_ENABLE,   // login.sms.enable
         LOGIN_WECHAT_ENABLE,// login.wechat.enable
-        LOGIN_WECOM_ENABLE  // login.wecom.enable
+        LOGIN_WECOM_ENABLE, // login.wecom.enable
+        LOGIN_MFA_ENABLE    // login.mfa.enable
     );
 
     /**
      * 内部使用的配置编码集合（不可返回给前端）
      */
     public static final Set<String> PRIVATE_KEYS = Set.of(
+        SERIAL_NUMBER,      // sys.serial-number
         RSA_PRIVATE_KEY,    // security.rsa.privateKey
         AES_KEY,            // security.aes.key
         GLOBAL_GATEWAY_KEY, // security.gateway.key
-        WECHAT_SECRET,      // login.wechat.secret
-        WECOM_SECRET,       // login.wecom.secret
-        WECHAT_MSG_AESKEY,  // wechat.push.aeskey
-        WECHAT_MSG_TOKEN    // wechat.push.token
+        WECHAT_MSG_AESKEY,  // sys.wechat.push.aeskey
+        WECHAT_MSG_TOKEN   // sys.wechat.push.token
     );
 
     /**

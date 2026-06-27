@@ -50,6 +50,17 @@ public class SysSettingServiceImpl implements SysSettingService {
         SysSetting info;
         String currentUser = "SYSTEM";
 
+        // 0. 检查序列号
+        info = sysSettingMapper.selectByCode(SettingsCode.SERIAL_NUMBER);
+        if (info == null) {
+            SettingSaveParam param = new SettingSaveParam();
+            param.setConfigName("系统序列号");
+            param.setConfigCode(SettingsCode.SERIAL_NUMBER);
+            param.setConfigValue(StringUtil.getRandomString(16, 6));
+            param.setPublicType(SettingsCode.getPublicType(SettingsCode.SERIAL_NUMBER));
+            this.saveSetting(param, currentUser);
+        }
+
         // 1. 检查 RSA 密钥对
         boolean hasRsaPublicKey  = sysSettingMapper.selectByCode(SettingsCode.RSA_PUBLIC_KEY) != null;
         boolean hasRsaPrivateKey = sysSettingMapper.selectByCode(SettingsCode.RSA_PRIVATE_KEY) != null;

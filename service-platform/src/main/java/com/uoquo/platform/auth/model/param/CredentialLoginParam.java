@@ -17,6 +17,10 @@ public class CredentialLoginParam extends BasicLoginParam {
     @Schema(description = "凭证标识值（如微信 openid）")
     private String credentialValue;
 
+    @NotBlank(message = "state不能为空")
+    @Schema(description = "授权 state（须与 /credential/config 下发的一致）")
+    private String state;
+
     public String getCredentialType() {
         return credentialType;
     }
@@ -31,5 +35,13 @@ public class CredentialLoginParam extends BasicLoginParam {
 
     public void setCredentialValue(String credentialValue) {
         this.credentialValue = credentialValue;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
     }
 }

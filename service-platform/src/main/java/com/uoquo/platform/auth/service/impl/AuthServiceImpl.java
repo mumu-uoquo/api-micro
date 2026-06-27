@@ -505,8 +505,8 @@ public class AuthServiceImpl implements AuthService {
             throw new ParamErrorException("场景与授权请求不一致");
         }
         String status = (String) cache.get("status");
-        Object code   = cache.get("code");
-        return new CredentialStatusDto(status, code == null ? null : code.toString());
+        String code   = (String) cache.get("code");
+        return new CredentialStatusDto(status, code == null ? null : code);
     }
 
     @Override
@@ -533,12 +533,23 @@ public class AuthServiceImpl implements AuthService {
         if (!CredentialTypeEnum.contains(credentialType)) {
             throw new ParamErrorException("不支持的凭证类型：" + credentialType);
         }
+        // 校验 state 有效性（须与 /credential/config 下发并缓存的一致），并校验场景一致
+        String stateKey = PlatformCacheKey.CREDENTIAL_STATE + param.getState();
+        String stateJson = RedisUtil.get(stateKey, String.class);
+        if (StringUtil.isNull(stateJson)) {
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+        }
+        Map<String, Object> stateCache = JsonUtil.deserialize(stateJson);
+        if (!credentialType.equals(stateCache.get("scene"))) {
+            throw new ParamErrorException("场景与授权请求不一致");
+        }
+        // state 一次性使用，校验通过后立即失效，防止重放
+        RedisUtil.remove(stateKey);
         // 验证对应场景是否开启登录
         String enableSetting = sysSettingService.getValueByCode("login." + credentialType + ".enable");
         if (!"true".equals(enableSetting)) {
             throw new ForbiddenException(String.format("系统未开启[%s]的登录方式", credentialType));
         }
-        // TODO 入参增加state，跟/credential/config中的缓存比较
 
         // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
         String credentialValue = param.getCredentialValue();

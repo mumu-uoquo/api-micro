@@ -34,10 +34,10 @@ import java.util.HashMap;
 public class TotpAuthUtils {
 
     /** 认证码时间步长（秒） */
-    private static final int AUTH_TIME_STEP = 30;
+    public static final int AUTH_TIME_STEP = 30;
     
     /** 动态码时间步长（秒） */
-    private static final int DYNAMIC_TIME_STEP = 300;
+    public static final int DYNAMIC_TIME_STEP = 300;
 
     /** 默认动态码位数 */
     private static final int DEFAULT_CODE_DIGITS = 6;

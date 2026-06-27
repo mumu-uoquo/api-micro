@@ -73,9 +73,17 @@ public class SystemSettingController {
     }
 
     @Operation(summary = "查询单个系统配置", operationId = "getSystemSetting", method = "POST")
-    @PostMapping("/code")
+    @PostMapping("/info")
     public ReturnData<SettingDto> getSystemSetting(@RequestBody @Valid SettingCodeParam param) {
         SettingDto result = sysSettingService.getInfoByCode(param.getConfigCode());
+        return new ReturnData<>(result);
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "查询单个配置内容（仅内部应用）", hidden = true)
+    @PostMapping("/value")
+    public ReturnData<String> getSystemSettingValue(@RequestBody @Valid SettingCodeParam param) {
+        String result = sysSettingService.getValueByCode(param.getConfigCode());
         return new ReturnData<>(result);
     }
 }

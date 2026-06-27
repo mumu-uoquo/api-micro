@@ -13,11 +13,12 @@ public class CredentialBindParam extends BasicLoginParam {
 
     @NotBlank(message = "账号不能为空")
     @Schema(description = "登录账号（手机号或用户名）")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String account;
 
     @NotBlank(message = "密码不能为空")
-    @Sensitive(type = SensitiveType.CRYPT_RSA)
     @Schema(description = "登录密码（RSA 加密）")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String password;
 
     @NotBlank(message = "临时Token不能为空")

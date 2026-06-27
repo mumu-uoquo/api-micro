@@ -31,7 +31,7 @@ public interface AuthService {
     UserAuthDto userLogin(AccountLoginParam param, String clientIp);
 
     /**
-     * 验证TOTP动态码（完成登录）
+     * 验证TOTP动态码（MFA二次认证）
      *
      * @param tempToken 临时Token（登录成功后生成）
      * @param totpCode  TOTP动态码
@@ -117,6 +117,32 @@ public interface AuthService {
     UserAuthDto smsLogin(SmsLoginParam param, String clientIp);
 
     /**
+     * 获取第三方扫码登录配置（按场景返回 appid/agentId/redirectUri/state）。
+     * 同时以 state 为 key 缓存 {scene, appid, agentId, status, code}，供回调与轮询使用。
+     *
+     * @param scene 场景（wechat/wecom）
+     * @return 扫码登录配置
+     */
+    CredentialConfigDto credentialConfig(String scene);
+
+    /**
+     * 查询第三方扫码登录状态（轮询）：根据 scene + state 返回缓存的 status 与 code。
+     *
+     * @param scene 场景（wechat/wecom）
+     * @param state 发起授权时下发的 state
+     * @return 状态与 code
+     */
+    CredentialStatusDto credentialStatus(String scene, String state);
+
+    /**
+     * 第三方授权回调：根据 state 取出缓存并写入 code、置状态为 confirmed。
+     *
+     * @param code  第三方返回的授权码
+     * @param state 发起授权时下发的 state
+     */
+    void credentialCallback(String code, String state);
+
+    /**
      * 第三方凭证登录
      * <ul>
      *     <li>已绑定：返回完整 UserAuthDto</li>
@@ -168,29 +194,4 @@ public interface AuthService {
      */
     void register(RegisterParam param, String clientIp);
 
-    /**
-     * 获取第三方扫码登录配置（按场景返回 appid/agentId/redirectUri/state）。
-     * 同时以 state 为 key 缓存 {scene, appid, agentId, status, code}，供回调与轮询使用。
-     *
-     * @param scene 场景（wechat/wecom）
-     * @return 扫码登录配置
-     */
-    CredentialConfigDto credentialConfig(String scene);
-
-    /**
-     * 第三方授权回调：根据 state 取出缓存并写入 code、置状态为 confirmed。
-     *
-     * @param code  第三方返回的授权码
-     * @param state 发起授权时下发的 state
-     */
-    void credentialCallback(String code, String state);
-
-    /**
-     * 查询第三方扫码登录状态（轮询）：根据 scene + state 返回缓存的 status 与 code。
-     *
-     * @param scene 场景（wechat/wecom）
-     * @param state 发起授权时下发的 state
-     * @return 状态与 code
-     */
-    CredentialStatusDto credentialStatus(String scene, String state);
 }

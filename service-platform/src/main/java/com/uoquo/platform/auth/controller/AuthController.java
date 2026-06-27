@@ -56,8 +56,8 @@ public class AuthController {
      * 登录时的密码传输安全保障
      * <ul>
      *     <li>方案1：将密码做MD5后，直接传输，被截获后容易重放</li>
-     *     <li>方案2：将密码做MD5后，再采用TOTP时间因子进行AES加密后传输（推荐）</li>
-     *     <li>方案3：将密码做MD5后，提交前从后台接口获取动态RSA公钥，采用RSA加密后再传输</li>
+     *     <li>方案2：将密码做MD5后，再采用TOTP时间因子进行AES加密后传输</li>
+     *     <li>方案3：将密码做MD5后，提交前从后台接口获取动态RSA公钥，采用RSA加密后再传输（推荐）</li>
      * </ul>
      */
     @IgnoreAuth(login = true)
@@ -139,8 +139,7 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "手机号短信码登录", operationId = "smsLogin", method = "POST")
     @PostMapping("/phone/login")
-    public ReturnData<UserAuthDto> smsLogin(HttpServletRequest request,
-                                            @RequestBody @Valid SmsLoginParam param) {
+    public ReturnData<UserAuthDto> smsLogin(HttpServletRequest request, @RequestBody @Valid SmsLoginParam param) {
         this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("smsLogin: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
@@ -153,10 +152,37 @@ public class AuthController {
     }
 
     @IgnoreAuth(login = true)
+    @Operation(summary = "第三方扫码登录配置", operationId = "credentialConfig", method = "POST")
+    @PostMapping("/credential/config")
+    public ReturnData<CredentialConfigDto> credentialConfig(@RequestBody @Valid CredentialConfigParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("credentialConfig: scene={}", param.getScene());
+        }
+        return new ReturnData<>(authService.credentialConfig(param.getScene()));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "第三方扫码登录状态轮询", operationId = "credentialStatus", method = "POST")
+    @PostMapping("/credential/status")
+    public ReturnData<CredentialStatusDto> credentialStatus(@RequestBody @Valid CredentialStatusParam param) {
+        return new ReturnData<>(authService.credentialStatus(param.getScene(), param.getState()));
+    }
+
+    @IgnoreAuth(all = true)
+    @Operation(summary = "第三方授权回调", hidden = true)
+    @GetMapping("/credential/callback")
+    public ReturnData<String> credentialCallback(@RequestParam("code") String code, @RequestParam("state") String state) {
+        if (logger.isInfoEnabled()) {
+            logger.info("credentialCallback: state={}", state);
+        }
+        authService.credentialCallback(code, state);
+        return new ReturnData<>();
+    }
+
+    @IgnoreAuth(login = true)
     @Operation(summary = "第三方凭证登录", operationId = "credentialLogin", method = "POST")
     @PostMapping("/credential/login")
-    public ReturnData<UserAuthDto> credentialLogin(HttpServletRequest request,
-                                                   @RequestBody @Valid CredentialLoginParam param) {
+    public ReturnData<UserAuthDto> credentialLogin(HttpServletRequest request, @RequestBody @Valid CredentialLoginParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("credentialLogin: type={}", param.getCredentialType());
         }
@@ -170,8 +196,7 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "凭证绑定", operationId = "credentialBind", method = "POST")
     @PostMapping("/credential/bind")
-    public ReturnData<UserAuthDto> credentialBind(HttpServletRequest request,
-                                                  @RequestBody @Valid CredentialBindParam param) {
+    public ReturnData<UserAuthDto> credentialBind(HttpServletRequest request, @RequestBody @Valid CredentialBindParam param) {
         if (logger.isInfoEnabled()) {
             logger.info("credentialBind: account={}", param.getAccount());
         }
@@ -183,39 +208,9 @@ public class AuthController {
     }
 
     @IgnoreAuth(login = true)
-    @Operation(summary = "第三方扫码登录配置", operationId = "credentialConfig", method = "GET")
-    @PostMapping("/credential/config")
-    public ReturnData<CredentialConfigDto> credentialConfig(@RequestBody @Valid CredentialConfigParam param) {
-        if (logger.isInfoEnabled()) {
-            logger.info("credentialConfig: scene={}", param.getScene());
-        }
-        return new ReturnData<>(authService.credentialConfig(param.getScene()));
-    }
-
-    @IgnoreAuth(all = true)
-    @Operation(summary = "第三方授权回调", hidden = true)
-    @GetMapping("/credential/callback")
-    public ReturnData<String> credentialCallback(@RequestParam("code") String code,
-                                                 @RequestParam("state") String state) {
-        if (logger.isInfoEnabled()) {
-            logger.info("credentialCallback: state={}", state);
-        }
-        authService.credentialCallback(code, state);
-        return new ReturnData<>();
-    }
-
-    @IgnoreAuth(login = true)
-    @Operation(summary = "第三方扫码登录状态轮询", operationId = "credentialStatus", method = "GET")
-    @PostMapping("/credential/status")
-    public ReturnData<CredentialStatusDto> credentialStatus(@RequestBody @Valid CredentialStatusParam param) {
-        return new ReturnData<>(authService.credentialStatus(param.getScene(), param.getState()));
-    }
-
-    @IgnoreAuth(login = true)
     @Operation(summary = "密码找回", operationId = "resetPassword", method = "POST")
     @PostMapping("/password/reset")
-    public ReturnData<String> resetPassword(HttpServletRequest request,
-                                            @RequestBody @Valid ResetPasswordParam param) {
+    public ReturnData<String> resetPassword(HttpServletRequest request, @RequestBody @Valid ResetPasswordParam param) {
         this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("resetPassword: phone={}", param.getPhone().replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2"));
@@ -228,8 +223,7 @@ public class AuthController {
     @IgnoreAuth(login = true)
     @Operation(summary = "用户注册", operationId = "register", method = "POST")
     @PostMapping("/register")
-    public ReturnData<String> register(HttpServletRequest request,
-                                       @RequestBody @Valid RegisterParam param) {
+    public ReturnData<String> register(HttpServletRequest request, @RequestBody @Valid RegisterParam param) {
         this.validatePhone(param.getPhone());
         if (logger.isInfoEnabled()) {
             logger.info("register: userName={} phone={}", param.getUserName(),

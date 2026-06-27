@@ -13,6 +13,7 @@ public class AccountLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "账号不能为空")
     @Schema(description = "登录账号")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String account;
 
     @NotBlank(message = "密码不能为空")

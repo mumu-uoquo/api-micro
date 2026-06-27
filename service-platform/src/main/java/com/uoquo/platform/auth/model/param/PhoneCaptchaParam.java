@@ -13,8 +13,8 @@ import jakarta.validation.constraints.NotBlank;
 public class PhoneCaptchaParam {
 
     @NotBlank(message = "手机号不能为空")
-    @Sensitive(type = SensitiveType.CRYPT_RSA)
     @Schema(description = "手机号（RSA 加密）", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String phone;
 
     /**

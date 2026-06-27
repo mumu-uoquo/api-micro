@@ -13,8 +13,8 @@ import jakarta.validation.constraints.NotBlank;
 public class SmsLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "手机号不能为空")
-    @Sensitive(type = SensitiveType.CRYPT_RSA)
     @Schema(description = "手机号（RSA 加密）")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String phone;
 
     @NotBlank(message = "短信验证码不能为空")

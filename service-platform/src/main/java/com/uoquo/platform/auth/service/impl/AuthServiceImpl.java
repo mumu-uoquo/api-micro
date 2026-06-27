@@ -182,6 +182,7 @@ public class AuthServiceImpl implements AuthService {
         Integer errors = RedisUtil.get(errorKey, Integer.class);
         if ((errors != null) && (errors >= 5)) {
             RedisUtil.remove(PlatformCacheKey.TOTP_TEMP_TOKEN + tempToken);
+            RedisUtil.remove(PlatformCacheKey.TOTP_VERIFY_ERROR + userId);
             throw new UoquoException(AccountReturnCode.TOTP_ATTEMPT_EXCEED, "动态码错误次数过多，请重新获取二维码");
         }
 
@@ -370,19 +371,6 @@ public class AuthServiceImpl implements AuthService {
         return moduleTree;
     }
 
-    /**
-     * 构建图形验证码缓存 key。
-     * 登录场景（login 或空）沿用 deviceId:appkey，与密码错误锁定 FLAG 保持一致；
-     * 其他场景（register、phone 等）追加场景类型，避免不同场景的图形验证码相互覆盖。
-     */
-    private String buildCaptchaKey(String scene) {
-        String base = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
-        if (StringUtil.isNull(scene) || "login".equals(scene)) {
-            return base;
-        }
-        return base + ":" + scene;
-    }
-
     @Override
     public String getCaptcha(CaptchaParam param, String clientIp) {
         String scene = param.getScene();
@@ -468,6 +456,74 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public CredentialConfigDto credentialConfig(String scene) {
+        if (!CredentialTypeEnum.contains(scene)) {
+            throw new ParamErrorException("不支持的凭证类型：" + scene);
+        }
+        String state = IDGenerator.getUUID().toUpperCase();
+
+        String appid;
+        String agentId = null;
+        String redirectUri;
+        if (CredentialTypeEnum.WECHAT.getCode().equals(scene)) {
+            appid       = this.getSysConfig(SettingsCode.WECHAT_APPID);
+            redirectUri = this.getSysConfig(SettingsCode.WECHAT_REDIRECT_URI);
+        } else {
+            appid       = this.getSysConfig(SettingsCode.WECOM_CORPID);
+            agentId     = this.getSysConfig(SettingsCode.WECOM_AGENTID);
+            redirectUri = this.getSysConfig(SettingsCode.WECOM_REDIRECT_URI);
+        }
+
+        // 缓存 state → {scene, appid, agentId, status, code}，供回调与轮询使用
+        Map<String, String> cache = new HashMap<>();
+        cache.put("scene",   scene);
+        cache.put("appid",   appid);
+        cache.put("agentId", agentId);
+        cache.put("status",  "waiting");
+        cache.put("code",    "");
+        RedisUtil.put(PlatformCacheKey.CREDENTIAL_STATE + state, JsonUtil.serialize(cache), 600);
+
+        CredentialConfigDto dto = new CredentialConfigDto();
+        dto.setScene(scene);
+        dto.setAppid(appid);
+        dto.setAgentId(agentId);
+        dto.setRedirectUri(redirectUri);
+        dto.setState(state);
+        return dto;
+    }
+
+    @Override
+    public CredentialStatusDto credentialStatus(String scene, String state) {
+        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
+        String json = RedisUtil.get(key, String.class);
+        if (StringUtil.isNull(json)) {
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+        }
+        Map<String, Object> cache = JsonUtil.deserialize(json);
+        // 校验场景一致，避免串用
+        if (StringUtil.notNull(scene) && !scene.equals(cache.get("scene"))) {
+            throw new ParamErrorException("场景与授权请求不一致");
+        }
+        String status = (String) cache.get("status");
+        Object code   = cache.get("code");
+        return new CredentialStatusDto(status, code == null ? null : code.toString());
+    }
+
+    @Override
+    public void credentialCallback(String code, String state) {
+        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
+        String json = RedisUtil.get(key, String.class);
+        if (StringUtil.isNull(json)) {
+            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+        }
+        Map<String, Object> cache = JsonUtil.deserialize(json);
+        cache.put("code", code);
+        cache.put("status", "confirmed");
+        // 写回缓存（沿用 600s TTL）
+        RedisUtil.put(key, JsonUtil.serialize(cache), 600);
+    }
+
+    @Override
     public UserAuthDto credentialLogin(CredentialLoginParam param, String clientIp) {
         CurrentUser.setClientIp(clientIp);
         CurrentUser.setAppVersion(param.getAppVersion());
@@ -482,15 +538,15 @@ public class AuthServiceImpl implements AuthService {
         if (!"true".equals(enableSetting)) {
             throw new ForbiddenException(String.format("系统未开启[%s]的登录方式", credentialType));
         }
+        // TODO 入参增加state，跟/credential/config中的缓存比较
 
         // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
         String credentialValue = param.getCredentialValue();
-        // TODO 临时去除，直接用传入的value作为唯一值验证业务流程
-//        if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
-//            credentialValue = this.exchangeWechatOpenId(credentialValue);
-//        } else if (CredentialTypeEnum.WECOM.getCode().equals(credentialType)) {
-//            credentialValue = this.exchangeWecomUserId(credentialValue);
-//        }
+        if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
+            credentialValue = this.exchangeWechatOpenId(credentialValue);
+        } else if (CredentialTypeEnum.WECOM.getCode().equals(credentialType)) {
+            credentialValue = this.exchangeWecomUserId(credentialValue);
+        }
 
         // 3. 查询凭证表（全局类型 instituteId=null）
         String instituteId = resolveInstituteId(credentialType);
@@ -807,6 +863,7 @@ public class AuthServiceImpl implements AuthService {
         map.put("userId",   userDto.getId());
         map.put("appkey",   CurrentUser.getAppkey());
         map.put("deviceId", CurrentUser.getDeviceId());
+        // TODO 需要将用户名和真实姓名放入（运维模式时将用前端传入的手机号填充用户名，便于后续查找日志）
         RedisUtil.put(BaseCacheKey.USER_TOKEN_REFRESH + userDto.getRefreshToken(), map, 60 * refreshTimeout);
         RedisUtil.put(BaseCacheKey.USER_TOKEN_REFRESH + userDto.getAccessToken(), userDto.getRefreshToken(), 60 * refreshTimeout);
     }
@@ -956,74 +1013,6 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    @Override
-    public CredentialConfigDto credentialConfig(String scene) {
-        if (!CredentialTypeEnum.contains(scene)) {
-            throw new ParamErrorException("不支持的凭证类型：" + scene);
-        }
-        String state = IDGenerator.getUUID().toUpperCase();
-
-        String appid;
-        String agentId = null;
-        String redirectUri;
-        if (CredentialTypeEnum.WECHAT.getCode().equals(scene)) {
-            appid       = this.getSysConfig(SettingsCode.WECHAT_APPID);
-            redirectUri = this.getSysConfig(SettingsCode.WECHAT_REDIRECT_URI);
-        } else {
-            appid       = this.getSysConfig(SettingsCode.WECOM_CORPID);
-            agentId     = this.getSysConfig(SettingsCode.WECOM_AGENTID);
-            redirectUri = this.getSysConfig(SettingsCode.WECOM_REDIRECT_URI);
-        }
-
-        // 缓存 state → {scene, appid, agentId, status, code}，供回调与轮询使用
-        Map<String, String> cache = new HashMap<>();
-        cache.put("scene",   scene);
-        cache.put("appid",   appid);
-        cache.put("agentId", agentId);
-        cache.put("status",  "waiting");
-        cache.put("code",    "");
-        RedisUtil.put(PlatformCacheKey.CREDENTIAL_STATE + state, JsonUtil.serialize(cache), 600);
-
-        CredentialConfigDto dto = new CredentialConfigDto();
-        dto.setScene(scene);
-        dto.setAppid(appid);
-        dto.setAgentId(agentId);
-        dto.setRedirectUri(redirectUri);
-        dto.setState(state);
-        return dto;
-    }
-
-    @Override
-    public void credentialCallback(String code, String state) {
-        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
-        String json = RedisUtil.get(key, String.class);
-        if (StringUtil.isNull(json)) {
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
-        }
-        Map<String, Object> cache = JsonUtil.deserialize(json);
-        cache.put("code", code);
-        cache.put("status", "confirmed");
-        // 写回缓存（沿用 600s TTL）
-        RedisUtil.put(key, JsonUtil.serialize(cache), 600);
-    }
-
-    @Override
-    public CredentialStatusDto credentialStatus(String scene, String state) {
-        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
-        String json = RedisUtil.get(key, String.class);
-        if (StringUtil.isNull(json)) {
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
-        }
-        Map<String, Object> cache = JsonUtil.deserialize(json);
-        // 校验场景一致，避免串用
-        if (StringUtil.notNull(scene) && !scene.equals(cache.get("scene"))) {
-            throw new ParamErrorException("场景与授权请求不一致");
-        }
-        String status = (String) cache.get("status");
-        Object code   = cache.get("code");
-        return new CredentialStatusDto(status, code == null ? null : code.toString());
-    }
-
     /**
      * 读取系统级配置项，缺失则抛参数异常
      */
@@ -1108,6 +1097,19 @@ public class AuthServiceImpl implements AuthService {
             logger.error("请求第三方接口失败：{}", url, e);
             throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
         }
+    }
+
+    /**
+     * 构建图形验证码缓存 key。
+     * 登录场景（login 或空）沿用 deviceId:appkey，与密码错误锁定 FLAG 保持一致；
+     * 其他场景（register、phone 等）追加场景类型，避免不同场景的图形验证码相互覆盖。
+     */
+    private String buildCaptchaKey(String scene) {
+        String base = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
+        if (StringUtil.isNull(scene) || "login".equals(scene)) {
+            return base;
+        }
+        return base + ":" + scene;
     }
 
     /**

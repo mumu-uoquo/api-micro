@@ -18,8 +18,8 @@ public class RegisterParam {
     private String instituteId;
 
     @NotBlank(message = "手机号不能为空")
-    @Sensitive(type = SensitiveType.CRYPT_RSA)
     @Schema(description = "手机号（RSA 加密）")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String phone;
 
     @NotBlank(message = "短信验证码不能为空")
@@ -32,8 +32,8 @@ public class RegisterParam {
     private String userName;
 
     @NotBlank(message = "密码不能为空")
-    @Sensitive(type = SensitiveType.CRYPT_RSA)
     @Schema(description = "用户密码（RSA 加密）")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String password;
 
     @Schema(description = "真实姓名")

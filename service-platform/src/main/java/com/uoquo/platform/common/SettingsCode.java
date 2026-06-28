@@ -56,6 +56,16 @@ public class SettingsCode {
     /** 企业微信回调地址 */
     public static final String WECOM_REDIRECT_URI  = "login.wecom.redirect-uri";
 
+    /* ************************ 运维企微配置 ************************** */
+    /** 运维企微 corpid */
+    public static final String OPS_WECOM_CORPID        = "ops.wecom.corpid";
+    /** 运维企微 agentid */
+    public static final String OPS_WECOM_AGENTID       = "ops.wecom.agentid";
+    /** 运维企微 secret */
+    public static final String OPS_WECOM_SECRET        = "ops.wecom.secret";
+    /** 运维企微回调地址 */
+    public static final String OPS_WECOM_REDIRECT_URI  = "ops.wecom.redirect-uri";
+
     /* ************************ 微信消息推送配置 ************************** */
     /** 微信消息推送 Token（服务器配置中的 Token，用于签名校验） */
     public static final String WECHAT_MSG_TOKEN  = "sys.wechat.push.token";
@@ -67,25 +77,29 @@ public class SettingsCode {
      * 需要公开的配置编码集合（不登录即可获取）
      */
     public static final Set<String> PUBLIC_KEYS = Set.of(
-        RSA_PUBLIC_KEY,     // security.rsa.publicKey
-        REGISTER_ENABLE,    // sys.register.enable
-        WATERMARK_ENABLE,   // sys.watermark.enable
-        LOGIN_SMS_ENABLE,   // login.sms.enable
-        LOGIN_WECHAT_ENABLE,// login.wechat.enable
-        LOGIN_WECOM_ENABLE, // login.wecom.enable
-        LOGIN_MFA_ENABLE    // login.mfa.enable
+            RSA_PUBLIC_KEY,     // security.rsa.publicKey
+            REGISTER_ENABLE,    // sys.register.enable
+            WATERMARK_ENABLE,   // sys.watermark.enable
+            LOGIN_SMS_ENABLE,   // login.sms.enable
+            LOGIN_WECHAT_ENABLE,// login.wechat.enable
+            LOGIN_WECOM_ENABLE, // login.wecom.enable
+            LOGIN_MFA_ENABLE    // login.mfa.enable
     );
 
     /**
      * 内部使用的配置编码集合（不可返回给前端）
      */
     public static final Set<String> PRIVATE_KEYS = Set.of(
-        SERIAL_NUMBER,      // sys.serial-number
-        RSA_PRIVATE_KEY,    // security.rsa.privateKey
-        AES_KEY,            // security.aes.key
-        GLOBAL_GATEWAY_KEY, // security.gateway.key
-        WECHAT_MSG_AESKEY,  // sys.wechat.push.aeskey
-        WECHAT_MSG_TOKEN   // sys.wechat.push.token
+            SERIAL_NUMBER,      // sys.serial-number
+            RSA_PRIVATE_KEY,    // security.rsa.privateKey
+            AES_KEY,            // security.aes.key
+            GLOBAL_GATEWAY_KEY, // security.gateway.key
+            WECHAT_MSG_AESKEY,  // sys.wechat.push.aeskey
+            WECHAT_MSG_TOKEN,   // sys.wechat.push.token
+            OPS_WECOM_CORPID,   // ops.wecom.corpid
+            OPS_WECOM_AGENTID,  // ops.wecom.agentid
+            OPS_WECOM_SECRET,   // ops.wecom.secret
+            OPS_WECOM_REDIRECT_URI // ops.wecom.redirect-uri
     );
 
     /**

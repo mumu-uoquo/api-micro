@@ -4,12 +4,15 @@ import java.util.List;
 
 import com.uoquo.platform.auth.model.dto.CredentialConfigDto;
 import com.uoquo.platform.auth.model.dto.CredentialStatusDto;
+import com.uoquo.platform.auth.model.dto.OpsConfigDto;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.model.param.AccountLoginParam;
 import com.uoquo.platform.auth.model.param.CaptchaParam;
 import com.uoquo.platform.auth.model.param.CredentialBindParam;
 import com.uoquo.platform.auth.model.param.CredentialLoginParam;
+import com.uoquo.platform.auth.model.param.OpsConfigParam;
+import com.uoquo.platform.auth.model.param.OpsLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
 import com.uoquo.platform.auth.model.param.RegisterParam;
 import com.uoquo.platform.auth.model.param.ResetPasswordParam;
@@ -193,5 +196,37 @@ public interface AuthService {
      * @param clientIp 客户端 IP
      */
     void register(RegisterParam param, String clientIp);
+
+    /**
+     * 获取运维登录二维码配置。
+     * 校验 account/phone 合法性后，按企业微信 OAuth2.0 构建授权地址与二维码，
+     * state = TAES(SERIAL_NUMBER + "|" + account)。
+     *
+     * @param param 运维二维码参数（account + phone）
+     * @return 运维二维码
+     */
+    OpsConfigDto opsConfig(OpsConfigParam param);
+
+    /**
+     * 运维登录。
+     * 以 Base32(SERIAL_NUMBER + phone) 为密钥校验动态口令，连续失败 5 次锁定 24 小时；
+     * 校验通过且账号正常时忽略 MFA 直接登录，并将 userName/realName 显示为手机号、标记 opsMode。
+     *
+     * @param param    运维登录参数（account + phone + dynamicCode）
+     * @param clientIp 客户端 IP
+     * @return 用户认证信息
+     */
+    UserAuthDto opsLogin(OpsLoginParam param, String clientIp);
+
+    /**
+     * 运维动态码生成（企业微信扫码回调）。
+     * 通过 code 换取手机号，解码 state 得到序列号，
+     * 以 Base32(SERIAL_NUMBER + phone) 生成动态口令，返回简版 H5 页面。
+     *
+     * @param code  企业微信授权 code
+     * @param state 授权 state（TAES 加密）
+     * @return H5 页面内容
+     */
+    String opsMfa(String code, String state);
 
 }

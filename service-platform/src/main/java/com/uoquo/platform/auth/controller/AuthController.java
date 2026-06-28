@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.uoquo.annotation.web.IgnoreAuth;
 import com.uoquo.platform.auth.model.dto.CredentialConfigDto;
 import com.uoquo.platform.auth.model.dto.CredentialStatusDto;
+import com.uoquo.platform.auth.model.dto.OpsConfigDto;
 import com.uoquo.platform.auth.model.dto.TokenDto;
 import com.uoquo.platform.auth.model.dto.UserAuthDto;
 import com.uoquo.platform.auth.service.AuthService;
@@ -205,6 +206,30 @@ public class AuthController {
         }
         String clientIp = WebUtil.getClientIp(request);
         return new ReturnData<>(authService.credentialBind(param, clientIp));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "获取运维登录二维码", operationId = "opsConfig", method = "POST")
+    @PostMapping("/ops/config")
+    public ReturnData<OpsConfigDto> opsConfig(@RequestBody @Valid OpsConfigParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("opsConfig: account={}", param.getAccount());
+        }
+        return new ReturnData<>(authService.opsConfig(param));
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "运维登录", operationId = "opsLogin", method = "POST")
+    @PostMapping("/ops/login")
+    public ReturnData<UserAuthDto> opsLogin(HttpServletRequest request, @RequestBody @Valid OpsLoginParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("opsLogin: account={}", param.getAccount());
+        }
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        return new ReturnData<>(authService.opsLogin(param, clientIp));
     }
 
     @IgnoreAuth(login = true)

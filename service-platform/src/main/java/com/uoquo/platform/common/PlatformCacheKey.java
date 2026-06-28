@@ -83,4 +83,14 @@ public class PlatformCacheKey extends BaseCacheKey {
      */
     public static final String CREDENTIAL_STATE = "UOQUO:CREDENTIAL:STATE:";
 
+    /**
+     * 运维登录连续失败次数前缀（按账号计数）
+     */
+    public static final String OPS_LOGIN_FAIL = "UOQUO:OPS:LOGIN:FAIL:";
+
+    /**
+     * 运维登录锁定标识前缀（连续失败5次后锁定24小时）
+     */
+    public static final String OPS_LOGIN_LOCK = "UOQUO:OPS:LOGIN:LOCK:";
+
 }

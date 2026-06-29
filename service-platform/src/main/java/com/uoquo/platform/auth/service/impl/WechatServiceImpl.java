@@ -115,120 +115,84 @@ public class WechatServiceImpl implements WechatService {
     @Override
     public String opsMfaHtml(boolean success, String message) {
         logger.debug("生成运维MFA HTML页面，成功状态：{}，消息内容：{}", success, message);
-        
+
+        String html = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                    <title>运维授权</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+                            text-align: center;
+                            background: #f5f5f5;
+                            min-height: 100vh;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 20px;
+                        }
+                        h1 {
+                            font-size: 1.5rem;
+                            color: #333;
+                            margin-bottom: 24px;
+                            font-weight: 600;
+                        }
+                        h1.error {
+                            color: #cc0000;
+                            margin-bottom: 20px;
+                        }
+                        .message {
+                            font-size: 1rem;
+                            width: 100%;
+                            color: #cc0000;
+                            max-width: 340px;
+                            line-height: 1.5;
+                            padding: 20px;
+                            border-radius: 12px;
+                            border: 2px solid #cc0000;
+                            background-color: #ffe6e6;
+                        }
+                        .message.code {
+                            font-size: 3rem;
+                            font-weight: bold;
+                            color: #0066cc;
+                            border: 2px solid #0066cc;
+                            background-color: #f0f8ff;
+                            letter-spacing: 8px;
+                            word-break: break-all;
+                            display: inline-block;
+                        }
+                        .instructions {
+                            margin-top: 28px;
+                            color: #888;
+                            font-size: 0.95rem;
+                            line-height: 1.6;
+                        }
+                    </style>
+                </head>
+                <body>
+                """;
         if (success) {
-            return "<!DOCTYPE html>\n" +
-                    "<html>\n" +
-                    "<head>\n" +
-                    "    <meta charset=\"UTF-8\">\n" +
-                    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">\n" +
-                    "    <title>动态口令</title>\n" +
-                    "    <style>\n" +
-                    "        * { margin: 0; padding: 0; box-sizing: border-box; }\n" +
-                    "        body {\n" +
-                    "            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, sans-serif;\n" +
-                    "            text-align: center;\n" +
-                    "            background: #f5f5f5;\n" +
-                    "            min-height: 100vh;\n" +
-                    "            display: flex;\n" +
-                    "            flex-direction: column;\n" +
-                    "            align-items: center;\n" +
-                    "            justify-content: center;\n" +
-                    "            padding: 20px;\n" +
-                    "        }\n" +
-                    "        h1 {\n" +
-                    "            font-size: 1.5rem;\n" +
-                    "            color: #333;\n" +
-                    "            margin-bottom: 24px;\n" +
-                    "            font-weight: 600;\n" +
-                    "        }\n" +
-                    "        .code {\n" +
-                    "            font-size: 3rem;\n" +
-                    "            font-weight: bold;\n" +
-                    "            color: #0066cc;\n" +
-                    "            letter-spacing: 8px;\n" +
-                    "            background-color: #f0f8ff;\n" +
-                    "            padding: 24px 32px;\n" +
-                    "            border-radius: 12px;\n" +
-                    "            display: inline-block;\n" +
-                    "            border: 2px solid #0066cc;\n" +
-                    "            width: 100%;\n" +
-                    "            max-width: 320px;\n" +
-                    "            word-break: break-all;\n" +
-                    "        }\n" +
-                    "        .instructions {\n" +
-                    "            margin-top: 28px;\n" +
-                    "            color: #888;\n" +
-                    "            font-size: 0.95rem;\n" +
-                    "            line-height: 1.6;\n" +
-                    "        }\n" +
-                    "    </style>\n" +
-                    "</head>\n" +
-                    "<body>\n" +
-                    "    <h1>运维动态口令</h1>\n" +
-                    "    <div class=\"code\">" + message + "</div>\n" +
-                    "    <div class=\"instructions\">\n" +
-                    "        <p>请在运维登录页面输入该动态口令</p>\n" +
-                    "        <p>该动态口令将在5分钟内有效</p>\n" +
-                    "    </div>\n" +
-                    "</body>\n" +
-                    "</html>";
+            html += "  <h1>动态口令</h1>\n" +
+                    "  <div class=\"message code\">" + message + "</div>\n" +
+                    "  <div class=\"instructions\">\n" +
+                    "      <p>请在运维登录页面输入该动态口令</p>\n" +
+                    "      <p>该动态口令将在5分钟内有效</p>\n" +
+                    "  </div>\n";
         } else {
-            return "<!DOCTYPE html>\n" +
-                    "<html>\n" +
-                    "<head>\n" +
-                    "    <meta charset=\"UTF-8\">\n" +
-                    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">\n" +
-                    "    <title>错误</title>\n" +
-                    "    <style>\n" +
-                    "        * { margin: 0; padding: 0; box-sizing: border-box; }\n" +
-                    "        body {\n" +
-                    "            font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, sans-serif;\n" +
-                    "            text-align: center;\n" +
-                    "            background: #f5f5f5;\n" +
-                    "            min-height: 100vh;\n" +
-                    "            display: flex;\n" +
-                    "            flex-direction: column;\n" +
-                    "            align-items: center;\n" +
-                    "            justify-content: center;\n" +
-                    "            padding: 24px;\n" +
-                    "        }\n" +
-                    "        h1 {\n" +
-                    "            font-size: 1.5rem;\n" +
-                    "            color: #cc0000;\n" +
-                    "            margin-bottom: 20px;\n" +
-                    "            font-weight: 600;\n" +
-                    "        }\n" +
-                    "        .error {\n" +
-                    "            background-color: #ffe6e6;\n" +
-                    "            padding: 20px;\n" +
-                    "            border-radius: 12px;\n" +
-                    "            border: 2px solid #cc0000;\n" +
-                    "            width: 100%;\n" +
-                    "            max-width: 340px;\n" +
-                    "            font-size: 1rem;\n" +
-                    "            color: #cc0000;\n" +
-                    "            line-height: 1.5;\n" +
-                    "        }\n" +
-                    "        .retry {\n" +
-                    "            margin-top: 24px;\n" +
-                    "            color: #888;\n" +
-                    "            font-size: 0.9rem;\n" +
-                    "            line-height: 1.6;\n" +
-                    "        }\n" +
-                    "    </style>\n" +
-                    "</head>\n" +
-                    "<body>\n" +
-                    "    <h1>错误</h1>\n" +
-                    "    <div class=\"error\">\n" +
-                    "        <p>" + message + "</p>\n" +
-                    "    </div>\n" +
-                    "    <div class=\"retry\">\n" +
-                    "        <p>请返回运维登录页面重新尝试</p>\n" +
-                    "    </div>\n" +
-                    "</body>\n" +
-                    "</html>";
+            html += "  <h1 class=\"error\">错误提示</h1>\n" +
+                    "  <div class=\"message\">" + message + "</div>\n" +
+                    "  <div class=\"instructions\">\n" +
+                    "      <p>请返回运维登录页面重新尝试</p>\n" +
+                    "  </div>\n";
         }
+        html += "</body></html>";
+        return html;
     }
 
     /**

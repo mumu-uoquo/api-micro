@@ -556,7 +556,7 @@ public class AuthServiceImpl implements AuthService {
         // state 一次性使用，校验通过后立即失效，防止重放
         RedisUtil.remove(stateKey);
         // 验证对应场景是否开启登录
-        String enableSetting = sysSettingService.getValueByCode("login." + credentialType + ".enable");
+        String enableSetting = sysSettingService.getValueByCode("login." + credentialType + ".enabled");
         if (!"true".equals(enableSetting)) {
             throw new ForbiddenException(String.format("系统未开启[%s]的登录方式", credentialType));
         }

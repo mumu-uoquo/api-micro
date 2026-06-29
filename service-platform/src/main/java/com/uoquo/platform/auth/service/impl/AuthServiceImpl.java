@@ -1,20 +1,14 @@
 package com.uoquo.platform.auth.service.impl;
 
 import java.awt.image.BufferedImage;
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.uoquo.web.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -41,6 +35,7 @@ import com.uoquo.platform.auth.model.param.ResetPasswordParam;
 import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.auth.model.pojo.AuthInfo;
 import com.uoquo.platform.auth.service.AuthService;
+import com.uoquo.platform.auth.service.WechatService;
 import com.uoquo.platform.common.BaseConstant;
 import com.uoquo.platform.common.BusinessOperationEnum;
 import com.uoquo.platform.common.BusinessTypeEnum;
@@ -71,7 +66,7 @@ import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.crypto.Base32;
-import com.uoquo.utils.crypto.AES;
+import com.uoquo.utils.crypto.TimeStepCryptoUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.utils.spring.CaptchaUtil;
 import com.uoquo.utils.spring.RedisUtil;
@@ -79,6 +74,13 @@ import com.uoquo.web.BaseCacheKey;
 import com.uoquo.web.BaseReturnCode;
 import com.uoquo.web.SystemReturnCode;
 import com.uoquo.web.events.UoquoEventPublisher;
+import com.uoquo.web.exception.AbstractBaseException;
+import com.uoquo.web.exception.ForbiddenException;
+import com.uoquo.web.exception.ParamEmtpyException;
+import com.uoquo.web.exception.ParamErrorException;
+import com.uoquo.web.exception.ResourceNotFoundException;
+import com.uoquo.web.exception.TokenEmptyException;
+import com.uoquo.web.exception.UoquoException;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -108,6 +110,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private SysSettingService sysSettingService;
+
+    @Autowired
+    private WechatService wechatService;
 
     @Autowired
     private UoquoEventPublisher eventPublisher;
@@ -511,7 +516,7 @@ public class AuthServiceImpl implements AuthService {
         }
         String status = (String) cache.get("status");
         String code   = (String) cache.get("code");
-        return new CredentialStatusDto(status, code == null ? null : code);
+        return new CredentialStatusDto(status, code);
     }
 
     @Override
@@ -559,9 +564,9 @@ public class AuthServiceImpl implements AuthService {
         // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
         String credentialValue = param.getCredentialValue();
         if (CredentialTypeEnum.WECHAT.getCode().equals(credentialType)) {
-            credentialValue = this.exchangeWechatOpenId(credentialValue);
+            credentialValue = wechatService.exchangeWechatOpenId(credentialValue);
         } else if (CredentialTypeEnum.WECOM.getCode().equals(credentialType)) {
-            credentialValue = this.exchangeWecomUserId(credentialValue);
+            credentialValue = wechatService.exchangeWecomUserId(credentialValue);
         }
 
         // 3. 查询凭证表（全局类型 instituteId=null）
@@ -1043,105 +1048,8 @@ public class AuthServiceImpl implements AuthService {
         return setting;
     }
 
-    /**
-     * 微信网页授权：用 code 换取 openid。
-     * 参考：https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
-     */
-    private String exchangeWechatOpenId(String code) {
-        String appid  = this.getSysConfig(SettingsCode.WECHAT_APPID);
-        String secret = this.getSysConfig(SettingsCode.WECHAT_SECRET);
-        String url = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=" + urlEncode(appid)
-                + "&secret=" + urlEncode(secret)
-                + "&code=" + urlEncode(code)
-                + "&grant_type=authorization_code";
-        Map<String, Object> resp = this.httpGetJson(url);
-        Object openid = resp.get("openid");
-        if (openid == null) {
-            logger.warn("微信换取 openid 失败：{}", resp);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "微信授权失败：" + resp.get("errmsg"));
-        }
-        return openid.toString();
-    }
-
-    /**
-     * 企业微信：先取 access_token，再用 code 换取 userid。
-     * 参考：https://developer.work.weixin.qq.com/document/path/91507
-     */
-    private String exchangeWecomUserId(String code) {
-        String corpid = this.getSysConfig(SettingsCode.WECOM_CORPID);
-        String secret = this.getSysConfig(SettingsCode.WECOM_SECRET);
-        String tokenUrl = "https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=" + urlEncode(corpid)
-                + "&corpsecret=" + urlEncode(secret);
-        Map<String, Object> tokenResp = this.httpGetJson(tokenUrl);
-        Object accessToken = tokenResp.get("access_token");
-        if (accessToken == null) {
-            logger.warn("企业微信获取 access_token 失败：{}", tokenResp);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信授权失败：" + tokenResp.get("errmsg"));
-        }
-        String userUrl = "https://qyapi.weixin.qq.com/cgi-bin/auth/getuserinfo?access_token=" + urlEncode(accessToken.toString())
-                + "&code=" + urlEncode(code);
-        Map<String, Object> userResp = this.httpGetJson(userUrl);
-        Object userid = userResp.get("userid");
-        if (userid == null) {
-            logger.warn("企业微信换取 userid 失败：{}", userResp);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信授权失败：" + userResp.get("errmsg"));
-        }
-        return userid.toString();
-    }
-
     private String urlEncode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * 发起 GET 请求并将 JSON 响应解析为 Map
-     */
-    private Map<String, Object> httpGetJson(String url) {
-        try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(5))
-                    .GET()
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            return JsonUtil.deserialize(response.body());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("请求第三方接口被中断：{}", url, e);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
-        } catch (Exception e) {
-            logger.error("请求第三方接口失败：{}", url, e);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
-        }
-    }
-
-    /**
-     * 发起 POST(JSON) 请求并将响应解析为 Map
-     */
-    private Map<String, Object> httpPostJson(String url, String jsonBody) {
-        try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(5))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            return JsonUtil.deserialize(response.body());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("请求第三方接口被中断：{}", url, e);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
-        } catch (Exception e) {
-            logger.error("请求第三方接口失败：{}", url, e);
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "请求第三方授权服务失败");
-        }
     }
 
     /**
@@ -1171,17 +1079,16 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // ============================ 运维登录 ============================
-
     @Override
     public OpsConfigDto opsConfig(OpsConfigParam param) {
         // account、phone 由 @Valid 保证非空，phone 在此仅作合法性/必填校验
-        String serial  = sysSettingService.getValueByCode(SettingsCode.SERIAL_NUMBER);
+        String serial  = this.getSysConfig(SettingsCode.SERIAL_NUMBER);
         String corpId  = this.getSysConfig(SettingsCode.OPS_WECOM_CORPID);
         String agentId = this.getSysConfig(SettingsCode.OPS_WECOM_AGENTID);
         String redirectUri = this.getSysConfig(SettingsCode.OPS_WECOM_REDIRECT_URI);
 
         // state = TAES(SERIAL_NUMBER + "|" + account)
-        String state = this.encodeOpsState(serial + "|" + param.getAccount());
+        String state = TimeStepCryptoUtil.encryptTAES(serial + "|" + param.getAccount());
 
         // 按企业微信 OAuth2.0 构建授权地址
         String authUrl = "https://open.weixin.qq.com/connect/oauth2/authorize"
@@ -1210,6 +1117,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 1. 锁定校验：连续失败 5 次后 24 小时内不可用
         String phone = param.getPhone();
+        String failKey = PlatformCacheKey.OPS_LOGIN_FAIL + phone;
         String lockKey = PlatformCacheKey.OPS_LOGIN_LOCK + phone;
         if (StringUtil.notNull(RedisUtil.get(lockKey, String.class))) {
             throw new UoquoException(AccountReturnCode.OPS_LOGIN_LOCKED);
@@ -1219,7 +1127,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             // 2. 动态码校验
             // 以 Base32(SERIAL_NUMBER + phone) 为密钥校验动态口令
-            String serial = sysSettingService.getValueByCode(SettingsCode.SERIAL_NUMBER);
+            String serial = this.getSysConfig(SettingsCode.SERIAL_NUMBER);
             String secret = Base32.encode(serial + phone);
             boolean valid = TotpAuthUtils.verifyDynamicCode(secret, param.getDynamicCode());
             if (!valid) {
@@ -1230,16 +1138,16 @@ public class AuthServiceImpl implements AuthService {
             this.checkUserStatus(param.getAccount(), info);
         } catch (AbstractBaseException e) {
             // 失败计数，连续 5 次锁定 24 小时
-            long fails = this.incrOpsFail(param.getAccount());
+            long fails = this.incrOpsFail(failKey);
             logger.warn("运维人员[{}]第[{}]次登录账号[{}]失败。", phone, fails, param.getAccount(), e);
             if (fails >= 5) {
                 RedisUtil.put(lockKey, "1", 24 * 60 * 60);
-                logger.error("运维人员[{}]连续5次登录失败，账号锁定24小时。", phone);
+                logger.error("运维人员[{}]连续[{}]次登录失败，将锁定24小时。", phone, fails);
             }
             throw new UoquoException(AccountReturnCode.OPS_AUTH_FAILED);
         }
         // 4. 校验通过：清理失败计数，忽略 MFA 直接登录
-        RedisUtil.remove(PlatformCacheKey.OPS_LOGIN_FAIL + param.getAccount());
+        RedisUtil.remove(failKey);
         // 组装用户信息
         CurrentUser.setToken(null);
         // 标记运维模式（在缓存前设置，确保写入 USER_INFO 与刷新码）
@@ -1261,13 +1169,16 @@ public class AuthServiceImpl implements AuthService {
         String phone   = null;
         try {
             // 1. 解码 state 得到序列号（与账号）
-            String decoded = this.decodeOpsState(state);
+            String decoded = TimeStepCryptoUtil.decryptTAES(state);
             String[] parts = decoded.split("\\|", 2);
+            if (parts.length != 2) {
+                throw new RuntimeException("回传参数state不合法");
+            }
             serial  = parts[0];
-            account = parts.length > 1 ? parts[1] : "";
+            account = parts[1];
 
             // 2. 通过 code 换取运维用户手机号（先 ticket 后 mobile）
-            phone = this.exchangeOpsWecomMobile(code);
+            phone = wechatService.exchangeOpsWecomMobile(code);
             logger.info("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权成功。", phone, serial, account);
 
             // 3. 以 Base32(SERIAL_NUMBER + phone) 生成动态口令
@@ -1275,131 +1186,20 @@ public class AuthServiceImpl implements AuthService {
             String dynamicCode = TotpAuthUtils.generateDynamicCode(secret);
             // TODO 目前仅作记录，实际使用中需配合权限校验
 
-            return this.opsMfaHtml(true, "动态口令<br/><br/>" + dynamicCode);
+            return wechatService.opsMfaHtml(true, dynamicCode);
         } catch (Exception e) {
             logger.error("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权失败{code={}, state={}}。", phone, serial, account, code, state, e);
-            return this.opsMfaHtml(false, "授权失败，请联系管理员。");
+            return wechatService.opsMfaHtml(false, "授权失败，请联系管理员。");
         }
     }
 
     /**
      * 运维登录失败计数自增（24 小时窗口）。
      */
-    private long incrOpsFail(String account) {
-        String failKey = PlatformCacheKey.OPS_LOGIN_FAIL + account;
+    private long incrOpsFail(String failKey) {
         Integer fails = RedisUtil.get(failKey, Integer.class);
         int next = (fails == null ? 0 : fails) + 1;
         RedisUtil.put(failKey, next, 24 * 60 * 60);
         return next;
-    }
-
-    /**
-     * 企业微信：先取 access_token 与 user_ticket，再用 ticket 换取手机号。
-     * 参考：https://developer.work.weixin.qq.com/document/path/91507
-     */
-    private String exchangeOpsWecomMobile(String code) {
-        String corpId = this.getSysConfig(SettingsCode.OPS_WECOM_CORPID);
-        String secret = this.getSysConfig(SettingsCode.OPS_WECOM_SECRET);
-        // 1. access_token
-        String tokenUrl = "https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=" + urlEncode(corpId)
-                + "&corpsecret=" + urlEncode(secret);
-        Map<String, Object> tokenResp = this.httpGetJson(tokenUrl);
-        Object accessToken = tokenResp.get("access_token");
-        if (accessToken == null) {
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信授权失败：" + tokenResp.get("errmsg"));
-        }
-        // 2. code → user_ticket（snsapi_privateinfo 授权下返回）
-        String infoUrl = "https://qyapi.weixin.qq.com/cgi-bin/auth/getuserinfo?access_token=" + urlEncode(accessToken.toString())
-                + "&code=" + urlEncode(code);
-        Map<String, Object> infoResp = this.httpGetJson(infoUrl);
-        Object userTicket = infoResp.get("user_ticket");
-        if (userTicket == null) {
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信换取 user_ticket 失败：" + infoResp.get("errmsg"));
-        }
-        // 3. user_ticket → 手机号
-        String detailUrl = "https://qyapi.weixin.qq.com/cgi-bin/auth/getuserdetail?access_token=" + urlEncode(accessToken.toString());
-        Map<String, Object> detailResp = this.httpPostJson(detailUrl, "{\"user_ticket\":\"" + userTicket + "\"}");
-        Object mobile = detailResp.get("mobile");
-        if (mobile == null) {
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_EXCHANGE_FAILED, "企业微信获取手机号失败：" + detailResp.get("errmsg"));
-        }
-        return mobile.toString();
-    }
-
-    /**
-     * 运维 state 加密（TAES：基于时间片的 AES，密钥不依赖可调整的系统 AES 密钥）。
-     * <p>与 SensitiveSerializer 的 TAES 处理一致：以"当前时间片"为密钥（右补 0 至 16 位）加密。
-     * 适配 ops/config（私有环境）与 ops/mfa（云端环境）分离部署、系统 AES 密钥可能不一致的场景。
-     */
-    private String encodeOpsState(String plain) {
-        try {
-            long step = System.currentTimeMillis() / (this.getTaesStepSeconds() * 1000L);
-            return AES.encrypt(plain, this.buildTaesKey(step));
-        } catch (Exception e) {
-            throw new UoquoException(AccountReturnCode.OPS_AUTH_FAILED, "生成授权state失败");
-        }
-    }
-
-    /**
-     * 运维 state 解密（TAES）。
-     * <p>与 SensitiveDeserializer 的逻辑一致：以当前时间片解密，并兼容前后各一个时间片（±1）。
-     */
-    private String decodeOpsState(String state) {
-        long stepMillis = this.getTaesStepSeconds() * 1000L;
-        long current = System.currentTimeMillis() / stepMillis;
-        for (long offset = 1; offset >= -1; offset--) {
-            try {
-                return AES.decrypt(state, this.buildTaesKey(current + offset));
-            } catch (Exception ignore) {
-                // 尝试下一个时间片
-            }
-        }
-        throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
-    }
-
-    /**
-     * 构建时间片 AES 密钥：时间片数值字符串右补 '0' 至 16 位。
-     */
-    private String buildTaesKey(long step) {
-        StringBuilder sb = new StringBuilder().append(step);
-        if (sb.length() < 16) {
-            sb.append("0".repeat(16 - sb.length()));
-        }
-        return sb.toString();
-    }
-
-    /**
-     * TAES 时间片长度（秒），取自系统配置 security.aes.totp（缓存键 security.aes.time-step），缺省 5 秒。
-     */
-    private int getTaesStepSeconds() {
-        Integer cached = RedisUtil.get("security.aes.time-step", Integer.class);
-        if (cached != null && cached > 0) {
-            return cached;
-        }
-        try {
-            String value = sysSettingService.getValueByCode(SettingsCode.AES_TOTP_STEP);
-            if (StringUtil.notNull(value)) {
-                int step = Integer.parseInt(value.trim());
-                if (step > 0) {
-                    return step;
-                }
-            }
-        } catch (Exception ignore) {
-            // 使用默认值
-        }
-        return 5;
-    }
-
-    /**
-     * 生成运维动态码的简版 H5 页面。
-     */
-    private String opsMfaHtml(boolean success, String message) {
-        String color = success ? "#2c7" : "#e54";
-        return "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"UTF-8\">"
-                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                + "<title>运维动态口令</title></head>"
-                + "<body style=\"font-family:sans-serif;text-align:center;padding-top:60px;\">"
-                + "<div style=\"font-size:20px;font-weight:bold;color:" + color + ";\">" + message + "</div>"
-                + "</body></html>";
     }
 }

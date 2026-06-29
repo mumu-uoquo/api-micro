@@ -138,9 +138,9 @@ public class WechatServiceImpl implements WechatService {
                         }
                         h1 {
                             font-size: 1.5rem;
+                            font-weight: 600;
                             color: #333;
                             margin-bottom: 24px;
-                            font-weight: 600;
                         }
                         h1.error {
                             color: #cc0000;
@@ -148,11 +148,11 @@ public class WechatServiceImpl implements WechatService {
                         }
                         .message {
                             font-size: 1rem;
-                            width: 100%;
+                            width: 90%;
                             color: #cc0000;
                             max-width: 340px;
                             line-height: 1.5;
-                            padding: 20px;
+                            padding: 28px 20px;
                             border-radius: 12px;
                             border: 2px solid #cc0000;
                             background-color: #ffe6e6;
@@ -182,7 +182,7 @@ public class WechatServiceImpl implements WechatService {
                     "  <div class=\"message code\">" + message + "</div>\n" +
                     "  <div class=\"instructions\">\n" +
                     "      <p>请在运维登录页面输入该动态口令</p>\n" +
-                    "      <p>该动态口令将在5分钟内有效</p>\n" +
+                    "      <p>该动态口令在5分钟内有效</p>\n" +
                     "  </div>\n";
         } else {
             html += "  <h1 class=\"error\">错误提示</h1>\n" +

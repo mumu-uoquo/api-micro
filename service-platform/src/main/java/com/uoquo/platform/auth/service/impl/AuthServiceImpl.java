@@ -1168,27 +1168,24 @@ public class AuthServiceImpl implements AuthService {
         String account = null;
         String phone   = null;
         try {
-//            // 1. 解码 state 得到序列号（与账号）
-//            String decoded = TimeStepCryptoUtil.decryptTAES(state);
-//            String[] parts = decoded.split("\\|", 2);
-//            if (parts.length != 2) {
-//                throw new RuntimeException("回传参数state不合法");
-//            }
-//            serial  = parts[0];
-//            account = parts[1];
-//
-//            // 2. 通过 code 换取运维用户手机号（先 ticket 后 mobile）
-//            phone = wechatService.exchangeOpsWecomMobile(code);
-//            logger.info("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权成功。", phone, serial, account);
-//
-//            // 3. 以 Base32(SERIAL_NUMBER + phone) 生成动态口令
-//            String secret = Base32.encode(serial + phone);
-//            String dynamicCode = TotpAuthUtils.generateDynamicCode(secret);
-//            // TODO 目前仅作记录，实际使用中需配合权限校验
-            if ("22".equals(code)) {
-                throw new RuntimeException("测试");
+            // 1. 解码 state 得到序列号（与账号）
+            String decoded = TimeStepCryptoUtil.decryptTAES(state);
+            String[] parts = decoded.split("\\|", 2);
+            if (parts.length != 2) {
+                throw new RuntimeException("回传参数state不合法");
             }
-            String dynamicCode = TotpAuthUtils.generateDynamicCode(Base32.encode("serial + phone"));
+            serial  = parts[0];
+            account = parts[1];
+
+            // 2. 通过 code 换取运维用户手机号（先 ticket 后 mobile）
+            phone = wechatService.exchangeOpsWecomMobile(code);
+            logger.info("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权成功。", phone, serial, account);
+
+            // 3. 以 Base32(SERIAL_NUMBER + phone) 生成动态口令
+            String secret = Base32.encode(serial + phone);
+            String dynamicCode = TotpAuthUtils.generateDynamicCode(secret);
+            // TODO 目前仅作记录，实际使用中需配合权限校验
+
             return wechatService.opsMfaHtml(true, dynamicCode);
         } catch (Exception e) {
             logger.error("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权失败{code={}, state={}}。", phone, serial, account, code, state, e);

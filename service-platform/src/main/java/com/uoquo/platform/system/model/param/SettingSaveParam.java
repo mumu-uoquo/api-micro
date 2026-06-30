@@ -18,7 +18,7 @@ public class SettingSaveParam {
     @Schema(description = "配置标识", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "配置标识不能为空")
     @Size(max = 50, message = "配置标识长度不能超过50")
-    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_.]*$", message = "配置标识必须以字母开头，且只能包含字母、数字、下划线和小数点")
+    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9-_.]*$", message = "配置标识必须以字母开头，且只能包含字母、数字、中横线、下划线和小数点")
     private String configCode;
 
     @Schema(description = "配置名称")

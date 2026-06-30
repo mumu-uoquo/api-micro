@@ -1126,7 +1126,8 @@ public class AuthServiceImpl implements AuthService {
         UserInfo info;
         try {
             // 2. 动态码校验
-            // 以 Base32(SERIAL_NUMBER + phone) 为密钥校验动态口令
+            // 以 Base32(ACTIVATE_CODE + phone) 为密钥校验动态口令
+            // TODO 实际中从授权文件中读取激活码（ACTIVATE_CODE），此处临时用SERIAL_NUMBER代替
             String serial = this.getSysConfig(SettingsCode.SERIAL_NUMBER);
             String secret = Base32.encode(serial + phone);
             boolean valid = TotpAuthUtils.verifyDynamicCode(secret, param.getDynamicCode());
@@ -1181,7 +1182,8 @@ public class AuthServiceImpl implements AuthService {
             phone = wechatService.exchangeOpsWecomMobile(code);
             logger.info("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权成功。", phone, serial, account);
 
-            // 3. 以 Base32(SERIAL_NUMBER + phone) 生成动态口令
+            // 3. 以 Base32(ACTIVATE_CODE + phone) 生成动态口令
+            // TODO 实际中用序列号（SERIAL_NUMBER）查出对应的激活码（ACTIVATE_CODE），此处临时用SERIAL_NUMBER代替
             String secret = Base32.encode(serial + phone);
             String dynamicCode = TotpAuthUtils.generateDynamicCode(secret);
             // TODO 目前仅作记录，实际使用中需配合权限校验

@@ -1,18 +1,20 @@
 package com.uoquo.test;
 
+import com.uoquo.platform.common.utils.TotpAuthUtils;
 import com.uoquo.platform.common.utils.UserUtils;
 import com.uoquo.platform.common.utils.WechatMsgCrypt;
 import com.uoquo.platform.user.model.pojo.UserInfo;
+import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.ObjectUtil;
 import com.uoquo.utils.StringUtil;
-import com.uoquo.utils.crypto.MD5;
-import com.uoquo.utils.crypto.SHA;
+import com.uoquo.utils.crypto.*;
 import com.uoquo.utils.spring.CaptchaUtil;
 import org.junit.jupiter.api.Test;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -141,5 +143,67 @@ public class UserTest {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Test
+    public void testAESUserId() {
+        // 加密
+        try {
+            String serial = IDGenerator.getUUID();
+
+            String account = StringUtil.getRandomString(30, 6);
+            String stateKey = serial + "|" + account;
+            String state = encryptTAES(stateKey);
+            System.out.println(stateKey);
+            System.out.println(state);
+            System.out.println(stateKey.length() + " : "+ state.length());
+            String redirectUri = "https://www.uoquo.com/health/api/platform/v1/wechat/ops/mfa";
+            String authUrl = "https://open.weixin.qq.com/connect/oauth2/authorize"
+                    + "?appid=wwe196f9393080512d"
+                    + "&redirect_uri=" + this.urlEncode(redirectUri)
+                    + "&response_type=code"
+                    + "&scope=snsapi_privateinfo"
+                    + "&state=" + this.urlEncode(state)
+                    + "&agentid=1000003"
+                    + "#wechat_redirect";
+
+            String qrCode = TotpAuthUtils.generateQrcode(authUrl);
+            System.out.println(qrCode);
+
+            String decoded = decryptTAES(state);
+            String[] parts = decoded.split("\\|", 2);
+            System.out.println(parts.length);
+            System.out.println(parts[0]);
+            System.out.println(parts[1]);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String encryptTAES(String value) throws GeneralSecurityException {
+        long step = System.currentTimeMillis() / 5_000;
+        StringBuilder sb = new StringBuilder();
+        sb.append(step);
+        if (sb.length() < 16) {
+            sb.append("0".repeat(16 - sb.length()));
+        }
+        System.out.println("key:"+ sb.toString());
+        return AES.encrypt(value, sb.toString());
+    }
+
+    private String decryptTAES(String value) throws GeneralSecurityException {
+        long step = System.currentTimeMillis() / 5_000;
+        StringBuilder sb = new StringBuilder();
+        sb.append(step);
+        if (sb.length() < 16) {
+            sb.append("0".repeat(16 - sb.length()));
+        }
+        System.out.println("key:"+ sb.toString());
+        return AES.decrypt(value, sb.toString());
     }
 }

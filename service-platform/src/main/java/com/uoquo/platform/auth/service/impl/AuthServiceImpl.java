@@ -1088,7 +1088,7 @@ public class AuthServiceImpl implements AuthService {
         String redirectUri = this.getSysConfig(SettingsCode.OPS_WECOM_REDIRECT_URI);
 
         // state = TAES(SERIAL_NUMBER + "|" + account)
-        String state = TimeStepCryptoUtil.encryptTAES(serial + "|" + param.getAccount());
+        String state = TimeStepCryptoUtil.encryptTAES(serial + "|" + param.getAccount(), 30);
 
         // 按企业微信 OAuth2.0 构建授权地址
         String authUrl = "https://open.weixin.qq.com/connect/oauth2/authorize"
@@ -1170,7 +1170,7 @@ public class AuthServiceImpl implements AuthService {
         String phone   = null;
         try {
             // 1. 解码 state 得到序列号（与账号）
-            String decoded = TimeStepCryptoUtil.decryptTAES(state);
+            String decoded = TimeStepCryptoUtil.decryptTAES(state, 30);
             String[] parts = decoded.split("\\|", 2);
             if (parts.length != 2) {
                 logger.error("回传参数不合法：state={}, decoded={}, parts.length={}", state, decoded, parts.length);

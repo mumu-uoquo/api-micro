@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uoquo.annotation.web.IgnoreAuth;
+import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.common.SettingsCode;
 import com.uoquo.platform.common.utils.WechatMsgCrypt;
 import com.uoquo.platform.system.service.SysSettingService;
@@ -53,7 +54,7 @@ public class WechatController {
     private SysSettingService sysSettingService;
 
     @Autowired
-    private com.uoquo.platform.auth.service.AuthService authService;
+    private AuthService authService;
 
     /**
      * 获取运维动态码（微信扫码跳转）。

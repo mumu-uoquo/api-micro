@@ -188,7 +188,8 @@ public class WechatServiceImpl implements WechatService {
             html += "  <h1 class=\"error\">错误提示</h1>\n" +
                     "  <div class=\"message\">" + message + "</div>\n" +
                     "  <div class=\"instructions\">\n" +
-                    "      <p>请返回运维登录页面重新尝试</p>\n" +
+                    "      <p>请返回运维登录页面</p>\n" +
+                    "      <p>刷新二维码后重新尝试</p>\n" +
                     "  </div>\n";
         }
         html += "</body></html>";

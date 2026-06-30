@@ -1173,6 +1173,7 @@ public class AuthServiceImpl implements AuthService {
             String decoded = TimeStepCryptoUtil.decryptTAES(state);
             String[] parts = decoded.split("\\|", 2);
             if (parts.length != 2) {
+                logger.error("回传参数不合法：state={}, decoded={}, parts.length={}", state, decoded, parts.length);
                 throw new RuntimeException("回传参数state不合法");
             }
             serial  = parts[0];

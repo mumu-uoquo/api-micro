@@ -61,6 +61,7 @@ public class WechatController {
     @Operation(summary = "获取运维动态码（微信扫码跳转）。", hidden = true)
     @GetMapping("/ops/mfa")
     public String opsMfa(@RequestParam("code") String code, @RequestParam("state") String state) {
+        logger.debug("opsMfa: code={}, state={}", code, state);
         return authService.opsMfa(code, state);
     }
 

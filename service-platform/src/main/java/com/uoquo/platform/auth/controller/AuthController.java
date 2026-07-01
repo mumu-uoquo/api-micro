@@ -86,7 +86,23 @@ public class AuthController {
         if (StringUtil.isNull(param.getUserAgent())) {
             param.setUserAgent(request.getHeader("User-Agent"));
         }
-        UserAuthDto result = authService.totpLogin(param.getTempToken(), param.getTotpCode());
+        UserAuthDto result = authService.mfaLogin(param.getTempToken(), param.getTotpCode());
+        return new ReturnData<>(result);
+    }
+
+    @IgnoreAuth(login = true)
+    @Operation(summary = "紧急登录（仅账号+MFA验证码，无需密码）", operationId = "emergencyLogin", method = "POST",
+            description = "仅需账号和MFA验证码即可登录。连续5次出错该账号24小时内不能使用紧急登录功能。")
+    @PostMapping("/emergency/login")
+    public ReturnData<UserAuthDto> emergencyLogin(HttpServletRequest request, @RequestBody @Valid EmergencyLoginParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("emergencyLogin: account[{}]", param.getAccount());
+        }
+        if (StringUtil.isNull(param.getUserAgent())) {
+            param.setUserAgent(request.getHeader("User-Agent"));
+        }
+        String clientIp = WebUtil.getClientIp(request);
+        UserAuthDto result = authService.emergencyLogin(param, clientIp);
         return new ReturnData<>(result);
     }
 

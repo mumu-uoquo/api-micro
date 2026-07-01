@@ -28,17 +28,17 @@ public class SettingsCode {
 
     /* ************************ 登录相关 ************************** */
     /** 是否开启注册 */
-    public static final String REGISTER_ENABLE     = "sys.register.enable";
+    public static final String REGISTER_ENABLE     = "sys.register.enabled";
     /** 是否开启水印 */
-    public static final String WATERMARK_ENABLE    = "sys.watermark.enable";
+    public static final String WATERMARK_ENABLE    = "sys.watermark.enabled";
     /** 是否开启短信码登录 */
-    public static final String LOGIN_SMS_ENABLE    = "login.sms.enable";
+    public static final String LOGIN_SMS_ENABLE    = "login.sms.enabled";
     /** 是否开启微信登录 */
-    public static final String LOGIN_WECHAT_ENABLE = "login.wechat.enable";
+    public static final String LOGIN_WECHAT_ENABLE = "login.wechat.enabled";
     /** 是否开启企微在线登录 */
-    public static final String LOGIN_WECOM_ENABLE  = "login.wecom.enable";
-    /** 是否开启仅MFA认证登录 */
-    public static final String LOGIN_MFA_ENABLE    = "login.mfa.enable";
+    public static final String LOGIN_WECOM_ENABLE  = "login.wecom.enabled";
+    /** 是否开启紧急认证登录（仅MFA认证） */
+    public static final String LOGIN_EMERG_ENABLE  = "login.emerg.enabled";
 
     /* ************************ 第三方登录应用配置 ************************** */
     /** 微信 appid */
@@ -78,12 +78,12 @@ public class SettingsCode {
      */
     public static final Set<String> PUBLIC_KEYS = Set.of(
             RSA_PUBLIC_KEY,     // security.rsa.publicKey
-            REGISTER_ENABLE,    // sys.register.enable
-            WATERMARK_ENABLE,   // sys.watermark.enable
-            LOGIN_SMS_ENABLE,   // login.sms.enable
-            LOGIN_WECHAT_ENABLE,// login.wechat.enable
-            LOGIN_WECOM_ENABLE, // login.wecom.enable
-            LOGIN_MFA_ENABLE    // login.mfa.enable
+            REGISTER_ENABLE,    // sys.register.enabled
+            WATERMARK_ENABLE,   // sys.watermark.enabled
+            LOGIN_SMS_ENABLE,   // login.sms.enabled
+            LOGIN_WECHAT_ENABLE,// login.wechat.enabled
+            LOGIN_WECOM_ENABLE, // login.wecom.enabled
+            LOGIN_EMERG_ENABLE  // login.emerg.enabled
     );
 
     /**
@@ -96,9 +96,9 @@ public class SettingsCode {
             GLOBAL_GATEWAY_KEY, // security.gateway.key
             WECHAT_MSG_AESKEY,  // sys.wechat.push.aeskey
             WECHAT_MSG_TOKEN,   // sys.wechat.push.token
-            OPS_WECOM_CORPID,   // ops.wecom.corpid
-            OPS_WECOM_AGENTID,  // ops.wecom.agentid
-            OPS_WECOM_SECRET,   // ops.wecom.secret
+            OPS_WECOM_CORPID,      // ops.wecom.corpid
+            OPS_WECOM_AGENTID,     // ops.wecom.agentid
+            OPS_WECOM_SECRET,      // ops.wecom.secret
             OPS_WECOM_REDIRECT_URI // ops.wecom.redirect-uri
     );
 

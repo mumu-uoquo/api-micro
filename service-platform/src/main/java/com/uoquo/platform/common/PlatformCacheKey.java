@@ -93,4 +93,14 @@ public class PlatformCacheKey extends BaseCacheKey {
      */
     public static final String OPS_LOGIN_LOCK = "UOQUO:OPS:LOGIN:LOCK:";
 
+    /**
+     * 紧急登录连续失败次数前缀（按账号计数）
+     */
+    public static final String EMERGENCY_LOGIN_FAIL = "UOQUO:EMERGENCY:LOGIN:FAIL:";
+
+    /**
+     * 紧急登录锁定标识前缀（连续失败5次后锁定24小时）
+     */
+    public static final String EMERGENCY_LOGIN_LOCK = "UOQUO:EMERGENCY:LOGIN:LOCK:";
+
 }

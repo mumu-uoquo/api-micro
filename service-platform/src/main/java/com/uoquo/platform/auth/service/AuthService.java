@@ -16,6 +16,7 @@ import com.uoquo.platform.auth.model.param.OpsLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
 import com.uoquo.platform.auth.model.param.RegisterParam;
 import com.uoquo.platform.auth.model.param.ResetPasswordParam;
+import com.uoquo.platform.auth.model.param.EmergencyLoginParam;
 import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.role.model.dto.ModuleTreeDto;
 import com.uoquo.web.BaseReturnCode;
@@ -24,9 +25,7 @@ public interface AuthService {
 
     /**
      * 用戶登录
-     * 备注
      * <ol>
-     *     <li>密码TOTP时间因子进行AES加密</li>
      *     <li>token有效期：30分钟</li>
      *     <li>刷新码有效期：7天</li>
      * </ol>
@@ -40,7 +39,22 @@ public interface AuthService {
      * @param totpCode  TOTP动态码
      * @return 用户认证信息（包含正式Token）
      */
-    UserAuthDto totpLogin(String tempToken, String totpCode);
+    UserAuthDto mfaLogin(String tempToken, String totpCode);
+
+    /**
+     * 紧急登录（仅账号 + MFA 验证码，无需密码）
+     * <ul>
+     *     <li>按账号查找用户，校验用户状态</li>
+     *     <li>校验 TOTP 动态码</li>
+     *     <li>连续失败 5 次则 24 小时内禁止该账号使用紧急登录</li>
+     *     <li>验证通过后直接完成登录，跳过 MFA 二次验证</li>
+     * </ul>
+     *
+     * @param param    紧急登录参数（account + totpCode）
+     * @param clientIp 客户端 IP
+     * @return 用户认证信息
+     */
+    UserAuthDto emergencyLogin(EmergencyLoginParam param, String clientIp);
 
     /**
      * 用戶通过刷新token登录（主要用于APP等移动端）

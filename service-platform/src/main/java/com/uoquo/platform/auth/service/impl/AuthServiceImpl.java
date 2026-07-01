@@ -32,6 +32,7 @@ import com.uoquo.platform.auth.model.param.OpsLoginParam;
 import com.uoquo.platform.auth.model.param.PhoneCaptchaParam;
 import com.uoquo.platform.auth.model.param.RegisterParam;
 import com.uoquo.platform.auth.model.param.ResetPasswordParam;
+import com.uoquo.platform.auth.model.param.EmergencyLoginParam;
 import com.uoquo.platform.auth.model.param.SmsLoginParam;
 import com.uoquo.platform.auth.model.pojo.AuthInfo;
 import com.uoquo.platform.auth.service.AuthService;
@@ -175,7 +176,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserAuthDto totpLogin(String tempToken, String totpCode) {
+    public UserAuthDto mfaLogin(String tempToken, String totpCode) {
         // 1. 验证临时Token
         String userId = RedisUtil.get(PlatformCacheKey.TOTP_TEMP_TOKEN + tempToken, String.class);
         if (StringUtil.isNull(userId)) {
@@ -221,6 +222,66 @@ public class AuthServiceImpl implements AuthService {
 
         // 6. 发布事件（登录）
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), info.getUserName(), dto.getAccessToken(), null);
+        return dto;
+    }
+
+    @Override
+    public UserAuthDto emergencyLogin(EmergencyLoginParam param, String clientIp) {
+        CurrentUser.setClientIp(clientIp);
+        CurrentUser.setAppVersion(param.getAppVersion());
+
+        // 验证对应场景是否开启登录
+        String enableSetting = sysSettingService.getValueByCode(SettingsCode.LOGIN_EMERG_ENABLE);
+        if (!"true".equals(enableSetting)) {
+            throw new ForbiddenException("系统未开启[紧急登录]的认证方式");
+        }
+
+        // 1. 检查紧急登录锁定状态
+        String account = param.getAccount();
+        String failKey = PlatformCacheKey.EMERGENCY_LOGIN_FAIL + account;
+        String lockKey = PlatformCacheKey.EMERGENCY_LOGIN_LOCK + account;
+        if (StringUtil.notNull(RedisUtil.get(lockKey, String.class))) {
+            throw new UoquoException(AccountReturnCode.EMERGENCY_LOGIN_LOCKED);
+        }
+
+        // 2. 用户基本校验
+        UserInfo info = this.findUserByAccount(param.getAccount());
+        // 2.1 检查是否绑定了 MFA
+        String secret = info.getTotpSecret();
+        if (StringUtil.isNull(secret)) {
+            throw new UoquoException(AccountReturnCode.ACCOUNT_UNBOUND_2FA, "用户未绑定双因子认证，无法使用紧急登录");
+        }
+        // 2.2 校验用户状态
+        this.checkUserStatus(param.getAccount(), info);
+
+        // 3. 验证 MFA 动态码
+        try {
+            boolean verified = TotpAuthUtils.verifyAuthCode(secret, param.getTotpCode());
+            if (!verified) {
+                throw new UoquoException(AccountReturnCode.TOTP_VALIDATION_ERROR, "动态码不正确");
+            }
+        } catch (AbstractBaseException e) {
+            // 失败计数，连续 5 次锁定 24 小时
+            long fails = this.incrEmergencyFail(failKey);
+            logger.warn("用户[{}]第[{}]次紧急登录失败。", account, fails);
+            if (fails >= 5) {
+                RedisUtil.put(lockKey, "1", 24 * 60 * 60);
+                logger.error("用户[{}]连续[{}]次紧急登录失败，将锁定24小时。", account, fails);
+            }
+            throw e;
+        }
+
+        // 4. 验证通过：清理失败计数，直接完成登录（跳过 MFA 二次验证）
+        RedisUtil.remove(failKey);
+        RedisUtil.remove(lockKey);
+
+        CurrentUser.setToken(null);
+        UserAuthDto dto = this.getUserAuthDto(info);
+        dto.setTotpStatus("enabled");
+        this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                "USER", info.getId(), info.getInstituteId(), account, dto.getAccessToken(), null);
         return dto;
     }
 
@@ -447,7 +508,7 @@ public class AuthServiceImpl implements AuthService {
         // 验证系统是否开启短信码登录
         String enableSetting = sysSettingService.getValueByCode(SettingsCode.LOGIN_SMS_ENABLE);
         if (!"true".equals(enableSetting)) {
-            throw new ForbiddenException("系统未开启[短信码]的登录方式");
+            throw new ForbiddenException("系统未开启[短信码]的认证方式");
         }
 
         // 1. 查找用户（按手机号）
@@ -558,7 +619,7 @@ public class AuthServiceImpl implements AuthService {
         // 验证对应场景是否开启登录
         String enableSetting = sysSettingService.getValueByCode("login." + credentialType + ".enabled");
         if (!"true".equals(enableSetting)) {
-            throw new ForbiddenException(String.format("系统未开启[%s]的登录方式", credentialType));
+            throw new ForbiddenException(String.format("系统未开启[%s]的认证方式", credentialType));
         }
 
         // 2. 解析凭证标识：微信/企微传入的是授权 code，需先换取 openid/userid
@@ -1200,6 +1261,16 @@ public class AuthServiceImpl implements AuthService {
      * 运维登录失败计数自增（24 小时窗口）。
      */
     private long incrOpsFail(String failKey) {
+        Integer fails = RedisUtil.get(failKey, Integer.class);
+        int next = (fails == null ? 0 : fails) + 1;
+        RedisUtil.put(failKey, next, 24 * 60 * 60);
+        return next;
+    }
+
+    /**
+     * 紧急登录失败计数自增（24 小时窗口）。
+     */
+    private long incrEmergencyFail(String failKey) {
         Integer fails = RedisUtil.get(failKey, Integer.class);
         int next = (fails == null ? 0 : fails) + 1;
         RedisUtil.put(failKey, next, 24 * 60 * 60);

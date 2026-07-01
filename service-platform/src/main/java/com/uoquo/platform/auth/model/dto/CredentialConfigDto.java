@@ -27,6 +27,9 @@ public class CredentialConfigDto {
     @Schema(description = "本次授权的 state（用于回调与状态轮询）")
     private String state;
 
+    @Schema(description = "渲染方式：wxjs=集成微信官方 JS（WxLogin / 企微 JS-SDK），oauth=自行拼接 OAuth2 URL 并展示二维码")
+    private String renderType;
+
     public String getScene() {
         return scene;
     }
@@ -65,5 +68,13 @@ public class CredentialConfigDto {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public String getRenderType() {
+        return renderType;
+    }
+
+    public void setRenderType(String renderType) {
+        this.renderType = renderType;
     }
 }

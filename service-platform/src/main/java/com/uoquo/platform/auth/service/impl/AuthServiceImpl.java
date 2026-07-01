@@ -531,20 +531,23 @@ public class AuthServiceImpl implements AuthService {
         if (!CredentialTypeEnum.contains(scene)) {
             throw new ParamErrorException("不支持的凭证类型：" + scene);
         }
-        String state = IDGenerator.getUUID().toUpperCase();
-
+        // 查询相关配置
         String appid;
         String agentId = null;
         String redirectUri;
+        String renderType;
         if (CredentialTypeEnum.WECHAT.getCode().equals(scene)) {
             appid       = this.getSysConfig(SettingsCode.WECHAT_APPID);
             redirectUri = this.getSysConfig(SettingsCode.WECHAT_REDIRECT_URI);
+            renderType  = this.getSysConfig(SettingsCode.WECHAT_RENDER_TYPE);
         } else {
             appid       = this.getSysConfig(SettingsCode.WECOM_CORPID);
             agentId     = this.getSysConfig(SettingsCode.WECOM_AGENTID);
             redirectUri = this.getSysConfig(SettingsCode.WECOM_REDIRECT_URI);
+            renderType  = this.getSysConfig(SettingsCode.WECOM_RENDER_TYPE);
         }
-
+        // 生成state
+        String state = IDGenerator.getUUID().toUpperCase();
         // 缓存 state → {scene, appid, agentId, status, code}，供回调与轮询使用
         Map<String, String> cache = new HashMap<>();
         cache.put("scene",   scene);
@@ -553,13 +556,14 @@ public class AuthServiceImpl implements AuthService {
         cache.put("status",  "waiting");
         cache.put("code",    "");
         RedisUtil.put(PlatformCacheKey.CREDENTIAL_STATE + state, JsonUtil.serialize(cache), 600);
-
+        // 构造返回对象
         CredentialConfigDto dto = new CredentialConfigDto();
         dto.setScene(scene);
         dto.setAppid(appid);
         dto.setAgentId(agentId);
         dto.setRedirectUri(redirectUri);
         dto.setState(state);
+        dto.setRenderType(StringUtil.isNull(renderType) ? "wxjs" : renderType);
         return dto;
     }
 

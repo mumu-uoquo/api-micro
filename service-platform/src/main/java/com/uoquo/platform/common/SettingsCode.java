@@ -47,6 +47,8 @@ public class SettingsCode {
     public static final String WECHAT_SECRET       = "login.wechat.secret";
     /** 微信回调地址 */
     public static final String WECHAT_REDIRECT_URI = "login.wechat.redirect-uri";
+    /** 渲染方式 */
+    public static final String WECHAT_RENDER_TYPE  = "login.wechat.render-type";
     /** 企业微信 corpid（appid） */
     public static final String WECOM_CORPID        = "login.wecom.corpid";
     /** 企业微信 agentid */
@@ -55,6 +57,8 @@ public class SettingsCode {
     public static final String WECOM_SECRET        = "login.wecom.secret";
     /** 企业微信回调地址 */
     public static final String WECOM_REDIRECT_URI  = "login.wecom.redirect-uri";
+    /** 渲染方式 */
+    public static final String WECOM_RENDER_TYPE   = "login.wecom.render-type";
 
     /* ************************ 运维企微配置 ************************** */
     /** 运维企微 corpid */

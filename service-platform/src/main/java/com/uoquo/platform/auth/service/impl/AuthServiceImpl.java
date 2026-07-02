@@ -313,10 +313,10 @@ public class AuthServiceImpl implements AuthService {
         UserAuthDto dto = this.getUserAuthDto(info);
         // 运维模式：恢复 opsMode 标识及手机号展示（防止刷新 token 时丢失运维模式）
         if ("true".equals(map.get("opsMode"))) {
-            CurrentUser.getInfo().setOpsMode(true);
-            dto.setUserName(map.get("userName"));
             dto.setRealName(map.get("realName"));
             dto.setPhone(map.get("phone"));
+            CurrentUser.getInfo().setOpsMode(true);
+            CurrentUser.getInfo().setNickName(dto.getPhone());
         }
         // 默认继续使用当前角色
         String currentRoleId = CurrentUser.getInfo().getCurrentRoleId();
@@ -957,8 +957,7 @@ public class AuthServiceImpl implements AuthService {
         map.put("userId",   userDto.getId());
         map.put("appkey",   CurrentUser.getAppkey());
         map.put("deviceId", CurrentUser.getDeviceId());
-        // 用户名和真实姓名放入（运维模式时为前端传入的手机号，便于后续查找日志并在刷新时保留运维标识）
-        map.put("userName", userDto.getUserName());
+        // 放入真实姓名和手机号（运维模式时为前端传入的手机号，便于后续查找日志并在刷新时保留运维标识）
         map.put("realName", userDto.getRealName());
         map.put("phone", userDto.getPhone());
         map.put("opsMode",  String.valueOf(CurrentUser.getInfo().isOpsMode()));
@@ -1227,11 +1226,12 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setToken(null);
         // 标记运维模式（在缓存前设置，确保写入 USER_INFO 与刷新码）
         CurrentUser.getInfo().setOpsMode(true);
+        CurrentUser.getInfo().setNickName(phone);
+
         UserAuthDto dto = this.getUserAuthDto(info);
         dto.setTotpStatus("disabled");
         // 运维模式下对外仅展示手机号
         dto.setRealName("运 维");
-        dto.setUserName(phone);
         dto.setPhone(phone);
         this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), phone, dto.getAccessToken(), null);

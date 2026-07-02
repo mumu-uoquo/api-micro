@@ -133,10 +133,11 @@ public class TotpAuthUtils {
         HashMap<EncodeHintType, Object> hints = new HashMap<>();
         hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
         hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
-        hints.put(EncodeHintType.MARGIN, 2);
+        hints.put(EncodeHintType.MARGIN, 1);  // 边框模块数
 
+        int size = 200;
         QRCodeWriter writer = new QRCodeWriter();
-        BitMatrix bitMatrix = writer.encode(otpAuthUri, BarcodeFormat.QR_CODE, 200, 200, hints);
+        BitMatrix bitMatrix = writer.encode(otpAuthUri, BarcodeFormat.QR_CODE, size, size, hints);
         ByteArrayOutputStream os = new ByteArrayOutputStream();
         MatrixToImageWriter.writeToStream(bitMatrix, "PNG", os);
         return "data:image/png;base64," + Base64.getEncoder().encodeToString(os.toByteArray());

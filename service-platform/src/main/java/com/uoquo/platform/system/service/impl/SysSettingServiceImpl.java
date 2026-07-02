@@ -195,10 +195,6 @@ public class SysSettingServiceImpl implements SysSettingService {
         if (old == null) {
             throw new ResourceNotFoundException("配置不存在");
         }
-        
-        // TODO: 检查是否有机构或用户依赖此配置
-        // 可以在后续版本中添加依赖检查
-        
         sysSettingMapper.deleteByCode(code);
         this.publishEvent(BusinessOperationEnum.DELETE, SystemReturnCode.SUCCESS, old, null);
     }
@@ -250,7 +246,9 @@ public class SysSettingServiceImpl implements SysSettingService {
         // 对象转换
         List<SettingDto> result = new ArrayList<>();
         for (SysSetting item : list) {
-            result.add(this.convertToDto(item));
+            SettingDto dto = this.convertToDto(item);
+            dto.setConfigName(null);
+            result.add(dto);
         }
         // 手动添加当前服务器时间
         SettingDto time = new SettingDto();

@@ -35,4 +35,12 @@ public interface WechatService {
      */
     String opsMfaHtml(boolean success, String message);
 
+    /**
+     * 生成第三方授权回调 HTML 页面（含 5 秒倒计时自动关闭）
+     * @param success 是否授权成功
+     * @param message 提示消息
+     * @return HTML 页面内容
+     */
+    String credentialCallbackHtml(boolean success, String message);
+
 }

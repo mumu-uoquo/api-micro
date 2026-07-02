@@ -153,11 +153,13 @@ public interface AuthService {
 
     /**
      * 第三方授权回调：根据 state 取出缓存并写入 code、置状态为 confirmed。
+     * 返回 HTML 页面，提示授权成功或失败，并附带 5 秒倒计时自动关闭。
      *
      * @param code  第三方返回的授权码
      * @param state 发起授权时下发的 state
+     * @return HTML 页面内容
      */
-    void credentialCallback(String code, String state);
+    String credentialCallback(String code, String state);
 
     /**
      * 第三方凭证登录

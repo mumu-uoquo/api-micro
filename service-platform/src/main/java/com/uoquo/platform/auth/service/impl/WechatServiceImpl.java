@@ -196,6 +196,100 @@ public class WechatServiceImpl implements WechatService {
         return html;
     }
 
+    @Override
+    public String credentialCallbackHtml(boolean success, String message) {
+        logger.debug("生成第三方授权回调HTML页面，成功状态：{}，消息内容：{}", success, message);
+
+        String html = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                    <title>授权回调</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+                            text-align: center;
+                            background: #f5f5f5;
+                            min-height: 100vh;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 20px;
+                        }
+                        .icon {
+                            font-size: 4rem;
+                            margin-bottom: 16px;
+                        }
+                        h1 {
+                            font-size: 1.5rem;
+                            font-weight: 600;
+                            margin-bottom: 12px;
+                        }
+                        h1.success { color: #07c160; }
+                        h1.fail { color: #cc0000; }
+                        .message {
+                            font-size: 1rem;
+                            width: 90%;
+                            max-width: 340px;
+                            line-height: 1.5;
+                            padding: 20px;
+                            border-radius: 12px;
+                        }
+                        .message.success {
+                            color: #07c160;
+                            border: 2px solid #07c160;
+                            background-color: #e8f8ef;
+                        }
+                        .message.fail {
+                            color: #cc0000;
+                            border: 2px solid #cc0000;
+                            background-color: #ffe6e6;
+                        }
+                        .countdown {
+                            margin-top: 28px;
+                            color: #888;
+                            font-size: 0.95rem;
+                        }
+                        .countdown span {
+                            font-weight: bold;
+                            color: #333;
+                        }
+                    </style>
+                </head>
+                <body>
+                """;
+        if (success) {
+            html += "  <div class=\"icon\">&#10004;&#65039;</div>\n" +
+                    "  <h1 class=\"success\">" + message + "</h1>\n" +
+                    "  <div class=\"message success\">页面将在 <span id=\"timer\">5</span> 秒后自动关闭</div>\n";
+        } else {
+            html += "  <div class=\"icon\">&#10060;</div>\n" +
+                    "  <h1 class=\"fail\">" + message + "</h1>\n" +
+                    "  <div class=\"message fail\">页面将在 <span id=\"timer\">5</span> 秒后自动关闭</div>\n";
+        }
+        html += """
+                  <script>
+                    var sec = 5;
+                    var el = document.getElementById('timer');
+                    var t = setInterval(function() {
+                        sec--;
+                        el.textContent = sec;
+                        if (sec <= 0) {
+                            clearInterval(t);
+                            window.close();
+                        }
+                    }, 1000);
+                  </script>
+                </body>
+                </html>
+                """;
+        return html;
+    }
+
     /**
      * 微信：换取OpenID
      * https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Authorized_Interface_Calling_UnionID.html

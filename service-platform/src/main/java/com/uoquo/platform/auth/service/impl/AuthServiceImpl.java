@@ -277,7 +277,7 @@ public class AuthServiceImpl implements AuthService {
 
         CurrentUser.setToken(null);
         UserAuthDto dto = this.getUserAuthDto(info);
-        dto.setTotpStatus("enabled");
+        dto.setTotpStatus("disabled");
         this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
 
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
@@ -585,17 +585,24 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void credentialCallback(String code, String state) {
-        String key = PlatformCacheKey.CREDENTIAL_STATE + state;
-        String json = RedisUtil.get(key, String.class);
-        if (StringUtil.isNull(json)) {
-            throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+    public String credentialCallback(String code, String state) {
+        try {
+            String key = PlatformCacheKey.CREDENTIAL_STATE + state;
+            String json = RedisUtil.get(key, String.class);
+            if (StringUtil.isNull(json)) {
+                throw new UoquoException(AccountReturnCode.CREDENTIAL_STATE_INVALID);
+            }
+            Map<String, Object> cache = JsonUtil.deserialize(json);
+            cache.put("code", code);
+            cache.put("status", "confirmed");
+            // 写回缓存（沿用 600s TTL）
+            RedisUtil.put(key, JsonUtil.serialize(cache), 600);
+            logger.info("credentialCallback 授权成功：state={}", state);
+            return wechatService.credentialCallbackHtml(true, "授权成功");
+        } catch (Exception e) {
+            logger.error("credentialCallback 授权失败：state={}, code={}", state, code, e);
+            return wechatService.credentialCallbackHtml(false, "授权失败，请返回重试。");
         }
-        Map<String, Object> cache = JsonUtil.deserialize(json);
-        cache.put("code", code);
-        cache.put("status", "confirmed");
-        // 写回缓存（沿用 600s TTL）
-        RedisUtil.put(key, JsonUtil.serialize(cache), 600);
     }
 
     @Override
@@ -1221,8 +1228,9 @@ public class AuthServiceImpl implements AuthService {
         UserAuthDto dto = this.getUserAuthDto(info);
         dto.setTotpStatus("disabled");
         // 运维模式下对外仅展示手机号
+        dto.setRealName("运维");
         dto.setUserName(phone);
-        dto.setRealName(phone);
+        dto.setPhone(phone);
         this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), phone, dto.getAccessToken(), null);
         return dto;

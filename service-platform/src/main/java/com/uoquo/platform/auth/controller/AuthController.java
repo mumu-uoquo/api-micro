@@ -188,12 +188,11 @@ public class AuthController {
     @IgnoreAuth(all = true)
     @Operation(summary = "第三方授权回调", hidden = true)
     @GetMapping("/credential/callback")
-    public ReturnData<String> credentialCallback(@RequestParam("code") String code, @RequestParam("state") String state) {
+    public String credentialCallback(@RequestParam("code") String code, @RequestParam("state") String state) {
         if (logger.isInfoEnabled()) {
             logger.info("credentialCallback: state={}", state);
         }
-        authService.credentialCallback(code, state);
-        return new ReturnData<>();
+        return authService.credentialCallback(code, state);
     }
 
     @IgnoreAuth(login = true)

@@ -31,6 +31,8 @@ public class SettingsCode {
     public static final String REGISTER_ENABLE     = "sys.register.enabled";
     /** 是否开启水印 */
     public static final String WATERMARK_ENABLE    = "sys.watermark.enabled";
+    /** 是否开启账号密码登录 */
+    public static final String LOGIN_ACCOUNT_ENABLE = "login.account.enabled";
     /** 是否开启短信码登录 */
     public static final String LOGIN_SMS_ENABLE    = "login.sms.enabled";
     /** 是否开启微信登录 */
@@ -81,13 +83,14 @@ public class SettingsCode {
      * 需要公开的配置编码集合（不登录即可获取）
      */
     public static final Set<String> PUBLIC_KEYS = Set.of(
-            RSA_PUBLIC_KEY,     // security.rsa.publicKey
-            REGISTER_ENABLE,    // sys.register.enabled
-            WATERMARK_ENABLE,   // sys.watermark.enabled
-            LOGIN_SMS_ENABLE,   // login.sms.enabled
-            LOGIN_WECHAT_ENABLE,// login.wechat.enabled
-            LOGIN_WECOM_ENABLE, // login.wecom.enabled
-            LOGIN_EMERG_ENABLE  // login.emerg.enabled
+            RSA_PUBLIC_KEY,      // security.rsa.publicKey
+            REGISTER_ENABLE,     // sys.register.enabled
+            WATERMARK_ENABLE,    // sys.watermark.enabled
+            LOGIN_SMS_ENABLE,    // login.sms.enabled
+            LOGIN_WECHAT_ENABLE, // login.wechat.enabled
+            LOGIN_WECOM_ENABLE,  // login.wecom.enabled
+            LOGIN_EMERG_ENABLE,  // login.emerg.enabled
+            LOGIN_ACCOUNT_ENABLE // login.account.enabled
     );
 
     /**

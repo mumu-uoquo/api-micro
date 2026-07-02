@@ -218,7 +218,7 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setToken(null);
         UserAuthDto dto = this.getUserAuthDto(info);
         dto.setTotpStatus("enabled");
-        this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+        this.cacheUser2Redis(CurrentUser.getToken(), dto, true, false);
 
         // 6. 发布事件（登录）
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), info.getUserName(), dto.getAccessToken(), null);
@@ -262,7 +262,7 @@ public class AuthServiceImpl implements AuthService {
             }
         } catch (AbstractBaseException e) {
             // 失败计数，连续 5 次锁定 24 小时
-            long fails = this.incrEmergencyFail(failKey);
+            long fails = this.incurFailCount(failKey);
             logger.warn("用户[{}]第[{}]次紧急登录失败。", account, fails);
             if (fails >= 5) {
                 RedisUtil.put(lockKey, "1", 24 * 60 * 60);
@@ -278,7 +278,7 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setToken(null);
         UserAuthDto dto = this.getUserAuthDto(info);
         dto.setTotpStatus("disabled");
-        this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+        this.cacheUser2Redis(CurrentUser.getToken(), dto, true, false);
 
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
                 "USER", info.getId(), info.getInstituteId(), account, dto.getAccessToken(), null);
@@ -332,7 +332,7 @@ public class AuthServiceImpl implements AuthService {
             }
         }
         // 缓存用户信息
-        this.cacheUser2Redis(CurrentUser.getToken(), dto, true);
+        this.cacheUser2Redis(CurrentUser.getToken(), dto, false, false);
         // 缓存授权菜单
         if (StringUtil.notNull(dto.getCurrentRoleId())) {
             getPermissionByRoleId(dto.getCurrentRoleId());
@@ -879,7 +879,7 @@ public class AuthServiceImpl implements AuthService {
             // MFA 未开启或未绑定：正常登录流程
             dto = this.getUserAuthDto(info);
             dto.setTotpStatus(totpStatus);
-            this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+            this.cacheUser2Redis(CurrentUser.getToken(), dto, true, false);
             // 发布事件（登录）
             this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
                     "USER", info.getId(), info.getInstituteId(), account, dto.getAccessToken(), null);
@@ -929,8 +929,12 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 用户认证：缓存用户对象到Redis
+     * @param oldAccessToken 旧的accessToken
+     * @param userDto 用户对象
+     * @param refreshToken 是否是刷新token（会对旧token的链接发送下线通知）
+     * @param opsMode 是否是运维模式（不替换用户的当前token）
      */
-    private void cacheUser2Redis(String oldAccessToken, UserAuthDto userDto, boolean isRefresh) {
+    private void cacheUser2Redis(String oldAccessToken, UserAuthDto userDto, boolean refreshToken, boolean opsMode) {
         // 补充用户信息
         this.setCurrentUserInfo(userDto);
         // 缓存用户信息
@@ -939,7 +943,7 @@ public class AuthServiceImpl implements AuthService {
         // 用户单点登录控制（同一账号只允许一端登录，如果是刷新token，则不需要下发踢出事件）
         String loginTokenCacheKey = BaseCacheKey.USER_TOKEN_PREFIX + userId +":"+ CurrentUser.getAppkey();
         String cacheAccessToken = RedisUtil.get(loginTokenCacheKey, String.class);
-        if (cacheAccessToken != null && !isRefresh) {
+        if (refreshToken && (cacheAccessToken != null)) {
             // 删除缓存的token
             this.clearToken2Redis(cacheAccessToken);
             // 发布事件（被踢）
@@ -951,7 +955,10 @@ public class AuthServiceImpl implements AuthService {
         }
         // 放入新token
         RedisUtil.put(BaseCacheKey.USER_INFO_PREFIX + token, CurrentUser.getInfo(), userDto.getExpireTime());
-        RedisUtil.put(loginTokenCacheKey, token, userDto.getExpireTime());
+        // 运维模式时将不替换用户的当前token
+        if (!opsMode) {
+            RedisUtil.put(loginTokenCacheKey, token, userDto.getExpireTime());
+        }
         // 刷新token仅当前设备可用（时间较长，默认7天）
         Map<String, String> map = new HashMap<>();
         map.put("userId",   userDto.getId());
@@ -1212,7 +1219,7 @@ public class AuthServiceImpl implements AuthService {
             this.checkUserStatus(param.getAccount(), info);
         } catch (AbstractBaseException e) {
             // 失败计数，连续 5 次锁定 24 小时
-            long fails = this.incrOpsFail(failKey);
+            long fails = this.incurFailCount(failKey);
             logger.warn("运维人员[{}]第[{}]次登录账号[{}]失败。", phone, fails, param.getAccount(), e);
             if (fails >= 5) {
                 RedisUtil.put(lockKey, "1", 24 * 60 * 60);
@@ -1233,7 +1240,7 @@ public class AuthServiceImpl implements AuthService {
         // 运维模式下对外仅展示手机号
         dto.setRealName("运 维");
         dto.setPhone(phone);
-        this.cacheUser2Redis(CurrentUser.getToken(), dto, false);
+        this.cacheUser2Redis(CurrentUser.getToken(), dto, false, true);
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), phone, dto.getAccessToken(), null);
         return dto;
     }
@@ -1272,19 +1279,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 运维登录失败计数自增（24 小时窗口）。
+     * 登录失败计数自增（24 小时窗口）。
      */
-    private long incrOpsFail(String failKey) {
-        Integer fails = RedisUtil.get(failKey, Integer.class);
-        int next = (fails == null ? 0 : fails) + 1;
-        RedisUtil.put(failKey, next, 24 * 60 * 60);
-        return next;
-    }
-
-    /**
-     * 紧急登录失败计数自增（24 小时窗口）。
-     */
-    private long incrEmergencyFail(String failKey) {
+    private long incurFailCount(String failKey) {
         Integer fails = RedisUtil.get(failKey, Integer.class);
         int next = (fails == null ? 0 : fails) + 1;
         RedisUtil.put(failKey, next, 24 * 60 * 60);

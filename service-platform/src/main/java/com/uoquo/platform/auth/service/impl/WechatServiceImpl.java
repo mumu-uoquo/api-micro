@@ -273,6 +273,18 @@ public class WechatServiceImpl implements WechatService {
         }
         html += """
                   <script>
+                    function closePage() {
+                        if (typeof WeixinJSBridge !== 'undefined') {
+                            WeixinJSBridge.call('closeWindow');
+                        } else if (document.addEventListener) {
+                            // WeixinJSBridge 尚未注入，等待就绪后关闭
+                            document.addEventListener('WeixinJSBridgeReady', function() {
+                                WeixinJSBridge.call('closeWindow');
+                            }, false);
+                        }
+                        // 非微信环境兜底
+                        window.close();
+                    }
                     var sec = 5;
                     var el = document.getElementById('timer');
                     var t = setInterval(function() {
@@ -280,7 +292,7 @@ public class WechatServiceImpl implements WechatService {
                         el.textContent = sec;
                         if (sec <= 0) {
                             clearInterval(t);
-                            window.close();
+                            closePage();
                         }
                     }, 1000);
                   </script>

@@ -316,6 +316,7 @@ public class AuthServiceImpl implements AuthService {
             CurrentUser.getInfo().setOpsMode(true);
             dto.setUserName(map.get("userName"));
             dto.setRealName(map.get("realName"));
+            dto.setPhone(map.get("phone"));
         }
         // 默认继续使用当前角色
         String currentRoleId = CurrentUser.getInfo().getCurrentRoleId();
@@ -959,6 +960,7 @@ public class AuthServiceImpl implements AuthService {
         // 用户名和真实姓名放入（运维模式时为前端传入的手机号，便于后续查找日志并在刷新时保留运维标识）
         map.put("userName", userDto.getUserName());
         map.put("realName", userDto.getRealName());
+        map.put("phone", userDto.getPhone());
         map.put("opsMode",  String.valueOf(CurrentUser.getInfo().isOpsMode()));
         RedisUtil.put(BaseCacheKey.USER_TOKEN_REFRESH + userDto.getRefreshToken(), map, 60 * refreshTimeout);
         RedisUtil.put(BaseCacheKey.USER_TOKEN_REFRESH + userDto.getAccessToken(), userDto.getRefreshToken(), 60 * refreshTimeout);
@@ -1228,7 +1230,7 @@ public class AuthServiceImpl implements AuthService {
         UserAuthDto dto = this.getUserAuthDto(info);
         dto.setTotpStatus("disabled");
         // 运维模式下对外仅展示手机号
-        dto.setRealName("运维");
+        dto.setRealName("运 维");
         dto.setUserName(phone);
         dto.setPhone(phone);
         this.cacheUser2Redis(CurrentUser.getToken(), dto, false);

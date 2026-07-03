@@ -147,6 +147,12 @@ public class AuthServiceImpl implements AuthService {
         CurrentUser.setClientIp(clientIp);
         CurrentUser.setAppVersion(param.getAppVersion());
 
+        // 验证对应场景是否开启登录
+        String enableSetting = sysSettingService.getValueByCode(SettingsCode.LOGIN_ACCOUNT_ENABLE);
+        if (!"true".equals(enableSetting)) {
+            throw new ForbiddenException("系统未开启[账密登录]的认证方式");
+        }
+
         // 0. 验证码判断
         String captchaKey = CurrentUser.getDeviceId() + ":" + CurrentUser.getAppkey();
         String captchaFlag = RedisUtil.get(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey, String.class);
@@ -164,15 +170,15 @@ public class AuthServiceImpl implements AuthService {
         }
         // 1. 账号校验
         UserInfo info = this.findUserByAccount(param.getAccount());
-        this.checkUserStatus(param.getAccount(), info);
+        this.checkUserStatus(param.getAccount(), info, "account");
         // 2. 密码校验（含错误计数与验证码锁定逻辑）
-        this.checkAndVerifyPassword(info, param.getPassword(), param.getAccount(), clientIp);
+        this.checkAndVerifyPassword(info, param.getPassword(), param.getAccount(), clientIp, "account");
         // TODO 应该采用“增强验证码流程”多维度风险评估（失败次数、时间密度、IP地址、设备指纹等）， 连续两次出错，则需要填验证码
 
         // 删除验证码标识
         RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey);
         // 3. 校验通过，MFA 判断 + 完成登录
-        return this.completeLoginWithMfa(info, param.getAccount());
+        return this.completeLoginWithMfa(info, param.getAccount(), "account");
     }
 
     @Override
@@ -221,7 +227,9 @@ public class AuthServiceImpl implements AuthService {
         this.cacheUser2Redis(CurrentUser.getToken(), dto, true, false);
 
         // 6. 发布事件（登录）
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), info.getUserName(), dto.getAccessToken(), null);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                AuthEventContext.of("USER", info.getId(), info.getInstituteId(), info.getUserName())
+                        .loginMode("mfa").token(dto.getAccessToken()));
         return dto;
     }
 
@@ -252,7 +260,7 @@ public class AuthServiceImpl implements AuthService {
             throw new UoquoException(AccountReturnCode.ACCOUNT_UNBOUND_2FA, "用户未绑定双因子认证，无法使用紧急登录");
         }
         // 2.2 校验用户状态
-        this.checkUserStatus(param.getAccount(), info);
+        this.checkUserStatus(param.getAccount(), info, "emergency");
 
         // 3. 验证 MFA 动态码
         try {
@@ -267,6 +275,9 @@ public class AuthServiceImpl implements AuthService {
             if (fails >= 5) {
                 RedisUtil.put(lockKey, "1", 24 * 60 * 60);
                 logger.error("用户[{}]连续[{}]次紧急登录失败，将锁定24小时。", account, fails);
+                this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.EMERGENCY_LOGIN_LOCKED,
+                        AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account)
+                                .loginMode("emergency"));
             }
             throw e;
         }
@@ -281,7 +292,8 @@ public class AuthServiceImpl implements AuthService {
         this.cacheUser2Redis(CurrentUser.getToken(), dto, true, false);
 
         this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
-                "USER", info.getId(), info.getInstituteId(), account, dto.getAccessToken(), null);
+                AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account)
+                        .loginMode("emergency").token(dto.getAccessToken()));
         return dto;
     }
 
@@ -308,7 +320,7 @@ public class AuthServiceImpl implements AuthService {
         // 2. 获取用户
         String userId = map.get("userId");
         UserInfo info = userInfoMapper.selectByPrimaryKey(userId);
-        this.checkUserStatus(userId, info);
+        this.checkUserStatus(userId, info, "refresh");
         // 3. 校验通过，返回用户dto信息
         UserAuthDto dto = this.getUserAuthDto(info);
         // 运维模式：恢复 opsMode 标识及手机号展示（防止刷新 token 时丢失运维模式）
@@ -338,7 +350,9 @@ public class AuthServiceImpl implements AuthService {
             getPermissionByRoleId(dto.getCurrentRoleId());
         }
         // 发布事件（登录）
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), info.getUserName(), dto.getAccessToken(), null);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                AuthEventContext.of("USER", info.getId(), info.getInstituteId(), info.getUserName())
+                        .loginMode("refresh").token(dto.getAccessToken()));
         // 重新包装返回内容，仅返回token，其他信息不返回（防止用户信息泄露）
         TokenDto result = new TokenDto();
         result.setAccessToken(dto.getAccessToken());
@@ -356,14 +370,18 @@ public class AuthServiceImpl implements AuthService {
         String password = param.getPassword();
         if (!app.getSecret().equals(password)) {
             logger.warn("应用[{}]授权秘钥[{}]错误", param.getAccount(), password);
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.PASSWORD_ERROR, "APP", app.getId(), app.getInstituteId(), param.getAccount(), null, password);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.PASSWORD_ERROR,
+                    AuthEventContext.of("APP", app.getId(), app.getInstituteId(), param.getAccount())
+                            .loginMode("appkey").password(password));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR);
         }
         // 2. 生成token
         CurrentUser.setToken(null);
         TokenDto dto = this.getAppAuthDto(app);
         // 发布事件（登录）
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "APP", app.getId(), app.getInstituteId(), param.getAccount(), dto.getAccessToken(), null);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                AuthEventContext.of("APP", app.getId(), app.getInstituteId(), param.getAccount())
+                        .loginMode("appkey").token(dto.getAccessToken()));
         return dto;
     }
 
@@ -386,7 +404,9 @@ public class AuthServiceImpl implements AuthService {
         // 2. 生成token
         TokenDto dto = this.getAppAuthDto(app);
         // 发布事件（登录）
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "APP", app.getId(), app.getInstituteId(), appkey, dto.getAccessToken(), null);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                AuthEventContext.of("APP", app.getId(), app.getInstituteId(), appkey)
+                        .loginMode("refresh").token(dto.getAccessToken()));
         return dto;
     }
 
@@ -398,7 +418,9 @@ public class AuthServiceImpl implements AuthService {
             return;
         }
         // 发布事件（登出）
-        this.publishEvent(BusinessOperationEnum.LOGOUT, status, "USER", user.getUserId(), user.getInstituteId(), user.getUserName(), token, null);
+        this.publishEvent(BusinessOperationEnum.LOGOUT, status,
+                AuthEventContext.of("USER", user.getUserId(), user.getInstituteId(), user.getUserName())
+                        .token(token));
         // 清理token
         this.clearToken2Redis(token);
         // 清理用户
@@ -514,7 +536,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 1. 查找用户（按手机号）
         UserInfo info = userInfoMapper.selectByPhone(null, param.getPhone());
-        this.checkUserStatus(param.getPhone(), info);
+        this.checkUserStatus(param.getPhone(), info, "sms");
 
         // 2. 验证短信码（以 userId 为 TOTP 密钥）
         String secret = Base32.encode(info.getId());
@@ -524,7 +546,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 3. 跳过密码校验，走 MFA + Token 流程
-        return this.completeLoginWithMfa(info, info.getPhone());
+        return this.completeLoginWithMfa(info, info.getPhone(), "sms");
     }
 
     @Override
@@ -649,8 +671,8 @@ public class AuthServiceImpl implements AuthService {
         if (credential != null) {
             // 4a. 已绑定 → 正常登录（含 MFA 判断）
             UserInfo info = userInfoMapper.selectByPrimaryKey(credential.getUserId());
-            this.checkUserStatus(credentialValue, info);
-            return this.completeLoginWithMfa(info, info.getUserName());
+            this.checkUserStatus(credentialValue, info, credentialType);
+            return this.completeLoginWithMfa(info, info.getUserName(), credentialType);
         } else {
             // 4b. 未绑定 → 生成 tempToken，返回最小 UserAuthDto
             String tempToken = IDGenerator.getUUID().toUpperCase();
@@ -694,10 +716,10 @@ public class AuthServiceImpl implements AuthService {
         }
         // 2.2 用户状态判断
         UserInfo info = findUserByAccount(param.getAccount());
-        this.checkUserStatus(param.getAccount(), info);
+        this.checkUserStatus(param.getAccount(), info, credentialType);
 
         // 3. 密码校验（复用 checkAndVerifyPassword，含错误计数与验证码锁定）
-        this.checkAndVerifyPassword(info, param.getPassword(), param.getAccount(), clientIp);
+        this.checkAndVerifyPassword(info, param.getPassword(), param.getAccount(), clientIp, credentialType);
 
         // 4. 写入凭证（upsert） — id 由 IDGenerator.getNextULID() 生成
         String instituteId = resolveInstituteId(credentialType);
@@ -708,7 +730,7 @@ public class AuthServiceImpl implements AuthService {
         RedisUtil.remove(PlatformCacheKey.USER_CAPTCHA_FLAG + captchaKey);
 
         // 6. 完成登录
-        return this.completeLoginWithMfa(info, info.getUserName());
+        return this.completeLoginWithMfa(info, info.getUserName(), credentialType);
     }
 
     @Override
@@ -764,21 +786,24 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 用户认证：校验用户状态
      */
-    private void checkUserStatus(String account, UserInfo info) {
+    private void checkUserStatus(String account, UserInfo info, String loginMode) {
         // 1.1 校验用户存在
         if (info == null) {
             logger.warn("用户[{}]不存在", account);
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_NOT_EXIST, "USER", null, null, account, null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_NOT_EXIST,
+                    AuthEventContext.of("USER", null, null, account).loginMode(loginMode));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR);
         }
         // 1.2 校验用户状态
         if (!BaseConstant.NOT_DELETED.equals(info.getDeleteState())) {
             logger.warn("用户[{}][{}]已标记为删除，不允许登录", account, info.getId());
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DELETE, "USER", info.getId(), info.getInstituteId(), account, null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DELETE,
+                    AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account).loginMode(loginMode));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "账户不可用！");
         } else if (!DictionaryCodeEnum.STATE_NORMAL.getCode().equals(info.getStatus())) {
             logger.warn("用户[{}][{}]的状态为[{}]，不允许登录", account, info.getId(), info.getStatus());
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DISABLE, "USER", info.getId(), info.getInstituteId(), account, null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DISABLE,
+                    AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account).loginMode(loginMode));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "账户不可用！");
         }
         // 1.3 校验用户锁定状态（连续出错5次提醒）
@@ -788,7 +813,8 @@ public class AuthServiceImpl implements AuthService {
             int second = (int) Math.ceil((double) ms / 1_000);
             if (second < 0) {
                 logger.warn("用户[{}][{}]被锁定，还剩[{}]秒，不允许登录", account, info.getId(), second);
-                this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_LOCK, "USER", info.getId(), info.getInstituteId(), account, null, null);
+                this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_LOCK,
+                        AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account).loginMode(loginMode));
                 throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "密码错误超过 %d 次，账号已锁定，请稍后重试！", passwordErrorMaxNum);
             } else {
                 // 超过锁定时间，则重置登录错误次数
@@ -804,11 +830,13 @@ public class AuthServiceImpl implements AuthService {
         InstituteInfo institute = instituteInfoMapper.selectByPrimaryKey(info.getInstituteId());
         if (!BaseConstant.NOT_DELETED.equals(institute.getDeleteState())) {
             logger.warn("用户[{}][{}]所属机构[{}]已标记为删除，不允许登录", account, info.getId(), info.getInstituteId());
-            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DELETE, "USER", info.getId(), info.getInstituteId(), account, null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DELETE,
+                    AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account).loginMode(loginMode));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "账户不可用！");
         } else if (DictionaryCodeEnum.INSTITUTE_STATUS_DISABLE.getCode().equals(institute.getStatus())) {
             logger.warn("用户[{}][{}]所属机构[{}]状态为[{}]，不允许登录", account, info.getId(), info.getInstituteId(), institute.getStatus());
-            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DISABLE, "USER", info.getId(), info.getInstituteId(), account, null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DISABLE,
+                    AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account).loginMode(loginMode));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "账户不可用！");
         }
     }
@@ -822,7 +850,7 @@ public class AuthServiceImpl implements AuthService {
      * @param account     登录账号（仅用于日志/事件）
      * @param clientIp    客户端 IP，写入最近登录信息
      */
-    private void checkAndVerifyPassword(UserInfo info, String rawPassword, String account, String clientIp) {
+    private void checkAndVerifyPassword(UserInfo info, String rawPassword, String account, String clientIp, String loginMode) {
         UserInfo paramUser = new UserInfo();
         paramUser.setId(info.getId());
         paramUser.setLastedLoginIp(clientIp);
@@ -838,7 +866,8 @@ public class AuthServiceImpl implements AuthService {
             userInfoMapper.updateLastLoginInfo(paramUser);
             logger.warn("用户[{}][{}]密码连续输错[{}]次，不允许登录", account, info.getId(), errorCount);
             this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.PASSWORD_ERROR,
-                    "USER", info.getId(), info.getInstituteId(), account, null, rawPassword);
+                    AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account)
+                            .loginMode(loginMode).password(rawPassword));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR,
                     "密码错误,还可以输入 %d 次", (passwordErrorMaxNum - errorCount));
         }
@@ -851,10 +880,11 @@ public class AuthServiceImpl implements AuthService {
      * 若 MFA 已启用且已绑定：生成 TOTP 临时 Token，返回最小化 UserAuthDto；
      * 否则：缓存用户信息，发布登录事件，返回完整 UserAuthDto。
      *
-     * @param info    已通过状态校验的用户信息
-     * @param account 登录账号（用于事件日志，可传手机号/用户名/凭证值）
+     * @param info      已通过状态校验的用户信息
+     * @param account   登录账号（用于事件日志，可传手机号/用户名/凭证值）
+     * @param loginMode 登录模式（account/sms/credential 等）
      */
-    private UserAuthDto completeLoginWithMfa(UserInfo info, String account) {
+    private UserAuthDto completeLoginWithMfa(UserInfo info, String account, String loginMode) {
         CurrentUser.setToken(null);
         // 获取 MFA 配置（用户 > 机构 > 系统）
         String setting = userSettingService.getValueByCode(info.getId(), SettingsCode.MFA_AUTH_ENABLED);
@@ -882,7 +912,8 @@ public class AuthServiceImpl implements AuthService {
             this.cacheUser2Redis(CurrentUser.getToken(), dto, true, false);
             // 发布事件（登录）
             this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
-                    "USER", info.getId(), info.getInstituteId(), account, dto.getAccessToken(), null);
+                    AuthEventContext.of("USER", info.getId(), info.getInstituteId(), account)
+                            .loginMode(loginMode).token(dto.getAccessToken()));
         }
         return dto;
     }
@@ -947,7 +978,9 @@ public class AuthServiceImpl implements AuthService {
             // 删除缓存的token
             this.clearToken2Redis(cacheAccessToken);
             // 发布事件（被踢）
-            this.publishEvent(BusinessOperationEnum.LOGOUT, SystemReturnCode.ACCOUNT_KICK_OUT, "USER", userDto.getId(), userDto.getInstituteId(), userDto.getUserName(), cacheAccessToken, null);
+            this.publishEvent(BusinessOperationEnum.LOGOUT, SystemReturnCode.ACCOUNT_KICK_OUT,
+                    AuthEventContext.of("USER", userDto.getId(), userDto.getInstituteId(), userDto.getUserName())
+                            .token(cacheAccessToken));
         }
         // 删除缓存的token
         if (StringUtil.notNull(oldAccessToken) && !oldAccessToken.equals(cacheAccessToken)) {
@@ -1012,17 +1045,20 @@ public class AuthServiceImpl implements AuthService {
         // 1.1 校验账号存在
         if (app == null) {
             logger.warn("应用[{}]不存在", account);
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_NOT_EXIST, "APP", null, null, account, null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_NOT_EXIST,
+                    AuthEventContext.of("APP", null, null, account));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR);
         }
         // 1.2 校验状态
         if (!BaseConstant.NOT_DELETED.equals(app.getDeleteState())) {
             logger.warn("应用[{}][{}]已标记为删除，不允许登录", app.getAppkey(), app.getId());
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DELETE, "APP", app.getId(), app.getInstituteId(), app.getAppkey(), null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DELETE,
+                    AuthEventContext.of("APP", app.getId(), app.getInstituteId(), app.getAppkey()));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "应用不可用！");
         } else if (!DictionaryCodeEnum.STATE_NORMAL.getCode().equals(app.getStatus())) {
             logger.warn("应用[{}][{}]的状态为[{}]，不允许登录", app.getAppkey(), app.getId(), app.getStatus());
-            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DISABLE, "APP", app.getId(), app.getInstituteId(), app.getAppkey(), null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, AccountReturnCode.ACCOUNT_DISABLE,
+                    AuthEventContext.of("APP", app.getId(), app.getInstituteId(), app.getAppkey()));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "应用不可用！");
         }
         // 1.4 校验机构状态
@@ -1033,11 +1069,13 @@ public class AuthServiceImpl implements AuthService {
         InstituteInfo institute = instituteInfoMapper.selectByPrimaryKey(app.getInstituteId());
         if (!BaseConstant.NOT_DELETED.equals(institute.getDeleteState())) {
             logger.warn("应用[{}][{}]所属机构[{}]已标记为删除，不允许登录", app.getAppkey(), app.getId(), app.getInstituteId());
-            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DELETE, "APP", app.getId(), app.getInstituteId(), app.getAppkey(), null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DELETE,
+                    AuthEventContext.of("APP", app.getId(), app.getInstituteId(), app.getAppkey()));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "应用不可用！");
         } else if (DictionaryCodeEnum.INSTITUTE_STATUS_DISABLE.getCode().equals(institute.getStatus())) {
             logger.warn("应用[{}][{}]所属机构[{}]状态为[{}]，不允许登录", app.getAppkey(), app.getId(), app.getInstituteId(), institute.getStatus());
-            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DISABLE, "APP", app.getId(), app.getInstituteId(), app.getAppkey(), null, null);
+            this.publishEvent(BusinessOperationEnum.LOGIN, InstituteReturnCode.INST_DISABLE,
+                    AuthEventContext.of("APP", app.getId(), app.getInstituteId(), app.getAppkey()));
             throw new UoquoException(AccountReturnCode.ACCOUNT_PASSWORD_ERROR, "应用不可用！");
         }
     }
@@ -1083,22 +1121,23 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 发布账户相关事件
      */
-    private void publishEvent(BusinessOperationEnum type, BaseReturnCode status, String subType, String businessId, String instituteId, String account, String token, String password) {
+    private void publishEvent(BusinessOperationEnum type, BaseReturnCode status, AuthEventContext ctx) {
         RemoteEvent<AuthInfo> event = new RemoteEvent<>(BusinessTypeEnum.AUTH.getCode(), type.getCode(), status.getCode());
-        event.setBusinessSubType(subType);
-        event.setBusinessId(businessId);
-        event.setBusinessInstituteId(instituteId);
+        event.setBusinessSubType(ctx.subType);
+        event.setBusinessId(ctx.businessId);
+        event.setBusinessInstituteId(ctx.instituteId);
         event.setRemarks(status.getText());
         // 登录、登出、被踢时，手动塞入token（此时从 CurrentUser 中获取不到）
-        event.setToken(token);
+        event.setToken(ctx.token);
         // 密码校验出错时，记录当时的错误密码
-        if (StringUtil.notNull(password)) {
-            event.addExtension("password", password);
+        if (StringUtil.notNull(ctx.password)) {
+            event.addExtension("password", ctx.password);
         }
         // 登录的其他信息
         AuthInfo info = new AuthInfo();
-        info.setAccount(account);
-        info.setPassword(password);
+        info.setAccount(ctx.account);
+        info.setPassword(ctx.password);
+        info.setLoginMode(ctx.loginMode);
         event.setNewData(info);
 
         eventPublisher.publishEvent(event);
@@ -1216,7 +1255,7 @@ public class AuthServiceImpl implements AuthService {
             }
             // 3. 校验账号状态
             info = findUserByAccount(param.getAccount());
-            this.checkUserStatus(param.getAccount(), info);
+            this.checkUserStatus(param.getAccount(), info, "ops");
         } catch (AbstractBaseException e) {
             // 失败计数，连续 5 次锁定 24 小时
             long fails = this.incurFailCount(failKey);
@@ -1241,7 +1280,9 @@ public class AuthServiceImpl implements AuthService {
         dto.setRealName("运 维");
         dto.setPhone(phone);
         this.cacheUser2Redis(CurrentUser.getToken(), dto, false, true);
-        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS, "USER", info.getId(), info.getInstituteId(), phone, dto.getAccessToken(), null);
+        this.publishEvent(BusinessOperationEnum.LOGIN, SystemReturnCode.SUCCESS,
+                AuthEventContext.of("USER", info.getId(), info.getInstituteId(), phone)
+                        .loginMode("ops").token(dto.getAccessToken()));
         return dto;
     }
 
@@ -1286,5 +1327,43 @@ public class AuthServiceImpl implements AuthService {
         int next = (fails == null ? 0 : fails) + 1;
         RedisUtil.put(failKey, next, 24 * 60 * 60);
         return next;
+    }
+    
+
+    // ========================= 事件上下文 =========================
+
+    /**
+     * 发布账户事件所需的上下文参数，用 Builder 模式替代 8 个散参。
+     */
+    private static class AuthEventContext {
+        /** 主体类型：USER / APP */
+        String subType;
+        /** 主体 ID */
+        String businessId;
+        /** 主体所属机构 ID */
+        String instituteId;
+        /** 登录账号（用户名/手机号/appkey）*/
+        String account;
+        /** 登录模式（account/sms/mfa/emergency/wechat/wecom/ops/app/refresh）*/
+        String loginMode;
+        /** 登录令牌（发布时可能 CurrentUser 中尚无值，需手动传入）*/
+        String token;
+        /** 认证失败时记录的错误密码 */
+        String password;
+
+        private AuthEventContext() {}
+
+        static AuthEventContext of(String subType, String businessId, String instituteId, String account) {
+            AuthEventContext ctx = new AuthEventContext();
+            ctx.subType     = subType;
+            ctx.businessId  = businessId;
+            ctx.instituteId = instituteId;
+            ctx.account     = account;
+            return ctx;
+        }
+
+        AuthEventContext loginMode(String mode) { this.loginMode = mode;  return this; }
+        AuthEventContext token(String t)        { this.token     = t;     return this; }
+        AuthEventContext password(String pwd)   { this.password  = pwd;   return this; }
     }
 }

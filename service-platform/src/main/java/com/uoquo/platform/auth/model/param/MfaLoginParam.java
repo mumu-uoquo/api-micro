@@ -1,5 +1,8 @@
 package com.uoquo.platform.auth.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
@@ -11,6 +14,7 @@ public class MfaLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "动态码不能为空")
     @Schema(description = "双因子动态码")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String totpCode;
 
     @NotBlank(message = "临时Token不能为空")

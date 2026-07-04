@@ -1,5 +1,8 @@
 package com.uoquo.platform.auth.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
@@ -11,10 +14,12 @@ public class EmergencyLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "账号不能为空")
     @Schema(description = "登录账号")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String account;
 
     @NotBlank(message = "MFA验证码不能为空")
     @Schema(description = "MFA动态验证码")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String totpCode;
 
     public String getAccount() {

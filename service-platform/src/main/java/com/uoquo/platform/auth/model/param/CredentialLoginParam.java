@@ -1,5 +1,8 @@
 package com.uoquo.platform.auth.model.param;
 
+import com.uoquo.annotation.json.Sensitive;
+import com.uoquo.annotation.json.SensitiveType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
@@ -15,6 +18,7 @@ public class CredentialLoginParam extends BasicLoginParam {
 
     @NotBlank(message = "凭证标识不能为空")
     @Schema(description = "凭证标识值（如微信 openid）")
+    @Sensitive(type = SensitiveType.CRYPT_RSA)
     private String credentialValue;
 
     @NotBlank(message = "state不能为空")

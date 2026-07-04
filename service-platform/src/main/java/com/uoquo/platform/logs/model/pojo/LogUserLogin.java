@@ -141,6 +141,13 @@ public class LogUserLogin {
     private Map<String, Object> loginParam;
 
     /**
+     * Column: login_mode
+     * Type: VARCHAR(50)
+     * Remark: 登录模式
+     */
+    private String loginMode;
+
+    /**
      * Column: logout_status
      * Type: CHAR(6)
      * Remark: 退出状态（同响应码）
@@ -318,6 +325,14 @@ public class LogUserLogin {
 
     public void setLoginParam(Map<String, Object> loginParam) {
         this.loginParam = loginParam;
+    }
+
+    public String getLoginMode() {
+        return loginMode;
+    }
+
+    public void setLoginMode(String loginMode) {
+        this.loginMode = loginMode == null ? null : loginMode.trim();
     }
 
     public String getLogoutStatus() {

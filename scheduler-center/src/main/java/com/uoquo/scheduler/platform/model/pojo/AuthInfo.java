@@ -31,6 +31,11 @@ public class AuthInfo {
      */
     private String deviceUa;
 
+    /**
+     * 登录模式（account/sms/mfa/emergency/wechat/wecom/ops/app/refresh）
+     */
+    private String loginMode;
+
     public AuthInfo() {
         super();
     }
@@ -73,5 +78,13 @@ public class AuthInfo {
 
     public void setDeviceUa(String deviceUa) {
         this.deviceUa = deviceUa;
+    }
+
+    public String getLoginMode() {
+        return loginMode;
+    }
+
+    public void setLoginMode(String loginMode) {
+        this.loginMode = loginMode;
     }
 }

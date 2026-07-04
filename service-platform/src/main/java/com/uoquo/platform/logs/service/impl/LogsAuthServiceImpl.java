@@ -47,8 +47,8 @@ public class LogsAuthServiceImpl implements LogsAuthService {
 
     @Override
     public String addLogsInfo(LogUserLoginParam param) {
-        // 1. 登录成功时，需对之前未“正常退出”的记录标记为“异常退出”
-        if (SystemReturnCode.SUCCESS.getCode().equals(param.getLoginStatus())) {
+        // 1. 登录成功时，需对之前未"正常退出"的记录标记为"异常退出"（排除运维登录模式）
+        if (SystemReturnCode.SUCCESS.getCode().equals(param.getLoginStatus()) && !"ops".equals(param.getLoginMode())) {
             LogUserLogin info = new LogUserLogin();
             info.setUserId(param.getUserId());
             info.setLoginStatus(SystemReturnCode.SUCCESS.getCode());
@@ -86,9 +86,13 @@ public class LogsAuthServiceImpl implements LogsAuthService {
             }
         }
         logUserLoginMapper.insert(info);
-        // 3. 记录在线用户信息
+        // 3. 记录在线用户信息（运维模式不记录在线用户）
         try {
-            onlineUserService.upsertOnlineUser(info, param.getToken());
+            if (!"ops".equals(param.getLoginMode())) {
+                onlineUserService.upsertOnlineUser(info, param.getToken());
+            } else {
+                logger.warn("运维模式登录，跳过记录在线用户，userId={}", param.getUserId());
+            }
         } catch (Exception e) {
             logger.error("upsert 在线用户记录失败，userId={}, appKey={}", param.getUserId(), param.getAppKey(), e);
         }
@@ -112,9 +116,14 @@ public class LogsAuthServiceImpl implements LogsAuthService {
         if (count <= 0) {
             logger.warn("token[{}]对应的认证日志不存在，本次登出日志：{}", info.getToken(), JsonUtil.serialize(param));
         }
-        // 2. 删除在线用户信息
+        // 2. 删除在线用户信息（运维模式不清理在线用户）
         try {
-            onlineUserService.removeOnlineUser(param.getUserId(), param.getAppKey());
+            boolean isOps = this.isOpsLogin(param.getToken());
+            if (!isOps) {
+                onlineUserService.removeOnlineUser(param.getUserId(), param.getAppKey());
+            } else {
+                logger.warn("运维模式登出，跳过清理在线用户，token={}", param.getToken());
+            }
         } catch (Exception e) {
             logger.error("删除在线用户记录失败，userId={}, appKey={}, token={}", param.getUserId(), param.getAppKey(), param.getToken(), e);
         }
@@ -178,6 +187,19 @@ public class LogsAuthServiceImpl implements LogsAuthService {
         }
         // TODO 根据IP转换为地理位置
         return ip;
+    }
+
+    /**
+     * 判断是否为运维模式登录（根据token查询登录日志的loginMode）
+     */
+    private boolean isOpsLogin(String token) {
+        if (StringUtil.isNull(token)) {
+            return false;
+        }
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("token", UserUtils.formatToken(token));
+        List<LogUserLogin> loginList = logUserLoginMapper.listBySearch(paramMap);
+        return loginList != null && !loginList.isEmpty() && "ops".equals(loginList.getFirst().getLoginMode());
     }
 
     private LogUserLoginDto convert2Dto(LogUserLogin info) {

@@ -65,6 +65,9 @@ public class LogUserLoginDto {
     @Schema(description = "登录参数")
     private Map<String, Object> loginParam;
 
+    @Schema(description = "登录模式")
+    private String loginMode;
+
     @Schema(description = "登录时间")
     private Date loginTime;
 
@@ -222,6 +225,14 @@ public class LogUserLoginDto {
 
     public void setLoginParam(Map<String, Object> loginParam) {
         this.loginParam = loginParam;
+    }
+
+    public String getLoginMode() {
+        return loginMode;
+    }
+
+    public void setLoginMode(String loginMode) {
+        this.loginMode = loginMode == null ? null : loginMode.trim();
     }
 
     public Date getLoginTime() {

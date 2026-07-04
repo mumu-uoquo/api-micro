@@ -32,7 +32,7 @@ public class AuthInfo {
     private String deviceUa;
 
     /**
-     * 登录模式（account/sms/mfa/emergency/credential/ops/app/refresh）
+     * 登录模式（account/sms/mfa/emergency/wechat/wecom/ops/app/refresh）
      */
     private String loginMode;
 

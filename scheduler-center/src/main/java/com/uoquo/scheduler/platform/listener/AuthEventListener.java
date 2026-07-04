@@ -176,6 +176,7 @@ public class AuthEventListener {
         param.setLoginStatus(event.getOperationStatus());
         param.setLoginTime(event.getOperationTime());
         param.setLoginParam(event.getExtension());
+        param.setLoginMode(info.getLoginMode());
         param.setDescription(event.getRemarks());
         return param;
     }

@@ -71,6 +71,9 @@ public class LogUserLoginParam {
     @Schema(description = "登录参数")
     private Map<String, ?> loginParam;
 
+    @Schema(description = "登录模式")
+    private String loginMode;
+
     @Schema(description = "备注")
     private String description;
 
@@ -216,6 +219,14 @@ public class LogUserLoginParam {
 
     public void setLoginParam(Map<String, ?> loginParam) {
         this.loginParam = loginParam;
+    }
+
+    public String getLoginMode() {
+        return loginMode;
+    }
+
+    public void setLoginMode(String loginMode) {
+        this.loginMode = loginMode == null ? null : loginMode.trim();
     }
 
     public String getDescription() {

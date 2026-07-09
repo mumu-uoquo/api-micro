@@ -28,14 +28,6 @@ public interface WechatService {
     String exchangeOpsWecomMobile(String code);
 
     /**
-     * 生成运维 MFA HTML 页面
-     * @param success 是否成功
-     * @param message 消息内容
-     * @return HTML 页面内容
-     */
-    String opsMfaHtml(boolean success, String message);
-
-    /**
      * 生成第三方授权回调 HTML 页面（含 5 秒倒计时自动关闭）
      * @param success 是否授权成功
      * @param message 提示消息

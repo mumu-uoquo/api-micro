@@ -1,11 +1,8 @@
 package com.uoquo.platform.system.mapper;
 
-import com.uoquo.platform.system.model.dto.SettingDto;
 import com.uoquo.platform.system.model.pojo.SysSetting;
-import com.uoquo.mybatis.sensitive.SensitiveField;
 import org.apache.ibatis.annotations.Param;
 
-import java.util.Date;
 import java.util.List;
 import java.util.Set;
 

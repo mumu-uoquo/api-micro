@@ -57,16 +57,6 @@ public class WechatController {
     private AuthService authService;
 
     /**
-     * 获取运维动态码（微信扫码跳转）。
-     */
-    @Operation(summary = "获取运维动态码（微信扫码跳转）。", hidden = true)
-    @GetMapping("/ops/mfa")
-    public String opsMfa(@RequestParam("code") String code, @RequestParam("state") String state) {
-        logger.debug("opsMfa: code={}, state={}", code, state);
-        return authService.opsMfa(code, state);
-    }
-
-    /**
      * 服务器地址有效性验证（配置服务器 URL 时微信发起 GET 请求）。
      * 校验通过后原样返回 echostr。
      */

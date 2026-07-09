@@ -234,15 +234,4 @@ public interface AuthService {
      */
     UserAuthDto opsLogin(OpsLoginParam param, String clientIp);
 
-    /**
-     * 运维动态码生成（企业微信扫码回调）。
-     * 通过 code 换取手机号，解码 state 得到序列号，
-     * 以 Base32(SERIAL_NUMBER + phone) 生成动态口令，返回简版 H5 页面。
-     *
-     * @param code  企业微信授权 code
-     * @param state 授权 state（TAES 加密）
-     * @return H5 页面内容
-     */
-    String opsMfa(String code, String state);
-
 }

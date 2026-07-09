@@ -67,6 +67,7 @@ import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.crypto.Base32;
+import com.uoquo.utils.crypto.License;
 import com.uoquo.utils.crypto.TimeStepCryptoUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.utils.spring.CaptchaUtil;
@@ -1242,13 +1243,26 @@ public class AuthServiceImpl implements AuthService {
             throw new UoquoException(AccountReturnCode.OPS_LOGIN_LOCKED);
         }
 
+        // 获取激活码
+        String activateCode = null;
+        try {
+            License.LicenseInfo license = License.load();
+            if (license != null) {
+                activateCode = license.getActivationCode();
+            }
+        } catch (Exception e) {
+            logger.warn("获取激活码失败，可能是首次初始化", e);
+        }
+        if (StringUtil.isNull(activateCode)) {
+            // 在未导入授权时，无激活码，故用序列号做秘钥（常见于初始化安装）
+            activateCode = this.getSysConfig(SettingsCode.SERIAL_NUMBER);
+        }
+
         UserInfo info;
         try {
             // 2. 动态码校验
             // 以 Base32(ACTIVATE_CODE + phone) 为密钥校验动态口令
-            // TODO 实际中从授权文件中读取激活码（ACTIVATE_CODE），此处临时用SERIAL_NUMBER代替
-            String serial = this.getSysConfig(SettingsCode.SERIAL_NUMBER);
-            String secret = Base32.encode(serial + phone);
+            String secret = Base32.encode(activateCode + phone);
             boolean valid = TotpAuthUtils.verifyDynamicCode(secret, param.getDynamicCode());
             if (!valid) {
                 throw new UoquoException(AccountReturnCode.OPS_AUTH_FAILED);
@@ -1284,39 +1298,6 @@ public class AuthServiceImpl implements AuthService {
                 AuthEventContext.of("USER", info.getId(), info.getInstituteId(), phone)
                         .loginMode("ops").token(dto.getAccessToken()));
         return dto;
-    }
-
-    @Override
-    public String opsMfa(String code, String state) {
-        String serial  = null;
-        String account = null;
-        String phone   = null;
-        try {
-            // 1. 解码 state 得到序列号（与账号）
-            String decoded = TimeStepCryptoUtil.decryptTAES(state, 30);
-            String[] parts = decoded.split("\\|", 2);
-            if (parts.length != 2) {
-                logger.error("回传参数不合法：state={}, decoded={}, parts.length={}", state, decoded, parts.length);
-                throw new RuntimeException("回传参数state不合法");
-            }
-            serial  = parts[0];
-            account = parts[1];
-
-            // 2. 通过 code 换取运维用户手机号（先 ticket 后 mobile）
-            phone = wechatService.exchangeOpsWecomMobile(code);
-            logger.info("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权成功。", phone, serial, account);
-
-            // 3. 以 Base32(ACTIVATE_CODE + phone) 生成动态口令
-            // TODO 实际中用序列号（SERIAL_NUMBER）查出对应的激活码（ACTIVATE_CODE），此处临时用SERIAL_NUMBER代替
-            String secret = Base32.encode(serial + phone);
-            String dynamicCode = TotpAuthUtils.generateDynamicCode(secret);
-            // TODO 目前仅作记录，实际使用中需配合权限校验
-
-            return wechatService.opsMfaHtml(true, dynamicCode);
-        } catch (Exception e) {
-            logger.error("运维人员[{}]对系统[{}]用账户[{}]进行运维，授权失败{code={}, state={}}。", phone, serial, account, code, state, e);
-            return wechatService.opsMfaHtml(false, "授权失败，请联系管理员。");
-        }
     }
 
     /**

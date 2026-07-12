@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.uoquo.platform.system.mapper.AppPushMapper">
+
+  <resultMap id="BaseResultMap" type="com.uoquo.platform.system.model.pojo.AppPush">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="app_id" jdbcType="VARCHAR" property="appId" />
+    <result column="data_source" jdbcType="CHAR" property="dataSource" />
+    <result column="data_scope" jdbcType="CHAR" property="dataScope" />
+    <result column="data_biz_type" jdbcType="VARCHAR" property="dataBizType" />
+    <result column="push_mode" jdbcType="CHAR" property="pushMode" />
+    <result column="push_impl" jdbcType="VARCHAR" property="pushImpl" />
+    <result column="target_host" jdbcType="VARCHAR" property="targetHost" />
+    <result column="target_address" jdbcType="VARCHAR" property="targetAddress" />
+    <result column="target_appkey" jdbcType="VARCHAR" property="targetAppkey" />
+    <result column="target_secret" jdbcType="VARCHAR" property="targetSecret" />
+    <result column="compress_type" jdbcType="VARCHAR" property="compressType" />
+    <result column="push_rate_limit" jdbcType="INTEGER" property="pushRateLimit" />
+    <result column="fail_handling" jdbcType="CHAR" property="failHandling" />
+    <result column="status" jdbcType="CHAR" property="status" />
+    <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
+    <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
+  </resultMap>
+
+  <resultMap id="DtoResultMap" type="com.uoquo.platform.system.model.dto.AppPushDto">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="app_id" jdbcType="VARCHAR" property="appId" />
+    <result column="data_source" jdbcType="CHAR" property="dataSource" />
+    <result column="data_scope" jdbcType="CHAR" property="dataScope" />
+    <result column="data_biz_type" jdbcType="VARCHAR" property="dataBizType" />
+    <result column="push_mode" jdbcType="CHAR" property="pushMode" />
+    <result column="push_impl" jdbcType="VARCHAR" property="pushImpl" />
+    <result column="target_host" jdbcType="VARCHAR" property="targetHost" />
+    <result column="target_address" jdbcType="VARCHAR" property="targetAddress" />
+    <result column="target_appkey" jdbcType="VARCHAR" property="targetAppkey" />
+    <result column="target_secret" jdbcType="VARCHAR" property="targetSecret" />
+    <result column="compress_type" jdbcType="VARCHAR" property="compressType" />
+    <result column="push_rate_limit" jdbcType="INTEGER" property="pushRateLimit" />
+    <result column="fail_handling" jdbcType="CHAR" property="failHandling" />
+    <result column="status" jdbcType="CHAR" property="status" />
+    <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
+    <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, app_id, data_source, data_scope, data_biz_type, push_mode, push_impl,
+    target_host, target_address, target_appkey, target_secret, compress_type,
+    push_rate_limit, fail_handling, `status`, status_time, status_memo,
+    create_user, create_time, update_user, update_time, delete_state
+  </sql>
+
+  <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.AppPush">
+    INSERT INTO bko_app_push (id, app_id, data_source, data_scope, data_biz_type,
+      push_mode, push_impl, target_host, target_address, target_appkey, target_secret,
+      compress_type, push_rate_limit, fail_handling,
+      `status`, status_time, status_memo,
+      create_user, create_time, update_user, update_time, delete_state)
+    VALUES (
+      #{id,jdbcType=VARCHAR}, #{appId,jdbcType=VARCHAR}, #{dataSource,jdbcType=CHAR}, #{dataScope,jdbcType=CHAR}, #{dataBizType,jdbcType=VARCHAR},
+      #{pushMode,jdbcType=CHAR}, #{pushImpl,jdbcType=VARCHAR}, #{targetHost,jdbcType=VARCHAR}, #{targetAddress,jdbcType=VARCHAR},
+      #{targetAppkey,jdbcType=VARCHAR}, #{targetSecret,jdbcType=VARCHAR},
+      #{compressType,jdbcType=VARCHAR}, #{pushRateLimit,jdbcType=INTEGER}, #{failHandling,jdbcType=CHAR},
+      #{status,jdbcType=CHAR}, #{statusTime,jdbcType=TIMESTAMP}, #{statusMemo,jdbcType=VARCHAR},
+      #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP},
+      #{updateUser,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
+  </insert>
+
+  <update id="deleteByPrimaryKey">
+    UPDATE bko_app_push SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.uoquo.platform.system.model.pojo.AppPush">
+    UPDATE bko_app_push
+    <set>
+      <if test="dataSource != null and dataSource != ''">
+        data_source = #{dataSource,jdbcType=CHAR},
+      </if>
+      <if test="dataScope != null and dataScope != ''">
+        data_scope = #{dataScope,jdbcType=CHAR},
+      </if>
+      <if test="dataBizType != null">
+        data_biz_type = #{dataBizType,jdbcType=VARCHAR},
+      </if>
+      <if test="pushMode != null and pushMode != ''">
+        push_mode = #{pushMode,jdbcType=CHAR},
+      </if>
+      <if test="pushImpl != null and pushImpl != ''">
+        push_impl = #{pushImpl,jdbcType=VARCHAR},
+      </if>
+      <if test="targetHost != null">
+        target_host = #{targetHost,jdbcType=VARCHAR},
+      </if>
+      <if test="targetAddress != null">
+        target_address = #{targetAddress,jdbcType=VARCHAR},
+      </if>
+      <if test="targetAppkey != null">
+        target_appkey = #{targetAppkey,jdbcType=VARCHAR},
+      </if>
+      <if test="targetSecret != null">
+        target_secret = #{targetSecret,jdbcType=VARCHAR},
+      </if>
+      <if test="compressType != null and compressType != ''">
+        compress_type = #{compressType,jdbcType=VARCHAR},
+      </if>
+      <if test="pushRateLimit != null">
+        push_rate_limit = #{pushRateLimit,jdbcType=INTEGER},
+      </if>
+      <if test="failHandling != null">
+        fail_handling = #{failHandling,jdbcType=CHAR},
+      </if>
+      <if test="status != null and status != ''">
+        `status` = #{status,jdbcType=CHAR},
+        status_time = #{statusTime,jdbcType=TIMESTAMP},
+        status_memo = #{statusMemo,jdbcType=VARCHAR},
+      </if>
+      update_user = #{updateUser,jdbcType=VARCHAR},
+      update_time = #{updateTime,jdbcType=TIMESTAMP}
+    </set>
+    WHERE id = #{id,jdbcType=VARCHAR}
+  </update>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_app_push
+    WHERE id = #{id,jdbcType=VARCHAR}
+      AND delete_state = 0
+  </select>
+
+  <select id="selectByAppId" parameterType="java.lang.String" resultMap="DtoResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM bko_app_push
+    WHERE app_id = #{appId,jdbcType=VARCHAR}
+      AND delete_state = 0
+    ORDER BY create_time ASC
+  </select>
+
+</mapper>

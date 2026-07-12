@@ -42,6 +42,13 @@ public class AppInfo {
     private String secret;
 
     /**
+     * Column: trust_site
+     * Type: VARCHAR(100)
+     * Remark: 可信站点
+     */
+    private String trustSite;
+
+    /**
      * Column: template_type
      * Type: CHAR(6)
      * Remark: 模板类型（006）
@@ -150,6 +157,14 @@ public class AppInfo {
 
     public void setSecret(String secret) {
         this.secret = secret == null ? null : secret.trim();
+    }
+
+    public String getTrustSite() {
+        return trustSite;
+    }
+
+    public void setTrustSite(String trustSite) {
+        this.trustSite = trustSite == null ? null : trustSite.trim();
     }
 
     public String getTemplateType() {

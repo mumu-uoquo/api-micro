@@ -25,6 +25,9 @@ public class AppInfoParam {
     @Schema(description = "secret")
     private String secret;
 
+    @Schema(description = "可信站点")
+    private String trustSite;
+
     @Schema(description = "模板类型")
     private String templateType;
 
@@ -69,6 +72,14 @@ public class AppInfoParam {
 
     public void setSecret(String secret) {
         this.secret = secret == null ? null : secret.trim();
+    }
+
+    public String getTrustSite() {
+        return trustSite;
+    }
+
+    public void setTrustSite(String trustSite) {
+        this.trustSite = trustSite == null ? null : trustSite.trim();
     }
 
     public String getTemplateType() {

@@ -8,6 +8,7 @@
     <result column="app_name" jdbcType="VARCHAR" property="appName" />
     <result column="appkey" jdbcType="VARCHAR" property="appkey" />
     <result column="secret" jdbcType="VARCHAR" property="secret" />
+    <result column="trust_site" jdbcType="VARCHAR" property="trustSite" />
     <result column="template_type" jdbcType="CHAR" property="templateType" />
     <result column="module_id" jdbcType="VARCHAR" property="moduleId" />
     <result column="status" jdbcType="CHAR" property="status" />
@@ -28,6 +29,7 @@
     <result column="app_name" jdbcType="VARCHAR" property="appName" />
     <result column="appkey" jdbcType="VARCHAR" property="appkey" />
     <result column="secret" jdbcType="VARCHAR" property="secret" />
+    <result column="trust_site" jdbcType="VARCHAR" property="trustSite" />
     <result column="template_type" jdbcType="CHAR" property="templateType" />
     <result column="module_id" jdbcType="VARCHAR" property="moduleId" />
     <result column="status" jdbcType="CHAR" property="status" />
@@ -38,18 +40,18 @@
   </resultMap>
 
   <sql id="Base_Column_List">
-    id, institute_id, app_name, appkey, secret, template_type, module_id, `status`, status_time, status_memo,
+    id, institute_id, app_name, appkey, secret, trust_site, template_type, module_id, `status`, status_time, status_memo,
     create_user, create_time, update_user, update_time, delete_state
   </sql>
 
   <insert id="insert" parameterType="com.uoquo.platform.system.model.pojo.AppInfo">
     INSERT INTO bko_app_info (id, institute_id, app_name,
-      appkey, secret, template_type, module_id,
+      appkey, secret, trust_site, template_type, module_id,
       `status`, status_time, status_memo,
       create_user, create_time, update_user,
       update_time, delete_state)
     VALUES (#{id,jdbcType=VARCHAR}, #{instituteId,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR},
-      #{appkey,jdbcType=VARCHAR}, #{secret,jdbcType=VARCHAR}, #{templateType,jdbcType=CHAR}, #{moduleId,jdbcType=VARCHAR},
+      #{appkey,jdbcType=VARCHAR}, #{secret,jdbcType=VARCHAR}, #{trustSite,jdbcType=VARCHAR}, #{templateType,jdbcType=CHAR}, #{moduleId,jdbcType=VARCHAR},
       #{status,jdbcType=CHAR}, #{statusTime,jdbcType=TIMESTAMP}, #{statusMemo,jdbcType=VARCHAR},
       #{createUser,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateUser,jdbcType=VARCHAR},
       #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
@@ -69,6 +71,9 @@
       </if>
       <if test="secret != null and secret != ''">
         secret = #{secret,jdbcType=VARCHAR},
+      </if>
+      <if test="trustSite != null">
+        trust_site = #{trustSite,jdbcType=VARCHAR},
       </if>
       <if test="templateType != null and templateType != ''">
         template_type = #{templateType,jdbcType=CHAR},

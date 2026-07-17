@@ -8,7 +8,7 @@
 app:
   name : ${SERVICE_NAME:api-gateway}
   port : ${SERVICE_PORT:7210}
-  code : ${SERVICE_CODE:01}  # 应用编码（16进制，最大0xFF）
+  code : ${SERVICE_CODE:10}  # 应用编码（16进制，最大0xFF）
   node : ${SERVICE_NODE:1}   # 节点编码（16进制，最大0xF）
   type : ${spring.profiles.active:prod} # 环境类型（dev、test、demo、prod）
   base-path: /

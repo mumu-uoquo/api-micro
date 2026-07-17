@@ -99,6 +99,10 @@ spring:
               uri: lb://service-platform
               predicates:
                 - Path=/health/api/platform/**
+            - id: service-operate
+              uri: lb://service-operate
+              predicates:
+                - Path=/health/api/operate/**
             # 自定义IPHASH负载
             - id: demo-cloud-book
               uri: iphash://demo-cloud-book

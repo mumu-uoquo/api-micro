@@ -50,7 +50,14 @@ public class SchedulerApplication extends ServiceApplication {
             log.info("application ready event");   // 系统启动完毕后（ApplicationRunner.run后）
         });
         // 启动
-        application.run(args);
+        try {
+            application.run(args);
+        } catch (Throwable ex) {
+            // 启动失败（如 Redis/Nacos 等外部依赖不可用导致 ApplicationContext 启动异常）时，
+            // Lettuce/Netty 的非守护线程会一直挂住 JVM，导致“进程在但服务已死”的假死状态。
+            // 这里强制退出，让容器编排/守护进程能感知失败并重新拉起。
+            System.exit(1);
+        }
     }
 
     @Override

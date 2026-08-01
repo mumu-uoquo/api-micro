@@ -49,6 +49,13 @@ public class AppInfo {
     private String trustSite;
 
     /**
+     * Column: trust_ips
+     * Type: VARCHAR(200)
+     * Remark: 可信IP
+     */
+    private String trustIps;
+
+    /**
      * Column: template_type
      * Type: CHAR(6)
      * Remark: 模板类型（006）
@@ -165,6 +172,14 @@ public class AppInfo {
 
     public void setTrustSite(String trustSite) {
         this.trustSite = trustSite == null ? null : trustSite.trim();
+    }
+
+    public String getTrustIps() {
+        return trustIps;
+    }
+
+    public void setTrustIps(String trustIps) {
+        this.trustIps = trustIps == null ? null : trustIps.trim();
     }
 
     public String getTemplateType() {

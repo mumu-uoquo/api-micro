@@ -35,6 +35,9 @@ public class AppInfoDto {
     @Schema(description = "可信站点")
     private String trustSite;
 
+    @Schema(description = "可信IP")
+    private String trustIps;
+
     @Schema(description = "模板类型（006）")
     private String templateType;
 
@@ -113,6 +116,14 @@ public class AppInfoDto {
 
     public void setTrustSite(String trustSite) {
         this.trustSite = trustSite == null ? null : trustSite.trim();
+    }
+
+    public String getTrustIps() {
+        return trustIps;
+    }
+
+    public void setTrustIps(String trustIps) {
+        this.trustIps = trustIps == null ? null : trustIps.trim();
     }
 
     public String getTemplateType() {

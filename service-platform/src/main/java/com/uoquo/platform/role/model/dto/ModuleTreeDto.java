@@ -1,10 +1,10 @@
 package com.uoquo.platform.role.model.dto;
 
-import com.uoquo.platform.role.model.pojo.ModuleParam;
-import io.swagger.v3.oas.annotations.media.Schema;
-
-
 import java.util.List;
+
+import com.uoquo.platform.role.model.pojo.ModuleParam;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * 出参：模块信息（树状）
@@ -35,6 +35,9 @@ public class ModuleTreeDto {
 
     @Schema(description = "图标")
     private String icon;
+
+    @Schema(description = "微前端名")
+    private String microApp;
 
     @Schema(description = "菜单路由")
     private String path;
@@ -119,6 +122,14 @@ public class ModuleTreeDto {
 
     public void setIcon(String icon) {
         this.icon = icon;
+    }
+
+    public String getMicroApp() {
+        return microApp;
+    }
+
+    public void setMicroApp(String microApp) {
+        this.microApp = microApp;
     }
 
     public String getPath() {

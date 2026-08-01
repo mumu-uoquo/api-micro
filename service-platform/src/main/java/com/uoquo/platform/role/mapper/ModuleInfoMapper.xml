@@ -11,6 +11,7 @@
     <result column="is_visible" jdbcType="BIT" property="visible" />
     <result column="menu_name" jdbcType="VARCHAR" property="menuName" />
     <result column="icon" jdbcType="VARCHAR" property="icon" />
+    <result column="micro_app" jdbcType="VARCHAR" property="microApp" />
     <result column="url" jdbcType="VARCHAR" property="url" />
     <result column="path" jdbcType="VARCHAR" property="path" />
     <result column="params" jdbcType="VARCHAR" property="params" typeHandler="com.uoquo.web.mybatis.handler.List2JsonTypeHandler" />
@@ -25,14 +26,14 @@
   </resultMap>
 
   <sql id="Base_Column_List">
-    id, parent_id, module_name, module_code, module_type, is_visible, menu_name, icon, path,
+    id, parent_id, module_name, module_code, module_type, is_visible, menu_name, icon, micro_app, path,
     url, params, popup, sort_idx, description, create_user, create_time, update_user, update_time,
     delete_state
   </sql>
 
   <insert id="insert" parameterType="com.uoquo.platform.role.model.pojo.ModuleInfo">
     INSERT INTO bko_module (id, parent_id, module_name, module_code,
-      module_type, is_visible, menu_name,  icon,
+      module_type, is_visible, menu_name, icon, micro_app,
       path, url,
       params,
       popup, sort_idx,
@@ -40,7 +41,7 @@
       update_user, update_time, delete_state
     )
     VALUES (#{id,jdbcType=VARCHAR}, #{parentId,jdbcType=VARCHAR}, #{moduleName,jdbcType=VARCHAR}, #{moduleCode,jdbcType=VARCHAR},
-      #{moduleType,jdbcType=CHAR}, #{visible,jdbcType=BIT}, #{menuName,jdbcType=VARCHAR}, #{icon,jdbcType=VARCHAR},
+      #{moduleType,jdbcType=CHAR}, #{visible,jdbcType=BIT}, #{menuName,jdbcType=VARCHAR}, #{icon,jdbcType=VARCHAR}, #{microApp,jdbcType=VARCHAR},
       #{path,jdbcType=VARCHAR}, #{url,jdbcType=VARCHAR},
       #{params,jdbcType=VARCHAR,typeHandler=com.uoquo.web.mybatis.handler.List2JsonTypeHandler},
       #{popup,jdbcType=BIT}, #{sortIdx,jdbcType=INTEGER},
@@ -71,6 +72,9 @@
       </if>
       <if test="icon != null">
         icon = #{icon,jdbcType=VARCHAR},
+      </if>
+      <if test="microApp != null">
+        micro_app = #{microApp,jdbcType=VARCHAR},
       </if>
       <if test="path != null">
         path = #{path,jdbcType=VARCHAR},

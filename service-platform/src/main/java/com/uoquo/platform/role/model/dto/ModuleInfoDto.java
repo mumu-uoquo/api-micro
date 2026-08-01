@@ -36,6 +36,9 @@ public class ModuleInfoDto {
     @Schema(description = "图标")
     private String icon;
 
+    @Schema(description = "微前端名")
+    private String microApp;
+
     @Schema(description = "菜单路由")
     private String path;
 
@@ -119,6 +122,14 @@ public class ModuleInfoDto {
 
     public void setIcon(String icon) {
         this.icon = icon;
+    }
+
+    public String getMicroApp() {
+        return microApp;
+    }
+
+    public void setMicroApp(String microApp) {
+        this.microApp = microApp;
     }
 
     public String getPath() {

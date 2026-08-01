@@ -70,6 +70,13 @@ public class ModuleInfoServiceImpl implements ModuleInfoService {
         ModuleInfo info = new ModuleInfo();
         BeanUtils.copyProperties(param, info);
         info.setId(IDGenerator.getNextULID());
+        // 新增时未指定微前端名，则继承父节点配置
+        if (StringUtil.isNull(info.getMicroApp()) && StringUtil.notNull(info.getParentId())) {
+            ModuleInfo parent = moduleInfoMapper.selectByPrimaryKey(info.getParentId());
+            if (parent != null) {
+                info.setMicroApp(parent.getMicroApp());
+            }
+        }
         // 填充默认值
         if (info.getSortIdx() == null) {
             info.setSortIdx(99);

@@ -65,6 +65,13 @@ public class ModuleInfo {
     private String icon;
 
     /**
+     * Column: micro_app
+     * Type: VARCHAR(20)
+     * Remark: 微前端名
+     */
+    private String microApp;
+
+    /**
      * Column: path
      * Type: VARCHAR(100)
      * Remark: 菜单路由
@@ -205,6 +212,14 @@ public class ModuleInfo {
 
     public void setIcon(String icon) {
         this.icon = icon == null ? null : icon.trim();
+    }
+
+    public String getMicroApp() {
+        return microApp;
+    }
+
+    public void setMicroApp(String microApp) {
+        this.microApp = microApp == null ? null : microApp.trim();
     }
 
     public String getPath() {

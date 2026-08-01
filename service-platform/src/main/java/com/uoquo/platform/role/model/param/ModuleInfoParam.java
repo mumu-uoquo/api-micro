@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 /**
@@ -39,6 +41,11 @@ public class ModuleInfoParam {
 
     @Schema(description = "图标")
     private String icon;
+
+    @Schema(description = "微前端名，仅允许字母、数字、中横线和下划线")
+    @Size(max = 20, message = "微前端名长度不能超过20个字符")
+    @Pattern(regexp = "^[a-zA-Z0-9_-]*$", message = "微前端名只能包含字母、数字、下划线和中横线")
+    private String microApp;
 
     @Schema(description = "菜单路由")
     private String path;
@@ -123,6 +130,14 @@ public class ModuleInfoParam {
 
     public void setIcon(String icon) {
         this.icon = icon;
+    }
+
+    public String getMicroApp() {
+        return microApp;
+    }
+
+    public void setMicroApp(String microApp) {
+        this.microApp = microApp == null ? null : microApp.trim();
     }
 
     public String getPath() {

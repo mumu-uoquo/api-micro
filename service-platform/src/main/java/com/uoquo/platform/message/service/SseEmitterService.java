@@ -39,8 +39,8 @@ import jakarta.validation.constraints.NotNull;
 @Component
 public class SseEmitterService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    /** 主索引：userId → appkey → tokenKey → SseEmitter，用于按用户/appkey推送 */
-    private final Map<String, Map<String, Map<String, SseEmitter>>> emitters = new ConcurrentHashMap<>();
+    /** 主索引：userId → tokenKey → 连接信息，用于按用户/appkey推送 */
+    private final Map<String, Map<String, ConnectionRef>> emitters = new ConcurrentHashMap<>();
     /** token反向索引：tokenKey → 连接信息，用于按token精准推送（如踢人通知） */
     private final Map<String, ConnectionRef> tokenIndex = new ConcurrentHashMap<>();
     /** 调度线程：仅负责触发心跳任务，不执行实际 IO */
@@ -59,10 +59,7 @@ public class SseEmitterService {
 
     @PreDestroy
     public void cleanup() {
-        List<ConnectionRef> connections = new ArrayList<>();
-        for (String userId : emitters.keySet()) {
-            connections.addAll(collectEmitters(userId, null));
-        }
+        List<ConnectionRef> connections = new ArrayList<>(tokenIndex.values());
         for (ConnectionRef connection : connections) {
             connection.emitter.complete();
         }
@@ -120,22 +117,19 @@ public class SseEmitterService {
             emitter.completeWithError(e);
         });
 
-        // 2. 按 userId → appkey → tokenKey 保存连接；同一 appkey 下不同 token 的连接可同时存在
-        Map<String, Map<String, SseEmitter>> appEmitters = emitters.computeIfAbsent(
-                userId, k -> new ConcurrentHashMap<>());
-        Map<String, SseEmitter> tokenEmitters = appEmitters.computeIfAbsent(
-                appkey, k -> new ConcurrentHashMap<>());
-        SseEmitter replacedEmitter = tokenEmitters.put(tokenKey, emitter);
-        ConnectionRef replacedConnection = tokenIndex.put(tokenKey, connection);
+        // 2. 按 userId → tokenKey 保存连接；appkey 作为连接属性用于定向推送过滤
+        Map<String, ConnectionRef> userEmitters = emitters.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
+        ConnectionRef replacedForUser = userEmitters.put(tokenKey, connection);
+        ConnectionRef replacedByToken = tokenIndex.put(tokenKey, connection);
 
-        // 同一 token 重连时只替换该 token 的旧连接，不影响同一 appkey 下的其他 token
-        if (replacedConnection != null && replacedConnection.emitter != emitter) {
-            removeEmitter(replacedConnection);
-            replacedConnection.emitter.complete();
-        } else if (replacedEmitter != null && replacedEmitter != emitter) {
-            ConnectionRef replaced = new ConnectionRef(userId, appkey, tokenKey, replacedEmitter);
-            removeEmitter(replaced);
-            replacedEmitter.complete();
+        // 同一 token 重连时只保留最后一个连接，不影响该用户的其他 token
+        if (replacedByToken != null && replacedByToken.emitter != emitter) {
+            removeEmitter(replacedByToken);
+            replacedByToken.emitter.complete();
+        }
+        if (replacedForUser != null && replacedForUser != replacedByToken && replacedForUser.emitter != emitter) {
+            removeEmitter(replacedForUser);
+            replacedForUser.emitter.complete();
         }
 
         // 3. 先放入缓存，再发送初始事件
@@ -240,8 +234,8 @@ public class SseEmitterService {
     private int doBroadcast(@NotNull String eventName, @Nullable SseMessage message) {
         SseEmitter.SseEventBuilder build = buildEvent(eventName, message);
         int successCount = 0;
-        for (String userId : emitters.keySet()) {
-            List<ConnectionRef> connections = collectEmitters(userId, null);
+        for (Map<String, ConnectionRef> userEmitters : emitters.values()) {
+            List<ConnectionRef> connections = new ArrayList<>(userEmitters.values());
             if (connections.isEmpty()) {
                 continue;
             }
@@ -291,32 +285,20 @@ public class SseEmitterService {
     }
 
     /**
-     * 按条件收集连接快照，避免推送期间嵌套索引发生并发变化。
+     * 按条件收集连接快照。单个用户的活跃连接数通常很少，按 appkey 过滤无需额外索引。
      */
     private List<ConnectionRef> collectEmitters(String userId, String appkey) {
         List<ConnectionRef> connections = new ArrayList<>();
-        Map<String, Map<String, SseEmitter>> appEmitters = emitters.get(userId);
-        if (appEmitters == null || appEmitters.isEmpty()) {
+        Map<String, ConnectionRef> userEmitters = emitters.get(userId);
+        if (userEmitters == null || userEmitters.isEmpty()) {
             return connections;
         }
-        if (StringUtil.notNull(appkey)) {
-            addConnections(connections, userId, appkey, appEmitters.get(appkey));
-            return connections;
-        }
-        for (Map.Entry<String, Map<String, SseEmitter>> appEntry : appEmitters.entrySet()) {
-            addConnections(connections, userId, appEntry.getKey(), appEntry.getValue());
+        for (ConnectionRef connection : userEmitters.values()) {
+            if (StringUtil.isNull(appkey) || appkey.equals(connection.appkey)) {
+                connections.add(connection);
+            }
         }
         return connections;
-    }
-
-    private void addConnections(List<ConnectionRef> connections, String userId, String appkey,
-                                Map<String, SseEmitter> tokenEmitters) {
-        if (tokenEmitters == null) {
-            return;
-        }
-        for (Map.Entry<String, SseEmitter> tokenEntry : tokenEmitters.entrySet()) {
-            connections.add(new ConnectionRef(userId, appkey, tokenEntry.getKey(), tokenEntry.getValue()));
-        }
     }
 
     /**
@@ -362,25 +344,15 @@ public class SseEmitterService {
      * 避免旧连接的回调误删同 token 的新连接。
      */
     private void removeEmitter(ConnectionRef connection) {
-        ConnectionRef indexed = tokenIndex.get(connection.tokenKey);
-        if (indexed != null && indexed.emitter == connection.emitter) {
-            tokenIndex.remove(connection.tokenKey, indexed);
-        }
+        tokenIndex.remove(connection.tokenKey, connection);
 
-        Map<String, Map<String, SseEmitter>> appEmitters = emitters.get(connection.userId);
-        if (appEmitters == null) {
+        Map<String, ConnectionRef> userEmitters = emitters.get(connection.userId);
+        if (userEmitters == null) {
             return;
         }
-        Map<String, SseEmitter> tokenEmitters = appEmitters.get(connection.appkey);
-        if (tokenEmitters == null) {
-            return;
-        }
-        tokenEmitters.remove(connection.tokenKey, connection.emitter);
-        if (tokenEmitters.isEmpty()) {
-            appEmitters.remove(connection.appkey, tokenEmitters);
-        }
-        if (appEmitters.isEmpty()) {
-            emitters.remove(connection.userId, appEmitters);
+        userEmitters.remove(connection.tokenKey, connection);
+        if (userEmitters.isEmpty()) {
+            emitters.remove(connection.userId, userEmitters);
         }
     }
 

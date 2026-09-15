@@ -1,6 +1,7 @@
 package com.uoquo.platform.system.controller;
 
 import com.uoquo.mybatis.page.PageResult;
+import com.uoquo.platform.system.model.dto.LicenseInfoDto;
 import com.uoquo.platform.system.model.dto.LicenseRecordDto;
 import com.uoquo.platform.system.model.param.LicenseImportParam;
 import com.uoquo.platform.system.model.param.LicenseRecordPageParam;
@@ -56,5 +57,11 @@ public class LicenseController {
         }
         PageResult<LicenseRecordDto> result = licenseService.listRecordByPage(param);
         return new ReturnData<>(result);
+    }
+
+    @Operation(summary = "获取授权详情", operationId = "getLicenseInfo", method = "POST")
+    @PostMapping("/info")
+    public ReturnData<LicenseInfoDto> getLicenseInfo() {
+        return new ReturnData<>(licenseService.getLicenseInfo());
     }
 }

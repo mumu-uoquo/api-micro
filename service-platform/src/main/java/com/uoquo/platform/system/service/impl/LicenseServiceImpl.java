@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.uoquo.mybatis.page.PageList;
 import com.uoquo.mybatis.page.PageResult;
 import com.uoquo.platform.system.mapper.LicenseRecordMapper;
+import com.uoquo.platform.system.model.dto.LicenseInfoDto;
 import com.uoquo.platform.system.model.dto.LicenseRecordDto;
 import com.uoquo.platform.system.model.param.LicenseImportParam;
 import com.uoquo.platform.system.model.param.LicenseRecordPageParam;
@@ -91,5 +92,34 @@ public class LicenseServiceImpl implements LicenseService {
             dtoList.add(dto);
         }
         return PageResult.of(list, dtoList);
+    }
+
+    @Override
+    public LicenseInfoDto getLicenseInfo() {
+        LicenseInfoDto dto = new LicenseInfoDto();
+        // 1. 授权文件信息
+        License.LicenseInfo licenseInfo = null;
+        try {
+            licenseInfo = License.load();
+        } catch (Exception e) {
+            logger.info("加载许可证信息失败: {}", e.getMessage());
+        }
+        if (licenseInfo == null) {
+            return dto;
+        }
+        dto.setSerialNo(licenseInfo.getSerialNo());
+        dto.setOwner(licenseInfo.getAppName());
+        // 2. 最新导入记录
+        LicenseRecord record = licenseRecordMapper.selectLatestCurrent();
+        if (record == null) {
+            return dto;
+        }
+        // 授权时间：导入时间
+        dto.setAuthorizedTime(record.getCreateTime());
+        // 过期时间：授权结束日期
+        dto.setExpireTime(record.getValidExpire());
+        dto.setValidFrom(record.getValidFrom());
+        dto.setValidExpire(record.getValidExpire());
+        return dto;
     }
 }

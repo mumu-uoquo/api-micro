@@ -20,4 +20,9 @@ public interface LicenseRecordMapper {
      * 分页查询：所有记录，按 create_time 倒序
      */
     List<LicenseRecord> selectByPage();
+
+    /**
+     * 查询当前生效的授权记录（is_current = true），无则返回 null
+     */
+    LicenseRecord selectLatestCurrent();
 }

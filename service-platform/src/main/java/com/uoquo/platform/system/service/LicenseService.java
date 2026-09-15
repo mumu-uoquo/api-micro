@@ -1,6 +1,7 @@
 package com.uoquo.platform.system.service;
 
 import com.uoquo.mybatis.page.PageResult;
+import com.uoquo.platform.system.model.dto.LicenseInfoDto;
 import com.uoquo.platform.system.model.dto.LicenseRecordDto;
 import com.uoquo.platform.system.model.param.LicenseImportParam;
 import com.uoquo.platform.system.model.param.LicenseRecordPageParam;
@@ -31,4 +32,11 @@ public interface LicenseService {
      * @return 分页结果
      */
     PageResult<LicenseRecordDto> listRecordByPage(LicenseRecordPageParam param);
+
+    /**
+     * 获取当前授权详情（结合数据库最新授权记录组装）
+     *
+     * @return 授权详情，未导入过授权时返回空对象
+     */
+    LicenseInfoDto getLicenseInfo();
 }

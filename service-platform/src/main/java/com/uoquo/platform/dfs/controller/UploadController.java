@@ -25,8 +25,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 
@@ -51,15 +51,15 @@ public class UploadController {
         // 去除路径中的“../”
         if (StringUtil.notNull(param.getFilePath())) {
             String filePath = param.getFilePath();
-            filePath = filePath.replaceAll("\\.\\."+File.separator, "");
+            filePath = Path.of(filePath).normalize().toString();
             param.setFilePath(filePath);
         }
         // 去除文件名中的目录
         if (StringUtil.notNull(param.getFileName())) {
             String fileName = param.getFileName();
-            int index = fileName.lastIndexOf(File.separator);
-            if (index >= 0) {
-                param.setFileName(fileName.substring(index + 1));
+            Path fileNamePath = Path.of(fileName).getFileName();
+            if (fileNamePath != null) {
+                param.setFileName(fileNamePath.toString());
             }
         }
         // 2. 获取上传配置信息
@@ -125,7 +125,7 @@ public class UploadController {
         // 去除路径中的“../”
         if (StringUtil.notNull(param.getFilePath())) {
             String filePath = param.getFilePath();
-            filePath = filePath.replaceAll("\\.\\."+File.separator, "");
+            filePath = Path.of(filePath).normalize().toString();
             param.setFilePath(filePath);
         }
         // 2. 文件转存
@@ -152,15 +152,15 @@ public class UploadController {
         } else {
             // 去除文件名中的目录
             String fileName = param.getFileName();
-            int index = fileName.lastIndexOf(File.separator);
-            if (index >= 0) {
-                param.setFileName(fileName.substring(index + 1));
+            Path fileNamePath = Path.of(fileName).getFileName();
+            if (fileNamePath != null) {
+                param.setFileName(fileNamePath.toString());
             }
         }
         if (StringUtil.notNull(param.getFilePath())) {
             // 去除路径中的“../”
             String filePath = param.getFilePath();
-            filePath = filePath.replaceAll("\\.\\."+File.separator, "");
+            filePath = Path.of(filePath).normalize().toString();
             param.setFilePath(filePath);
         }
         // 2. 文件保存

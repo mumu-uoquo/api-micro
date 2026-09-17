@@ -22,9 +22,16 @@ import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Service;
 
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Base64;
 
 /**
@@ -34,6 +41,7 @@ import java.util.Base64;
 public class FileDownloadServiceImpl implements FileDownloadService {
 
     private static final Logger log = LoggerFactory.getLogger(FileDownloadServiceImpl.class);
+    private static final int BUF_SIZE = 1024 * 1024;
 
     /**
      * 缓存过期时间（默认5小时）
@@ -58,11 +66,11 @@ public class FileDownloadServiceImpl implements FileDownloadService {
     @Override
     public DownloadConfigDto getConfig(DownloadConfigParam param) {
         // 1. 判断文件是否存在
-        File file = new File(this.dataDir + File.separator + param.getFilePath());
-        if (!file.exists()) {
+        Path file = this.resolveDataPath(param.getFilePath());
+        if (!Files.exists(file)) {
             throw new UoquoException(PlatformReturnCode.FILE_NOT_EXIST, param.getFilePath());
         }
-        String filePath = file.getAbsolutePath();
+        String filePath = file.toAbsolutePath().toString();
         // 2. 计算文件MD5
         String md5Cache = null;
         if (param.getCalcMd5() != null && param.getCalcMd5()) {
@@ -76,8 +84,8 @@ public class FileDownloadServiceImpl implements FileDownloadService {
         DownloadConfigDto dto = new DownloadConfigDto();
         dto.setDownloadCode(code);
         dto.setFileMd5(md5Cache);
-        dto.setFileName(file.getName());
-        dto.setFileSize(file.length());
+        dto.setFileName(file.getFileName().toString());
+        dto.setFileSize(this.fileSize(file));
         return dto;
     }
 
@@ -90,12 +98,12 @@ public class FileDownloadServiceImpl implements FileDownloadService {
             throw new UoquoException(PlatformReturnCode.FILE_DOWNLOAD_INVALID);
         }
         // 1.2 校验文件（注：缓存的是文件绝对路径）
-        File file = new File(filePath);
-        if (!file.exists()) {
+        Path file = Path.of(filePath);
+        if (!Files.exists(file)) {
             throw new FileNotFoundException(filePath);
         }
         // 1.3 合理化分块范围（默认无分块）
-        long fileLength = file.length();
+        long fileLength = Files.size(file);
         int responseStatus = HttpServletResponse.SC_OK;
         // 判断是否为分片请求，处理Range: bytes=-xxx的场景
         if (startPos != null || endPos != null) {
@@ -117,29 +125,29 @@ public class FileDownloadServiceImpl implements FileDownloadService {
             throw new ParamErrorException("传入的range信息有误");
         }
         // 3. 输出文件
-        this.responseFile(file.getName(), file, startPos, endPos, response, responseStatus);
+        this.responseFile(file.getFileName().toString(), file, startPos, endPos, response, responseStatus);
     }
 
     @Override
     public void downloadByStream(DownloadConfigParam param, HttpServletResponse response) throws IOException {
         // 1. 判断文件是否存在
-        File file = new File(this.dataDir + File.separator + param.getFilePath());
-        if (!file.exists()) {
+        Path file = this.resolveDataPath(param.getFilePath());
+        if (!Files.exists(file)) {
             throw new UoquoException(PlatformReturnCode.FILE_NOT_EXIST, param.getFilePath());
         }
-        String fileName = StringUtil.notNull(param.getFileName()) ? param.getFileName() : file.getName();
+        String fileName = StringUtil.notNull(param.getFileName()) ? param.getFileName() : file.getFileName().toString();
         // 2. 输出文件
-        this.responseFile(fileName, file, 0, file.length(), response, HttpServletResponse.SC_OK);
+        this.responseFile(fileName, file, 0, Files.size(file), response, HttpServletResponse.SC_OK);
     }
 
     @Override
     public DownloadBase64Dto downloadByBase64(DownloadConfigParam param) throws IOException {
         // 1. 判断文件是否存在
-        File file = new File(this.dataDir + File.separator + param.getFilePath());
-        if (!file.exists()) {
+        Path file = this.resolveDataPath(param.getFilePath());
+        if (!Files.exists(file)) {
             throw new UoquoException(PlatformReturnCode.FILE_NOT_EXIST, param.getFilePath());
         }
-        if (file.length() > 1024 * 1024 * 30) {
+        if (Files.size(file) > 1024 * 1024 * 30) {
             throw new UoquoException(PlatformReturnCode.FILE_TOO_BIG, "文件超过30M，不适用Base64传输");
         }
         // 2. 计算文件MD5
@@ -148,12 +156,12 @@ public class FileDownloadServiceImpl implements FileDownloadService {
             md5Cache = this.calcFileMd5(file, param.getBusinessId());
         }
         // 3. 读取文件并转换为Base64
-        byte[] fileBytes = Files.readAllBytes(file.toPath());
+        byte[] fileBytes = Files.readAllBytes(file);
         Base64.Encoder encoder = Base64.getEncoder();
         String fileContent = encoder.encodeToString(fileBytes);
         // 4. 拼接返回参数
         DownloadBase64Dto dto = new DownloadBase64Dto();
-        dto.setFileName(file.getName());
+        dto.setFileName(file.getFileName().toString());
         dto.setFileMd5(md5Cache);
         dto.setFileContent(fileContent);
         return dto;
@@ -172,18 +180,23 @@ public class FileDownloadServiceImpl implements FileDownloadService {
     /**
      * 计算文件的MD5
      */
-    private String calcFileMd5(File file, String businessId) {
+    private String calcFileMd5(Path file, String businessId) {
         String md5Cache = null;
-        String filePath = file.getAbsolutePath();
+        String filePath = file.toAbsolutePath().toString();
         log.debug("获取文件【{}】缓存的MD5开始", filePath);
-        long lastModified = file.lastModified();
+        long lastModified = 0L;
+        try {
+            lastModified = Files.getLastModifiedTime(file).toMillis();
+        } catch (IOException e) {
+            log.warn("读取文件【{}】修改时间失败", filePath, e);
+        }
         String fileMd5Key = MD5.encrypt(filePath + "-" + lastModified, businessId);
         md5Cache = RedisUtil.get(PlatformCacheKey.DFS_FILE_MD5_PREFIX + fileMd5Key, String.class);
         if (md5Cache != null) {
             log.debug("获取到文件【{}】缓存的MD5：lastModified = {}, businessId = {}, md5 = {}", filePath, lastModified, businessId, md5Cache);
         } else {
             log.debug("重计算文件【{}】缓存的MD5开始", filePath);
-            md5Cache = MD5.encryptFile(file.getAbsolutePath(), businessId);
+            md5Cache = MD5.encryptFile(filePath, businessId);
             RedisUtil.put(PlatformCacheKey.DFS_FILE_MD5_PREFIX + fileMd5Key, md5Cache, FILE_MD5_CACHE_TIMEOUT);
             log.info("重计算文件【{}】缓存的MD5：lastModified = {}, businessId = {}, md5 = {}", filePath, lastModified, businessId, md5Cache);
         }
@@ -193,15 +206,16 @@ public class FileDownloadServiceImpl implements FileDownloadService {
     /**
      * 输出文件流
      */
-    private void responseFile(String fileName, File file, long startPos, long endPos, HttpServletResponse response, int responseStatus) throws IOException {
+    private void responseFile(String fileName, Path file, long startPos, long endPos, HttpServletResponse response, int responseStatus) throws IOException {
         long size = endPos - startPos + 1;
+        long totalSize = Files.size(file);
         // 1. 设置响应头
         // 设置状态和长度
         response.reset();
         response.setStatus(responseStatus);
         response.setContentLengthLong(size);
         // 设置文件类型
-        MediaType mediaType = MediaTypeFactory.getMediaType(file.getName()).orElse(MediaType.APPLICATION_OCTET_STREAM);
+        MediaType mediaType = MediaTypeFactory.getMediaType(file.getFileName().toString()).orElse(MediaType.APPLICATION_OCTET_STREAM);
         response.setContentType(mediaType.toString());
         ContentDisposition contentDisposition = ContentDisposition.attachment().filename(fileName, StandardCharsets.UTF_8).build();
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString());
@@ -209,31 +223,51 @@ public class FileDownloadServiceImpl implements FileDownloadService {
         // 2. 读取分块文件
         if (responseStatus == HttpServletResponse.SC_PARTIAL_CONTENT) {
             response.setHeader("Accept-Ranges", "bytes");
-            response.setHeader("Content-Range", String.format("bytes %d-%d/%d", startPos, endPos, file.length()));
+            response.setHeader("Content-Range", String.format("bytes %d-%d/%d", startPos, endPos, totalSize));
         }
         try (
-                RandomAccessFile raf = new RandomAccessFile(file, "r");
+                FileChannel channel = FileChannel.open(file, StandardOpenOption.READ);
                 OutputStream outs = new BufferedOutputStream(response.getOutputStream());
         ) {
-            raf.seek(startPos);
-            byte[] bytes = new byte[1024 * 1024]; // 一次读取1M
+            channel.position(startPos);
+            ByteBuffer bytes = ByteBuffer.allocate(BUF_SIZE);
             long len = 0;
-            int n = -1;
-            while ((n = raf.read(bytes)) != -1) {
-                if ((len + n) > size) {
-                    n = (int)(size - len);
-                }
-                outs.write(bytes, 0, n);
-                if ((len += n) >= size) {
-                    break;
-                }
+            int n;
+            while (len < size && (n = channel.read(bytes)) != -1) {
+                int writeLength = (int) Math.min(n, size - len);
+                outs.write(bytes.array(), 0, writeLength);
+                len += writeLength;
+                bytes.clear();
             }
             outs.flush();
-            log.info("download file [{}] success. {from={}, size={}, total={}}", file.getAbsolutePath(), startPos, size, file.length());
+            log.info("download file [{}] success. {from={}, size={}, total={}}", file.toAbsolutePath(), startPos, size, totalSize);
         } catch (IOException e) {
-            log.error("download file [{}] error. {from={}, size={}, total={}}.", file.getAbsolutePath(), startPos, size, file.length());
+            log.error("download file [{}] error. {from={}, size={}, total={}}.", file.toAbsolutePath(), startPos, size, totalSize);
             throw e;
         }
     }
+
+    private Path resolveDataPath(String filePath) {
+        String relativePath = filePath.replace('\\', '/');
+        while (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+        }
+        Path root = Path.of(this.dataDir).toAbsolutePath().normalize();
+        Path candidate = root.resolve(relativePath).normalize();
+        if (!candidate.startsWith(root)) {
+            throw new ParamErrorException("filePath");
+        }
+        return candidate;
+    }
+
+    private long fileSize(Path file) {
+        try {
+            return Files.size(file);
+        } catch (IOException e) {
+            log.warn("读取文件[{}]大小失败", file, e);
+            return 0L;
+        }
+    }
+
 
 }

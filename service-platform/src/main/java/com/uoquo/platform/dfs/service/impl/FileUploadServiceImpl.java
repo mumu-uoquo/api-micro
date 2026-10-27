@@ -24,12 +24,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.unit.DataSize;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,8 +46,6 @@ import java.util.zip.ZipOutputStream;
 public class FileUploadServiceImpl implements FileUploadService {
 
 	private static final Logger log = LoggerFactory.getLogger(FileUploadServiceImpl.class);
-
-    private static final int BUF_SIZE = 5 * 1024 * 1024;
 
 	/**
 	 * 缓存过期时间（默认5小时）
@@ -141,13 +139,15 @@ public class FileUploadServiceImpl implements FileUploadService {
 			// 3.1 将分块数据写入文件（一次读取1M）
 			rafTmp.position(pos);
 			long writeLen = 0;
-			byte[] bytes = new byte[1024 * 1024];
+			ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024);
+			ReadableByteChannel inputChannel = Channels.newChannel(input);
 			int len = -1;
-			while((len = input.read(bytes)) != -1) {
-				ByteBuffer buffer = ByteBuffer.wrap(bytes, 0, len);
+			while((len = inputChannel.read(buffer)) != -1) {
+				buffer.flip();
 				while (buffer.hasRemaining()) {
 					rafTmp.write(buffer);
 				}
+				buffer.clear();
 				writeLen += len;
 			}
 			// 3.2 更新分块完成信息
@@ -173,7 +173,7 @@ public class FileUploadServiceImpl implements FileUploadService {
             log.debug("file md5 is not cache, skip check md5. {code={}, path={}, bid={}}", uploadCode, config.getFilePath(), config.getBusinessId());
             return null;
         }
-		String md5 = MD5.encryptFile(tmpFile.toAbsolutePath().toString(), config.getBusinessId());
+		String md5 = MD5.encryptFile(tmpFile, config.getBusinessId());
 		if (!config.getFileMd5().equalsIgnoreCase(md5)) {
             // 调试模式时不删除临时文件，方便对照排查
             if (log.isInfoEnabled()) {
@@ -281,7 +281,7 @@ public class FileUploadServiceImpl implements FileUploadService {
             throw new UoquoException(PlatformReturnCode.FILE_SAVE_FAILED);
         }
         // 4. TODO 计算文件MD5
-//        dto.setFileMd5(MD5.encryptFile(saveFile.toAbsolutePath().toString(), param.getBusinessId()));
+//        dto.setFileMd5(MD5.encryptFile(saveFile, param.getBusinessId()));
         // 5. 放入缓存，用于删除或迁移文件
         UploadConfig config = new UploadConfig();
         config.setFilePath(filePath);
@@ -402,7 +402,7 @@ public class FileUploadServiceImpl implements FileUploadService {
      * 批量压缩
      */
     private void finishByBase64Zip(Path zipFile, List<String> uploadCodes) throws IOException {
-        try (ZipOutputStream zipOut = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(zipFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))))
+        try (ZipOutputStream zipOut = new ZipOutputStream(Files.newOutputStream(zipFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)))
         {
             for (String uploadCode : uploadCodes) {
                 UploadConfig config = RedisUtil.get(PlatformCacheKey.DFS_UPLOAD_PREFIX + uploadCode, UploadConfig.class);
@@ -413,20 +413,10 @@ public class FileUploadServiceImpl implements FileUploadService {
                 // 压缩文件
                 zipOut.putNextEntry(new ZipEntry(config.getFilePath()));
                 Path tmpFile = Path.of(this.tempDir + "/" + config.getTempPath());
-                try (
-                    BufferedInputStream buffIn = new BufferedInputStream(Files.newInputStream(tmpFile), BUF_SIZE);
-                ) {
-                    byte[] buf = new byte[BUF_SIZE];
-                    int length = -1;
-                    while ((length = buffIn.read(buf)) != -1) {
-                        zipOut.write(buf, 0, length);
-                    }
-                    zipOut.flush();
-                }
+                Files.copy(tmpFile, zipOut);
                 zipOut.closeEntry();
                 log.info("上传[{}]的文件[{}]放入临时压缩包[{}]的[{}]完成.", uploadCode, tmpFile.toAbsolutePath().toString(), zipFile.toAbsolutePath().toString(), config.getFilePath());
             }
-            FileUtil.close(zipOut);
         } catch (Exception e) {
             deleteFile(zipFile);
             throw e;
@@ -527,7 +517,7 @@ public class FileUploadServiceImpl implements FileUploadService {
             log.warn("bid[{}] code[{}] not cache md5, skip check.", businessId, tempFileName);
             return;
         }
-        String md5 = MD5.encryptFile(tmpFile.toAbsolutePath().toString(), businessId);
+        String md5 = MD5.encryptFile(tmpFile, businessId);
         if (!fileMd5.equalsIgnoreCase(md5)) {
             // 调试模式时不删除临时文件，方便对照排查
             if (log.isInfoEnabled()) {

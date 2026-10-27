@@ -22,7 +22,6 @@ import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Service;
 
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.BufferedOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -196,7 +195,7 @@ public class FileDownloadServiceImpl implements FileDownloadService {
             log.debug("获取到文件【{}】缓存的MD5：lastModified = {}, businessId = {}, md5 = {}", filePath, lastModified, businessId, md5Cache);
         } else {
             log.debug("重计算文件【{}】缓存的MD5开始", filePath);
-            md5Cache = MD5.encryptFile(filePath, businessId);
+            md5Cache = MD5.encryptFile(file, businessId);
             RedisUtil.put(PlatformCacheKey.DFS_FILE_MD5_PREFIX + fileMd5Key, md5Cache, FILE_MD5_CACHE_TIMEOUT);
             log.info("重计算文件【{}】缓存的MD5：lastModified = {}, businessId = {}, md5 = {}", filePath, lastModified, businessId, md5Cache);
         }
@@ -227,7 +226,7 @@ public class FileDownloadServiceImpl implements FileDownloadService {
         }
         try (
                 FileChannel channel = FileChannel.open(file, StandardOpenOption.READ);
-                OutputStream outs = new BufferedOutputStream(response.getOutputStream());
+                OutputStream outs = response.getOutputStream();
         ) {
             channel.position(startPos);
             ByteBuffer bytes = ByteBuffer.allocate(BUF_SIZE);

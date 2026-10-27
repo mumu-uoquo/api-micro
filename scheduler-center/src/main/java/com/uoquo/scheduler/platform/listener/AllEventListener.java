@@ -144,7 +144,7 @@ public class AllEventListener {
         param.setOperatorInstituteId(event.getOperatorInstituteId());
         // 4. 操作类型及状态
         param.setOperationType(event.getOperationType());
-        param.setOperationStatus(event.getOperationStatus());
+        param.setOperationStatus(event.getOperationResult());
         param.setOperationContent(event.getExtension());
         // 5. 事件原文（消息记录使用）
         param.setEventClass(event.getClass().getName());

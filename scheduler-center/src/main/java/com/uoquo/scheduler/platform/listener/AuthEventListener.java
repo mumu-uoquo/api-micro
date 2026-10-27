@@ -91,7 +91,7 @@ public class AuthEventListener {
      */
     private void handleLogoutEvent(RemoteEvent<AuthInfo> event, AuthInfo info) {
         // 1. 发送被踢下线（状态=02021）通知到在线设备（为了保证消息的及时性，所以优先执行发送逻辑，再记录登出日志）
-        if (SystemReturnCode.ACCOUNT_KICK_OUT.getCode().equals(event.getOperationStatus())) {
+        if (SystemReturnCode.ACCOUNT_KICK_OUT.getCode().equals(event.getOperationResult())) {
             // 1.1 构建SSE事件信息
             RemoteEvent<SseMessage> sseEvent = new RemoteEvent<>(BusinessTypeEnum.SSE.getCode(), BusinessOperationEnum.MESSAGE_SEND.getCode(), SystemReturnCode.SUCCESS.getCode(), "service-platform");
             sseEvent.copy(event);
@@ -173,7 +173,7 @@ public class AuthEventListener {
 //        param.setAppModuleId();
 //        param.setAppModuleName();
         // 4. 登录状态
-        param.setLoginStatus(event.getOperationStatus());
+        param.setLoginStatus(event.getOperationResult());
         param.setLoginTime(event.getOperationTime());
         param.setLoginParam(event.getExtension());
         param.setLoginMode(info.getLoginMode());
@@ -190,7 +190,7 @@ public class AuthEventListener {
         param.setAppKey(event.getAppKey());
         param.setTraceId(event.getTraceId());
         param.setUserId(event.getBusinessId());
-        param.setLogoutStatus(event.getOperationStatus());
+        param.setLogoutStatus(event.getOperationResult());
         param.setLogoutTime(event.getOperationTime());
         param.setLogoutDesc(event.getRemarks());
         return param;

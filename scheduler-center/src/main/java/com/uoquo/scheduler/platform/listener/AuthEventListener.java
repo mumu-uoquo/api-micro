@@ -173,7 +173,7 @@ public class AuthEventListener {
 //        param.setAppModuleId();
 //        param.setAppModuleName();
         // 4. 登录状态
-        param.setLoginStatus(event.getOperationResult());
+        param.setLoginStatus(event.getOperationStatus());
         param.setLoginTime(event.getOperationTime());
         param.setLoginParam(event.getExtension());
         param.setLoginMode(info.getLoginMode());
@@ -190,7 +190,7 @@ public class AuthEventListener {
         param.setAppKey(event.getAppKey());
         param.setTraceId(event.getTraceId());
         param.setUserId(event.getBusinessId());
-        param.setLogoutStatus(event.getOperationResult());
+        param.setLogoutStatus(event.getOperationStatus());
         param.setLogoutTime(event.getOperationTime());
         param.setLogoutDesc(event.getRemarks());
         return param;

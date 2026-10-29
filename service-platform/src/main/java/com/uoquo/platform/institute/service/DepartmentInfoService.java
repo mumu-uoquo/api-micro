@@ -4,6 +4,7 @@ import com.uoquo.platform.institute.model.dto.DepartmentTreeDto;
 import com.uoquo.platform.institute.model.param.DepartmentInfoParam;
 
 import java.util.List;
+import java.util.Map;
 
 
 public interface DepartmentInfoService {
@@ -33,6 +34,13 @@ public interface DepartmentInfoService {
      * 部门详情：根据主键ID
      */
     DepartmentTreeDto getDepartmentInfo(String departmentId);
+
+    /**
+     * 根据部门ID列表查询名称（不关注部门状态），入参为空返回空Map
+     *
+     * @return key=部门ID，value=部门名称
+     */
+    Map<String, String> mapNameByIds(List<String> ids);
 
     /**
      * 部门列表：树状

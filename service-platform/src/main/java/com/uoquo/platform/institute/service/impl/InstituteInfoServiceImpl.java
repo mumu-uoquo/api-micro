@@ -213,6 +213,22 @@ public class InstituteInfoServiceImpl implements InstituteInfoService {
     }
 
     @Override
+    public Map<String, String> mapNameByIds(List<String> ids) {
+        Map<String, String> result = new HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return result;
+        }
+        List<String> distinct = ids.stream().filter(StringUtil::notNull).distinct().collect(Collectors.toList());
+        if (distinct.isEmpty()) {
+            return result;
+        }
+        for (InstituteInfo item : instituteInfoMapper.listNameByIds(distinct)) {
+            result.put(item.getId(), item.getInstituteName());
+        }
+        return result;
+    }
+
+    @Override
     public InstituteInfoDto getInstituteInfo(String instituteId) {
         InstituteInfo info = instituteInfoMapper.selectByPrimaryKey(instituteId);
         if (info == null) {

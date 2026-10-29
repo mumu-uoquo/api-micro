@@ -71,6 +71,11 @@ public interface UserInfoMapper {
     List<UserInfoDto> selectBySimple(Map<String, Object> map);
 
     /**
+     * 列表：根据用户ID集合查询（仅ID、用户名、姓名，不限状态）
+     */
+    List<UserInfo> listNameByIds(@Param("ids") List<String> ids);
+
+    /**
      * 列表：根据角色ID查询
      */
     List<UserInfo> listByRoleId(String roleId);

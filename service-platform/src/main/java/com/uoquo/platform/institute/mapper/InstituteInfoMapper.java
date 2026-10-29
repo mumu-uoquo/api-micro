@@ -43,6 +43,11 @@ public interface InstituteInfoMapper {
     InstituteInfo selectByUnique(Map<String, Object> map);
 
     /**
+     * 列表：根据机构ID集合查询（仅ID、名称，不限状态）
+     */
+    List<InstituteInfo> listNameByIds(@Param("ids") List<String> ids);
+
+    /**
      * 列表查询
      */
     List<InstituteInfo> selectBySearch(Map<String, Object> map);

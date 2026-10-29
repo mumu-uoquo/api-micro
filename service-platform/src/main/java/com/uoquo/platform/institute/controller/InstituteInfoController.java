@@ -1,5 +1,6 @@
 package com.uoquo.platform.institute.controller;
 
+import com.uoquo.annotation.web.IgnoreAuth;
 import com.uoquo.platform.institute.model.dto.InstituteInfoDto;
 import com.uoquo.platform.institute.model.dto.InstituteTreeDto;
 import com.uoquo.platform.institute.model.param.InstituteInfoParam;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 企业管理：普通，只能操作自己的及下属所有的机构
@@ -116,6 +118,16 @@ public class InstituteInfoController {
         // 执行删除
         instituteInfoService.deleteInstituteInfo(param.getId());
         return new ReturnData<>();
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "根据机构ID列表查询机构名称（不关注机构状态，仅内部应用）", hidden = true)
+    @PostMapping("/names")
+    public ReturnData<Map<String, String>> mapInstituteNameByIds(@RequestBody List<String> ids) {
+        if (logger.isInfoEnabled()) {
+            logger.info("mapInstituteNameByIds ids: {}", JsonUtil.serialize(ids));
+        }
+        return new ReturnData<>(instituteInfoService.mapNameByIds(ids));
     }
 
     @Operation(summary = "企业信息详情", operationId = "getInstituteInfo", method = "POST",

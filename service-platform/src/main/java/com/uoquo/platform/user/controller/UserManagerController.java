@@ -1,5 +1,6 @@
 package com.uoquo.platform.user.controller;
 
+import com.uoquo.annotation.web.IgnoreAuth;
 import com.uoquo.platform.institute.service.InstituteInfoService;
 import com.uoquo.platform.user.model.dto.GroupDto;
 import com.uoquo.platform.user.model.dto.UserInfoDto;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户管理：普通，只能操作自己的及下属所有的机构
@@ -76,6 +78,16 @@ public class UserManagerController {
         }
         PageResult<UserInfoDto> result = userInfoService.listUserInfo(param);
         return new ReturnData<>(result.getResult());
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "根据用户ID列表查询用户名称（不关注用户状态，仅内部应用）", hidden = true)
+    @PostMapping("/names")
+    public ReturnData<Map<String, String>> mapUserNameByIds(@RequestBody List<String> ids) {
+        if (logger.isInfoEnabled()) {
+            logger.info("mapUserNameByIds ids: {}", JsonUtil.serialize(ids));
+        }
+        return new ReturnData<>(userInfoService.mapNameByIds(ids));
     }
 
     @Operation(summary = "用户详情查询", operationId = "getUserInfo", method = "POST",

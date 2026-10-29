@@ -8,6 +8,7 @@ import com.uoquo.platform.user.model.param.*;
 import com.uoquo.mybatis.page.PageResult;
 
 import java.util.List;
+import java.util.Map;
 
 public interface UserInfoService {
 
@@ -54,6 +55,14 @@ public interface UserInfoService {
      * 单条查询
      */
     UserInfoDto getUserInfo(String userId);
+
+    /**
+     * 根据用户ID列表查询名称（不关注用户状态），入参为空返回空Map<br>
+     * 名称优先取真实姓名，为空时取用户名
+     *
+     * @return key=用户ID，value=用户名称
+     */
+    Map<String, String> mapNameByIds(List<String> ids);
 
     /**
      * 分页查询<br>

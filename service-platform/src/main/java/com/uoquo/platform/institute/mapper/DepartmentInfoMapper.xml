@@ -164,6 +164,15 @@
       AND dept_name = #{deptName,jdbcType=VARCHAR}
   </select>
 
+  <select id="listNameByIds" resultMap="BaseResultMap">
+    SELECT id, dept_name
+    FROM inc_department
+    WHERE id IN
+      <foreach collection="ids" item="item" open="(" close=")" separator=",">
+        #{item,jdbcType=VARCHAR}
+      </foreach>
+  </select>
+
   <select id="listBySearch" parameterType="map" resultMap="DtoResultMap">
     <!-- @mbg.generated: generated automatically, do not modify! -->
     SELECT dept.id, dept.parent_id, dept.institute_id, dept.area_id, area.area_name,

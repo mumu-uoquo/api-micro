@@ -1,5 +1,6 @@
 package com.uoquo.platform.institute.controller;
 
+import com.uoquo.annotation.web.IgnoreAuth;
 import com.uoquo.platform.institute.model.dto.AreaInfoDto;
 import com.uoquo.platform.institute.model.dto.DepartmentTreeDto;
 import com.uoquo.platform.institute.model.param.*;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 部门管理、区域管理：操作指定机构下的（不再做权限的强判断）
@@ -100,6 +102,16 @@ public class DepartmentInfoController {
     public ReturnData<List<DepartmentTreeDto>> listDepartmentByTree(@RequestBody @Valid IdParam param) {
         List<DepartmentTreeDto> result = departmentInfoService.listDepartmentInfoByTree(param.getId());
         return new ReturnData<>(result);
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "根据部门ID列表查询部门名称（不关注部门状态，仅内部应用）", hidden = true)
+    @PostMapping("/names")
+    public ReturnData<Map<String, String>> mapDepartmentNameByIds(@RequestBody List<String> ids) {
+        if (logger.isInfoEnabled()) {
+            logger.info("mapDepartmentNameByIds ids: {}", JsonUtil.serialize(ids));
+        }
+        return new ReturnData<>(departmentInfoService.mapNameByIds(ids));
     }
 
     /* *******************  分区管理 ******************* */

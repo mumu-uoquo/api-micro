@@ -208,6 +208,22 @@ public class DepartmentInfoServiceImpl implements DepartmentInfoService {
     }
 
     @Override
+    public Map<String, String> mapNameByIds(List<String> ids) {
+        Map<String, String> result = new HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return result;
+        }
+        List<String> distinct = ids.stream().filter(StringUtil::notNull).distinct().collect(Collectors.toList());
+        if (distinct.isEmpty()) {
+            return result;
+        }
+        for (DepartmentInfo item : departmentInfoMapper.listNameByIds(distinct)) {
+            result.put(item.getId(), item.getDeptName());
+        }
+        return result;
+    }
+
+    @Override
     public DepartmentTreeDto getDepartmentInfo(String departmentId) {
         DepartmentInfo info = departmentInfoMapper.selectByPrimaryKey(departmentId);
         if (info == null) {

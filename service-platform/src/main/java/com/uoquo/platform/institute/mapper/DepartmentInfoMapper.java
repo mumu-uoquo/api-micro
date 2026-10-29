@@ -60,6 +60,11 @@ public interface DepartmentInfoMapper {
     DepartmentInfo selectByName(@Param("instituteId") String instituteId, @Param("parentId") String parentId, @Param("deptName") String deptName);
 
     /**
+     * 列表查询：根据部门ID集合查询（仅ID、名称）
+     */
+    List<DepartmentInfo> listNameByIds(@Param("ids") List<String> ids);
+
+    /**
      * 列表查询：按条件搜索（机构ID、区域ID）
      */
     List<DepartmentTreeDto> listBySearch(Map<String, Object> map);

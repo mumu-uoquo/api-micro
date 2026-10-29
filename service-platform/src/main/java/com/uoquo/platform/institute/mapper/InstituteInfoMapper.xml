@@ -162,6 +162,15 @@
     LIMIT 1
   </select>
 
+  <select id="listNameByIds" resultMap="BaseResultMap">
+    SELECT id, institute_name
+    FROM inc_institute
+    WHERE id IN
+      <foreach collection="ids" item="item" open="(" close=")" separator=",">
+        #{item,jdbcType=VARCHAR}
+      </foreach>
+  </select>
+
   <select id="selectBySearch" parameterType="map" resultMap="BaseResultMap">
     SELECT
     <include refid="Base_Column_List" />

@@ -297,6 +297,15 @@
     </if>
   </select>
 
+  <select id="listNameByIds" resultMap="BaseResultMap">
+    SELECT id, user_name, real_name
+    FROM bko_user
+    WHERE id IN
+      <foreach collection="ids" item="item" open="(" close=")" separator=",">
+        #{item,jdbcType=VARCHAR}
+      </foreach>
+  </select>
+
   <select id="listByRoleId" resultMap="BaseResultMap">
     SELECT bu.*
     FROM bko_user AS bu

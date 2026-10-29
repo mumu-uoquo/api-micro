@@ -8,6 +8,7 @@ import com.uoquo.platform.institute.model.param.InstituteStateParam;
 import com.uoquo.mybatis.page.PageResult;
 
 import java.util.List;
+import java.util.Map;
 
 public interface InstituteInfoService {
 
@@ -35,6 +36,13 @@ public interface InstituteInfoService {
      * 机构详情：根据主键ID
      */
     InstituteInfoDto getInstituteInfo(String instituteId);
+
+    /**
+     * 根据机构ID列表查询名称（不关注机构状态），入参为空返回空Map
+     *
+     * @return key=机构ID，value=机构名称
+     */
+    Map<String, String> mapNameByIds(List<String> ids);
 
     /**
      * 检测是否自己管辖的机构

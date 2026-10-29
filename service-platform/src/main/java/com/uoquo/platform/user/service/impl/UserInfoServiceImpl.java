@@ -368,6 +368,22 @@ public class UserInfoServiceImpl implements UserInfoService {
     }
 
     @Override
+    public Map<String, String> mapNameByIds(List<String> ids) {
+        Map<String, String> result = new HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return result;
+        }
+        List<String> distinct = ids.stream().filter(StringUtil::notNull).distinct().collect(Collectors.toList());
+        if (distinct.isEmpty()) {
+            return result;
+        }
+        for (UserInfo item : userInfoMapper.listNameByIds(distinct)) {
+            result.put(item.getId(), StringUtil.notNull(item.getRealName()) ? item.getRealName() : item.getUserName());
+        }
+        return result;
+    }
+
+    @Override
     public UserInfoDto getUserInfo(String userId) {
         UserInfo info = userInfoMapper.selectByPrimaryKey(userId);
         if (info == null) {

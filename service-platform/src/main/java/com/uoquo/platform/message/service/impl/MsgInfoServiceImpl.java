@@ -9,8 +9,7 @@ import com.uoquo.platform.dfs.model.dto.UploadFileDto;
 import com.uoquo.platform.dfs.model.param.DownloadConfigParam;
 import com.uoquo.platform.dfs.service.FileDownloadService;
 import com.uoquo.platform.dfs.service.FileUploadService;
-import com.uoquo.platform.institute.mapper.InstituteInfoMapper;
-import com.uoquo.platform.institute.model.pojo.InstituteInfo;
+import com.uoquo.platform.institute.service.InstituteInfoService;
 import com.uoquo.platform.message.mapper.MsgAttachmentMapper;
 import com.uoquo.platform.message.mapper.MsgInfoMapper;
 import com.uoquo.platform.message.mapper.MsgInfoViewMapper;
@@ -25,6 +24,7 @@ import com.uoquo.platform.message.model.pojo.MsgAttachment;
 import com.uoquo.platform.message.model.pojo.MsgInfo;
 import com.uoquo.platform.message.model.pojo.MsgReceiver;
 import com.uoquo.platform.message.service.MsgInfoService;
+import com.uoquo.platform.user.service.UserInfoService;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.DateUtil;
 import com.uoquo.utils.IDGenerator;
@@ -79,7 +79,10 @@ public class MsgInfoServiceImpl implements MsgInfoService {
     private MsgReceiverMapper msgReceiverMapper;
 
     @Autowired
-    private InstituteInfoMapper instituteInfoMapper;
+    private UserInfoService userInfoService;
+
+    @Autowired
+    private InstituteInfoService instituteInfoService;
 
     @Autowired
     private FileUploadService fileUploadService;
@@ -333,10 +336,24 @@ public class MsgInfoServiceImpl implements MsgInfoService {
         // 分页查询
         PageHelper.startPage(param.getPageNum(), param.getPageSize());
         PageList<MsgInfo> list = (PageList<MsgInfo>) msgInfoMapper.listBySearch(paramMap);
+        // 批量查询创建人、更新人、目标机构名称
+        List<String> userIds = new ArrayList<>();
+        List<String> instituteIds = new ArrayList<>();
+        for (MsgInfo item : list.getResult()) {
+            userIds.add(item.getCreateUser());
+            userIds.add(item.getUpdateUser());
+            instituteIds.add(item.getReceiverInstituteId());
+        }
+        Map<String, String> userNames = userInfoService.mapNameByIds(userIds);
+        Map<String, String> instituteNames = instituteInfoService.mapNameByIds(instituteIds);
         // 对象转换
         List<MsgInfoDto> resultList = new ArrayList<>();
         for (MsgInfo item : list.getResult()) {
-            resultList.add(this.convertInfo2Dto(item));
+            MsgInfoDto dto = this.convertInfo2Dto(item);
+            dto.setCreateUserName(userNames.get(item.getCreateUser()));
+            dto.setUpdateUserName(userNames.get(item.getUpdateUser()));
+            dto.setReceiverInstituteName(instituteNames.get(item.getReceiverInstituteId()));
+            resultList.add(dto);
         }
         return PageResult.of(list, resultList);
     }
@@ -389,11 +406,12 @@ public class MsgInfoServiceImpl implements MsgInfoService {
             throw new ResourceNotFoundException("消息信息不存在");
         }
         MsgInfoDto dto = this.convertInfo2Dto(info);
-        // 补充目标所属机构（主要用于编辑时的回显）
-        if (StringUtil.notNull(dto.getReceiverInstituteId())) {
-            InstituteInfo institute = instituteInfoMapper.selectByPrimaryKey(dto.getReceiverInstituteId());
-            dto.setReceiverInstituteName(institute.getInstituteName());
-        }
+        // 补充创建人、更新人、目标所属机构名称（目标机构主要用于编辑时的回显）
+        Map<String, String> userNames = userInfoService.mapNameByIds(Arrays.asList(info.getCreateUser(), info.getUpdateUser()));
+        dto.setCreateUserName(userNames.get(info.getCreateUser()));
+        dto.setUpdateUserName(userNames.get(info.getUpdateUser()));
+        dto.setReceiverInstituteName(instituteInfoService.mapNameByIds(
+                Collections.singletonList(info.getReceiverInstituteId())).get(info.getReceiverInstituteId()));
         // 补充附件信息
         List<MsgAttachmentDto> result = this.getAttachments(messageId);
         dto.setAttachments(result);

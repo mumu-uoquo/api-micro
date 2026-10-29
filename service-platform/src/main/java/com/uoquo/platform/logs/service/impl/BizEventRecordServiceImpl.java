@@ -3,6 +3,7 @@ package com.uoquo.platform.logs.service.impl;
 import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.platform.common.exception.PlatformReturnCode;
 import com.uoquo.platform.common.utils.UserUtils;
+import com.uoquo.platform.institute.service.InstituteInfoService;
 import com.uoquo.platform.logs.mapper.BizEventRecordMapper;
 import com.uoquo.platform.logs.mapper.BizEventRetryMapper;
 import com.uoquo.platform.logs.model.dto.BizEventRecordDto;
@@ -49,6 +50,9 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
 
     @Autowired
     private BizEventRetryMapper bizEventRetryMapper;
+
+    @Autowired
+    private InstituteInfoService instituteInfoService;
 
     @Autowired
     private UoquoEventPublisher eventPublisher;
@@ -201,6 +205,13 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         // 分页查询
         PageHelper.startPage(param.getPageNum(), param.getPageSize());
         PageList<BizEventRecord> list = (PageList<BizEventRecord>) bizEventRecordMapper.listBySearch(paramMap);
+        // 批量查询机构名称
+        List<String> instituteIds = new ArrayList<>();
+        for (BizEventRecord item : list.getResult()) {
+            instituteIds.add(item.getBusinessInstituteId());
+            instituteIds.add(item.getOperatorInstituteId());
+        }
+        Map<String, String> instituteNames = instituteInfoService.mapNameByIds(instituteIds);
         // 对象转换
         List<BizEventRecordDto> resultList = new ArrayList<>();
         for (BizEventRecord item : list.getResult()) {
@@ -208,7 +219,8 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
             // 这两个字段内容较多，仅详情接口返回
             dto.setChangeData(null);
             dto.setChangeFields(null);
-            // TODO 补充机构信息
+            dto.setBusinessInstituteName(instituteNames.get(item.getBusinessInstituteId()));
+            dto.setOperatorInstituteName(instituteNames.get(item.getOperatorInstituteId()));
             resultList.add(dto);
         }
         return PageResult.of(list, resultList);
@@ -220,15 +232,31 @@ public class BizEventRecordServiceImpl implements BizEventRecordService {
         if (record == null) {
             throw new ResourceNotFoundException("记录信息不存在");
         }
-        return convert2Dto(record);
+        BizEventRecordDto dto = convert2Dto(record);
+        // 补充机构名称
+        Map<String, String> instituteNames = instituteInfoService.mapNameByIds(
+                Arrays.asList(record.getBusinessInstituteId(), record.getOperatorInstituteId()));
+        dto.setBusinessInstituteName(instituteNames.get(record.getBusinessInstituteId()));
+        dto.setOperatorInstituteName(instituteNames.get(record.getOperatorInstituteId()));
+        return dto;
     }
 
     @Override
     public List<BizEventRetryDto> listByRetry(String recordId) {
         List<BizEventRetry> list = bizEventRetryMapper.listByRecordId(recordId);
+        // 批量查询机构名称
+        List<String> instituteIds = new ArrayList<>();
+        for (BizEventRetry item : list) {
+            instituteIds.add(item.getBusinessInstituteId());
+            instituteIds.add(item.getOperatorInstituteId());
+        }
+        Map<String, String> instituteNames = instituteInfoService.mapNameByIds(instituteIds);
         List<BizEventRetryDto> resultList = new ArrayList<>();
         for (BizEventRetry item : list) {
-            resultList.add(convert2Dto(item));
+            BizEventRetryDto dto = convert2Dto(item);
+            dto.setBusinessInstituteName(instituteNames.get(item.getBusinessInstituteId()));
+            dto.setOperatorInstituteName(instituteNames.get(item.getOperatorInstituteId()));
+            resultList.add(dto);
         }
         return resultList;
     }

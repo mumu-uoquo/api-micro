@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import com.uoquo.mybatis.page.PageList;
 import com.uoquo.mybatis.page.PageResult;
 import com.uoquo.platform.auth.service.AuthService;
 import com.uoquo.platform.common.utils.UserUtils;
+import com.uoquo.platform.institute.service.InstituteInfoService;
 import com.uoquo.platform.logs.mapper.LogUserOnlineMapper;
 import com.uoquo.platform.logs.model.dto.LogUserOnlineDto;
 import com.uoquo.platform.logs.model.param.OnlineUserSearchParam;
@@ -38,6 +40,9 @@ public class OnlineUserServiceImpl implements OnlineUserService {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private InstituteInfoService instituteInfoService;
 
     @Override
     public void upsertOnlineUser(LogUserLogin info, String fullToken) {
@@ -90,13 +95,16 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         }
         PageHelper.startPage(param.getPageNum(), param.getPageSize());
         PageList<LogUserOnline> onlineList = (PageList<LogUserOnline>) logUserOnlineMapper.listBySearch(paramMap);
+        // 批量查询机构名称
+        Map<String, String> instituteNames = instituteInfoService.mapNameByIds(
+                onlineList.getResult().stream().map(LogUserOnline::getInstituteId).collect(Collectors.toList()));
         List<LogUserOnlineDto> dtoList = new ArrayList<>();
         for (LogUserOnline item : onlineList.getResult()) {
             LogUserOnlineDto dto = new LogUserOnlineDto();
             BeanUtils.copyProperties(item, dto);
             // 返回简短token，防止泄露
             dto.setToken(UserUtils.formatToken(item.getToken()));
-            // TODO 补充机构信息
+            dto.setInstituteName(instituteNames.get(item.getInstituteId()));
             dtoList.add(dto);
         }
         return PageResult.of(onlineList, dtoList);

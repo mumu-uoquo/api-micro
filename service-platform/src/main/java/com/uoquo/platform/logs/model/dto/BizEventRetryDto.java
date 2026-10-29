@@ -22,6 +22,9 @@ public class BizEventRetryDto {
     @Schema(description = "数据所属企业 ID")
     private String businessInstituteId;
 
+    @Schema(description = "数据所属企业名称")
+    private String businessInstituteName;
+
     @Schema(description = "会话 ID")
     private String token;
 
@@ -36,6 +39,9 @@ public class BizEventRetryDto {
 
     @Schema(description = "操作人所属企业 ID")
     private String operatorInstituteId;
+
+    @Schema(description = "操作人所属企业名称")
+    private String operatorInstituteName;
 
     @Schema(description = "操作时间")
     private Date operationTime;
@@ -74,6 +80,22 @@ public class BizEventRetryDto {
 
     public void setBusinessId(String businessId) {
         this.businessId = businessId == null ? null : businessId.trim();
+    }
+
+    public String getBusinessInstituteName() {
+        return businessInstituteName;
+    }
+
+    public void setBusinessInstituteName(String businessInstituteName) {
+        this.businessInstituteName = businessInstituteName;
+    }
+
+    public String getOperatorInstituteName() {
+        return operatorInstituteName;
+    }
+
+    public void setOperatorInstituteName(String operatorInstituteName) {
+        this.operatorInstituteName = operatorInstituteName;
     }
 
     public String getBusinessInstituteId() {

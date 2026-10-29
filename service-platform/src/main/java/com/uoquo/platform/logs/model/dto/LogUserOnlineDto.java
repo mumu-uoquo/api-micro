@@ -25,6 +25,9 @@ public class LogUserOnlineDto {
     @Schema(description = "所属企业ID")
     private String instituteId;
 
+    @Schema(description = "所属企业名称")
+    private String instituteName;
+
     @Schema(description = "登录IP")
     private String loginIp;
 
@@ -94,6 +97,14 @@ public class LogUserOnlineDto {
 
     public void setUserName(String userName) {
         this.userName = userName == null ? null : userName.trim();
+    }
+
+    public String getInstituteName() {
+        return instituteName;
+    }
+
+    public void setInstituteName(String instituteName) {
+        this.instituteName = instituteName;
     }
 
     public String getInstituteId() {

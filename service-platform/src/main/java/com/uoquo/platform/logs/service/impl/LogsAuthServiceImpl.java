@@ -2,6 +2,7 @@ package com.uoquo.platform.logs.service.impl;
 
 import com.uoquo.platform.common.exception.AccountReturnCode;
 import com.uoquo.platform.common.utils.UserUtils;
+import com.uoquo.platform.institute.service.InstituteInfoService;
 import com.uoquo.platform.logs.mapper.LogUserLoginMapper;
 import com.uoquo.platform.logs.model.dto.LogUserLoginDto;
 import com.uoquo.platform.logs.model.param.LogUserLoginParam;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class LogsAuthServiceImpl implements LogsAuthService {
@@ -44,6 +46,9 @@ public class LogsAuthServiceImpl implements LogsAuthService {
 
     @Autowired
     private ModuleInfoMapper moduleInfoMapper;
+
+    @Autowired
+    private InstituteInfoService instituteInfoService;
 
     @Override
     public String addLogsInfo(LogUserLoginParam param) {
@@ -158,11 +163,15 @@ public class LogsAuthServiceImpl implements LogsAuthService {
         }
         PageHelper.startPage(param.getPageNum(), param.getPageSize());
         PageList<LogUserLogin> list = (PageList<LogUserLogin>) logUserLoginMapper.listBySearch(paramMap);
+        // 批量查询机构名称
+        Map<String, String> instituteNames = instituteInfoService.mapNameByIds(
+                list.getResult().stream().map(LogUserLogin::getInstituteId).collect(Collectors.toList()));
         // 对象转换
         List<LogUserLoginDto> resultList = new ArrayList<>();
         for (LogUserLogin item : list.getResult()) {
-            // TODO 补充机构信息
-            resultList.add(this.convert2Dto(item));
+            LogUserLoginDto dto = this.convert2Dto(item);
+            dto.setInstituteName(instituteNames.get(item.getInstituteId()));
+            resultList.add(dto);
         }
         return PageResult.of(list, resultList);
     }
@@ -175,6 +184,8 @@ public class LogsAuthServiceImpl implements LogsAuthService {
         }
         LogUserLoginDto dto = new LogUserLoginDto();
         BeanUtils.copyProperties(info, dto);
+        // 补充机构名称
+        dto.setInstituteName(instituteInfoService.mapNameByIds(Collections.singletonList(dto.getInstituteId())).get(dto.getInstituteId()));
         return dto;
     }
 

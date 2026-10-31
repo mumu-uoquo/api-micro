@@ -34,6 +34,9 @@ public class LicenseRecordDto {
     @Schema(description = "创建人")
     private String createUser;
 
+    @Schema(description = "创建人名称")
+    private String createUserName;
+
     @Schema(description = "创建时间")
     private Date createTime;
 
@@ -111,6 +114,14 @@ public class LicenseRecordDto {
 
     public void setCreateUser(String createUser) {
         this.createUser = createUser;
+    }
+
+    public String getCreateUserName() {
+        return createUserName;
+    }
+
+    public void setCreateUserName(String createUserName) {
+        this.createUserName = createUserName;
     }
 
     public Date getCreateTime() {

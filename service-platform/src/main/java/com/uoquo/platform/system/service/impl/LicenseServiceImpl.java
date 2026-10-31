@@ -7,6 +7,8 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,7 @@ import com.uoquo.platform.system.model.param.LicenseRecordPageParam;
 import com.uoquo.platform.system.model.pojo.LicenseRecord;
 import com.uoquo.platform.system.service.LicenseService;
 import com.uoquo.platform.system.service.SysSettingService;
+import com.uoquo.platform.user.service.UserInfoService;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
@@ -47,6 +50,9 @@ public class LicenseServiceImpl implements LicenseService {
 
     @Autowired
     private SysSettingService sysSettingService;
+
+    @Autowired
+    private UserInfoService userInfoService;
 
     // 手动事务控制
     @Autowired
@@ -85,7 +91,12 @@ public class LicenseServiceImpl implements LicenseService {
             }
             // 授权结束日期：expiryDate 为 yyyyMMdd，null 表示永久有效
             record.setValidExpire(parseExpiryDate(licenseInfo.getExpiryDate()));
+            // 授权快照：序列号、激活码已单独入库，机器码属于敏感信息，快照中均不保留
+            licenseInfo.setSerialNo(null);
+            licenseInfo.setMachineCode(null);
+            licenseInfo.setActivationCode(null);
             record.setLicenseInfo(JsonUtil.serialize(licenseInfo));
+            
             record.setIsCurrent(true);
             record.setImportResult(true);
         } catch (Exception e) {
@@ -153,11 +164,15 @@ public class LicenseServiceImpl implements LicenseService {
         PageHelper.startPage(param.getPageNum(), param.getPageSize());
         // MyBatis 拦截器对 pojo 中 @SensitiveField 字段自动 AES 解密（activation_code）
         PageList<LicenseRecord> list = (PageList<LicenseRecord>) licenseRecordMapper.selectByPage();
+        // 批量查询创建人名称
+        Map<String, String> userNames = userInfoService.mapNameByIds(
+                list.getResult().stream().map(LicenseRecord::getCreateUser).collect(Collectors.toList()));
         // pojo → dto 转换
         List<LicenseRecordDto> dtoList = new ArrayList<>();
         for (LicenseRecord record : list.getResult()) {
             LicenseRecordDto dto = new LicenseRecordDto();
             BeanUtils.copyProperties(record, dto);
+            dto.setCreateUserName(userNames.get(record.getCreateUser()));
             dtoList.add(dto);
         }
         return PageResult.of(list, dtoList);

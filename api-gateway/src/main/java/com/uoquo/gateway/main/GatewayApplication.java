@@ -20,9 +20,6 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 public class GatewayApplication implements ApplicationRunner {
 
 	public static void main(String[] args) {
-//		for (String key : Config.getKeys()) {
-//			System.setProperty(key, Config.getString(key));
-//		}
 		System.setProperty("app.path", Config.APP_PATH); // 程序根目录（主要用于配置文件中）
 		System.setProperty("spring.cloud.inetutils.preferred-networks", Config.getString("app.preferred.networks"));
 		// 如果没有指定运行模式，则采用配置文件中的运行模式
@@ -32,7 +29,8 @@ public class GatewayApplication implements ApplicationRunner {
 		}
 
 		try {
-			SpringApplication.run(GatewayApplication.class, args);
+            SpringApplication application = new SpringApplication(GatewayApplication.class);
+            application.run(args);
 		} catch (Throwable ex) {
 			// 启动失败（如 Redis/Nacos 等外部依赖不可用导致 ApplicationContext 启动异常）时，
 			// Lettuce/Netty 的非守护线程会一直挂住 JVM，导致“进程在但服务已死”的假死状态。
@@ -43,15 +41,7 @@ public class GatewayApplication implements ApplicationRunner {
 
 	@Override
 	public void run(ApplicationArguments args) throws Exception {
-		// 1. 免校验URL（含：header必传参数校验、签名校验、登录校验）
-		// 文件下载（因为下载码本身已经作为临时校验，为了保证某些无法携带请求头的情况能正常下载，因此放开校验）
-		RedisUtil.putSetItem(BaseCacheKey.GLOBAL_UNSIGNED, "/api/dfs/v1/file/download/transfer", null);
-		// 2. 免登陆URL
-		// 文件上传下载
-		RedisUtil.putSetItem(BaseCacheKey.GLOBAL_PERMISSION, "/api/dfs/v1/file/download/transfer", null);
-		RedisUtil.putSetItem(BaseCacheKey.GLOBAL_PERMISSION, "/api/dfs/v1/file/upload/transfer", null);
-
-		// 3. 初始数据
+		// 初始数据
 		if (!RedisUtil.exist(BaseCacheKey.GLOBAL_TIMEOUT)) {
 			RedisUtil.put(BaseCacheKey.GLOBAL_TIMEOUT, 30, null);
 		}

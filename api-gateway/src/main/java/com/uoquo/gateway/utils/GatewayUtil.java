@@ -20,7 +20,6 @@ import org.springframework.web.server.ServerWebExchange;
 import com.uoquo.utils.CurrentUser;
 import com.uoquo.utils.IDGenerator;
 import com.uoquo.utils.StringUtil;
-import com.uoquo.utils.crypto.MD5;
 import com.uoquo.utils.spring.RedisUtil;
 import com.uoquo.web.BaseCacheKey;
 import com.uoquo.web.exception.ParamErrorException;
@@ -103,21 +102,6 @@ public class GatewayUtil {
     }
 
     /**
-     * 全局通信签名.<br>
-     * 备注：主要用于网关到服务，服务到服务之间的参数签名.
-     * @param signature 参数签名数据
-     * @param secret    全局密钥
-     */
-    public static String sign(String signature, String secret) {
-        try {
-            return MD5.encrypt(signature + secret);
-        } catch (Exception e) {
-            log.warn("calc global signature error. {}", signature, e);
-            return null;
-        }
-    }
-
-    /**
      * 缓存用户信息到exchange（从而保证当前会话各个filter都可用）.
      */
     public static void putInfo2Attributes(Map<String, Object> attributes) {
@@ -170,7 +154,7 @@ public class GatewayUtil {
     }
 
     /**
-     * 解析请求参数中的CurrentUser信息
+     * 解析请求头及redis中的CurrentUser信息
      */
     public static void parseInfo4Request(ServerWebExchange exchange) {
         CurrentUser.clear();

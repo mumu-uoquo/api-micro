@@ -6,6 +6,7 @@ package com.uoquo.gateway.main.config;
 
 import com.uoquo.gateway.handler.GlobalExceptionHandler;
 import com.uoquo.gateway.loadbalancer.IphashLoadBalancer;
+import com.uoquo.gateway.utils.GlobalPermissionMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -94,6 +95,15 @@ public class ApplicationConfig {
         exceptionHandler.setMessageWriters(serverCodecConfigurer.getWriters());
         exceptionHandler.setMessageReaders(serverCodecConfigurer.getReaders());
         return exceptionHandler;
+    }
+
+    /**
+     * 全局免登录URL匹配器（供鉴权过滤器使用，utils 包不在自动扫描路径中，因此手动注册）.
+     */
+    @Bean
+    public GlobalPermissionMatcher globalPermissionMatcher() {
+        log.debug("Use GlobalPermissionMatcher");
+        return new GlobalPermissionMatcher();
     }
 
     /**

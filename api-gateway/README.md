@@ -13,11 +13,16 @@
 作为最高优先级的全局过滤器（`HIGHEST_PRECEDENCE + 100`），对所有请求统一处理：
 
 - 从请求头 / URL 参数及 Redis 中解析当前用户信息（`GatewayUtil.parseInfo4Request`）。
-- 校验必传参数、appid 合法性（`APPKEY_SECRET_PREFIX`）、登录态 token。
-- 登录、验证码接口免登放行；通过 `GLOBAL_UNSIGNED` / `GLOBAL_PERMISSION` 集合配置免签、免登 URL（如文件上传下载）。
+微服务模式下，登录和权限校验只在网关完成（应用层的 `CheckLogin4GatewayInterceptor` 不再校验登录），参数签名、时间戳、防重提交仍在应用层校验：
+
+- 校验 appid 合法性（`APPKEY_SECRET_PREFIX`）；需要登录的接口必须传 appid 和 token（`AppkeyEmptyException` / `TokenEmptyException`）。
+- 免登录 URL 完全由各应用中标注的 `@IgnoreAuth(all=true)` / `@IgnoreAuth(login=true)` 决定：应用启动后登记到 Redis 的 `GLOBAL_PERMISSION` 集合，网关用 `GlobalPermissionMatcher` 本地缓存并匹配（精确匹配和路径模式，约 10 秒刷新一次）；`GatewayApplication` 另外补充了文件上传下载的固定 URL。不再有硬编码的 `/login`、`/captcha` 放行，这类接口需要在应用中标注 `@IgnoreAuth(login=true)`。
+- 第三方应用 token 只能访问授权的 URL（`APPKEY_PERMISSION_PREFIX`）；用户 token 无对应用户信息时返回 token 失效（`TokenInvalidException`）。
 - 校验单点登录冲突（token 与缓存不一致时踢出，`AccountKickOutException`）。
+- 登记为系统资源的 URL（`GLOBAL_ALL_RESOURCE`）需校验当前角色的权限（`ForbiddenException`）。
 - 退出 / 切换角色接口访问时清理本地缓存。
-- 将解析出的用户信息（userId、userName、roleId、机构、语言、客户端 IP、traceId 等）透传到下游服务请求头，并补充网关签名（`GATEWAY_SIGN` / `GATEWAY_TIME`）。
+- 将解析出的用户信息（userId、userName、roleId、机构、语言、客户端 IP、traceId 等）透传到下游服务请求头；客户端传入的这些内部请求头一律丢弃，防止伪造。
+- 给所有转发的请求补充网关签名：`GATEWAY_SIGN = SHA-256(客户端签名 + GATEWAY_TIME + 全局密钥)`，没有客户端签名（免签接口）时客户端签名按空串计算。应用层据此确认请求是由网关转发的，`GATEWAY_TIME` 与应用服务器时间相差超过 10 秒会被拒绝，因此网关与应用服务器需要时钟同步。
 
 ### 请求限流（GatewayRequestRateLimiter）
 

@@ -85,6 +85,10 @@
         #{item}
       </foreach>
     </if>
+    <!-- 所有条件都为空时不更新任何记录（防止误删全表） -->
+    <if test="(messageId == null or messageId == '') and (receiverId == null or receiverId == '') and (id == null or id == '') and (ids == null or ids.size() == 0)">
+      AND 1 = 0
+    </if>
     </where>
   </update>
 
@@ -100,13 +104,21 @@
       update_user = #{updateUser,jdbcType=VARCHAR},
       update_time = #{updateTime,jdbcType=TIMESTAMP}
     </set>
-    WHERE
-    <if test="id != null and id != ''">
-      id = #{id,jdbcType=VARCHAR}
-    </if>
-    <if test="receiverId != null and receiverId != ''">
-      receiver_id = #{receiverId,jdbcType=VARCHAR}
-    </if>
+    <where>
+      <if test="id != null and id != ''">
+        AND id = #{id,jdbcType=VARCHAR}
+      </if>
+      <!-- 按接收人批量更新（全部标记已读）：只更新未读且未删除的记录，避免覆盖已读记录的阅读时间 -->
+      <if test="receiverId != null and receiverId != ''">
+        AND receiver_id = #{receiverId,jdbcType=VARCHAR}
+        AND delete_state = 0
+        AND (is_read IS NULL OR is_read = 0)
+      </if>
+      <!-- 两个条件都为空时不更新任何记录（防止误更新全表） -->
+      <if test="(id == null or id == '') and (receiverId == null or receiverId == '')">
+        AND 1 = 0
+      </if>
+    </where>
   </update>
 
   <update id="updateProcessedStatus" parameterType="com.uoquo.platform.message.model.pojo.MsgReceiver">
@@ -122,13 +134,21 @@
       update_user = #{updateUser,jdbcType=VARCHAR},
       update_time = #{updateTime,jdbcType=TIMESTAMP}
     </set>
-    WHERE
-    <if test="id != null and id != ''">
-      id = #{id,jdbcType=VARCHAR}
-    </if>
-    <if test="receiverId != null and receiverId != ''">
-      receiver_id = #{receiverId,jdbcType=VARCHAR}
-    </if>
+    <where>
+      <if test="id != null and id != ''">
+        AND id = #{id,jdbcType=VARCHAR}
+      </if>
+      <!-- 按接收人批量更新（全部标记已处理）：只更新未处理且未删除的记录 -->
+      <if test="receiverId != null and receiverId != ''">
+        AND receiver_id = #{receiverId,jdbcType=VARCHAR}
+        AND delete_state = 0
+        AND (is_processed IS NULL OR is_processed = 0)
+      </if>
+      <!-- 两个条件都为空时不更新任何记录（防止误更新全表） -->
+      <if test="(id == null or id == '') and (receiverId == null or receiverId == '')">
+        AND 1 = 0
+      </if>
+    </where>
   </update>
 
   <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">

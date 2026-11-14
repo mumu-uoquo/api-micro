@@ -13,25 +13,33 @@ import com.uoquo.scheduler.platform.model.pojo.MsgInfo;
 import com.uoquo.scheduler.platform.model.pojo.SseMessage;
 import com.uoquo.scheduler.platform.remote.MessageRemoteService;
 import com.uoquo.scheduler.platform.remote.UserRemoteService;
+import com.uoquo.utils.Config;
 import com.uoquo.utils.StringUtil;
 import com.uoquo.utils.json.JsonUtil;
 import com.uoquo.web.SystemReturnCode;
+import com.uoquo.web.events.EventContext;
 import com.uoquo.web.events.UoquoEventPublisher;
 import com.uoquo.web.param.IdParam;
 import com.uoquo.mybatis.page.PageResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 事件监听器：消息发布（009030） <br>
@@ -52,6 +60,9 @@ public class MessageInfoEventListener {
     /** 推送结果（push_result）字段的最大长度 */
     private static final int PUSH_RESULT_MAX_LENGTH = 500;
 
+    /** 每页查询的用户数（同时是批量接口的单次上限） */
+    private static final int PAGE_SIZE = 1000;
+
     @Autowired
     private UoquoEventPublisher eventPublisher;
 
@@ -61,9 +72,39 @@ public class MessageInfoEventListener {
     @Autowired
     private UserRemoteService userRemoteService;
 
+    /**
+     * 群发专用线程池：线程数由 app.message.fanout.pool-size 配置（默认2），队列长度由 app.message.fanout.queue-capacity 配置（默认100）。
+     * 队列满时由提交线程自己执行（背压，不丢消息）。
+     */
+    private ThreadPoolExecutor fanoutExecutor;
+
     @PostConstruct
     public void setProperties(){
-        logger.debug("MessageInfoEventListener init ...");
+        int size = Math.max(1, Config.getInt("app.message.fanout.pool-size", 2));
+        int queue = Math.max(1, Config.getInt("app.message.fanout.queue-capacity", 100));
+        AtomicInteger index = new AtomicInteger();
+        fanoutExecutor = new ThreadPoolExecutor(size, size, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(queue),
+                r -> new Thread(r, "message-fanout-" + index.incrementAndGet()),
+                new ThreadPoolExecutor.CallerRunsPolicy());
+        fanoutExecutor.allowCoreThreadTimeOut(true);
+        logger.debug("MessageInfoEventListener init ... fanout pool size={}, queue={}", size, queue);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (fanoutExecutor == null) {
+            return;
+        }
+        // 等待正在执行的群发（最长10秒），超时则中断，未处理完的接收人不会继续推送
+        fanoutExecutor.shutdown();
+        try {
+            if (!fanoutExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                logger.warn("群发线程池未能在规定时间内结束，丢弃未执行的任务数[{}]", fanoutExecutor.shutdownNow().size());
+            }
+        } catch (InterruptedException e) {
+            fanoutExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -77,40 +118,64 @@ public class MessageInfoEventListener {
                     event.getEventId(), event.getBusinessType(), event.getBusinessSubType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
             return;
         }
-        // 正常消息处理
+        // 只需要处理发布事件，其他操作仅需记日志
+        if (!BusinessOperationEnum.MESSAGE_PUBLISH.getCode().equals(event.getOperationType())) {
+            return;
+        }
+        // 群发可能耗时较长（接收人多时按页循环），交给专用线程池处理，立即释放事件线程池的线程，
+        // 避免与踢人、日志等实时事件抢占同一个线程池（队列满时由当前线程执行，形成背压）
+        String requestId = MDC.get("requestId");
+        fanoutExecutor.execute(() -> fanOut(event, requestId));
+    }
+
+    /**
+     * 群发：按页查询接收人并推送。在专用线程池中执行，需自行恢复事件的用户上下文。
+     */
+    private void fanOut(RemoteEvent<MsgInfo> event, String requestId) {
+        String oldRequestId = MDC.get("requestId");
+        EventContext.Snapshot snapshot = EventContext.capture();
         try {
-            // 只需要处理发布事件，其他操作仅需记日志
-            if (BusinessOperationEnum.MESSAGE_PUBLISH.getCode().equals(event.getOperationType())) {
-                MsgInfo message = event.getNewData();
-                // 查询指定范围的用户
-                UserListByRangeParam param = new UserListByRangeParam();
-                param.setPageNum(1);
-                param.setPageSize(1000);
-                param.setReceiverRange(message.getReceiverRange());
-                param.setReceiverInstituteId(message.getReceiverInstituteId());
-                if (StringUtil.notNull(message.getReceiverIds())) {
-                    param.setReceiverIds(List.of(message.getReceiverIds().split(",")));
-                }
-                int total = 0;
-                PageResult<UserInfoDto> result = userRemoteService.listUserByRange(param);
-                while (result.getSize() > 0) {
-                    total += result.getResult().size();
-                    this.pushMessage2Users(event, message, result.getResult());
-                    // 若还有下一页，则继续请求
-                    if (result.isNextPage()) {
-                        param.setPageNum(param.getPageNum() + 1);
-                        result = userRemoteService.listUserByRange(param);
-                    } else {
-                        break;
-                    }
-                }
-                logger.info("账号[{}]发布消息[{}]完毕，接收人数[{}]", event.getOperatorId(), event.getBusinessId(), total);
+            if (StringUtil.notNull(requestId)) {
+                MDC.put("requestId", requestId);
             }
+            // 用事件携带的发起人信息填充用户上下文（Feign 请求头需要）
+            EventContext.apply(event);
+            MsgInfo message = event.getNewData();
+            // 查询指定范围的用户
+            UserListByRangeParam param = new UserListByRangeParam();
+            param.setPageNum(1);
+            param.setPageSize(PAGE_SIZE);
+            param.setReceiverRange(message.getReceiverRange());
+            param.setReceiverInstituteId(message.getReceiverInstituteId());
+            if (StringUtil.notNull(message.getReceiverIds())) {
+                param.setReceiverIds(List.of(message.getReceiverIds().split(",")));
+            }
+            int total = 0;
+            PageResult<UserInfoDto> result = userRemoteService.listUserByRange(param);
+            while (result.getSize() > 0) {
+                total += result.getResult().size();
+                this.pushMessage2Users(event, message, result.getResult());
+                // 若还有下一页，则继续请求
+                if (result.isNextPage()) {
+                    param.setPageNum(param.getPageNum() + 1);
+                    result = userRemoteService.listUserByRange(param);
+                } else {
+                    break;
+                }
+            }
+            logger.info("账号[{}]发布消息[{}]完毕，接收人数[{}]", event.getOperatorId(), event.getBusinessId(), total);
             if (logger.isDebugEnabled()) {
                 logger.debug("账号[{}]发布消息[{}]完毕：{}", event.getOperatorId(), event.getBusinessId(), JsonUtil.serialize(event));
             }
         } catch (Exception e) {
             logger.error("账号[{}]发布消息[{}]失败：", event.getOperatorId(), event.getBusinessId(), e);
+        } finally {
+            snapshot.restore();
+            if (StringUtil.notNull(oldRequestId)) {
+                MDC.put("requestId", oldRequestId);
+            } else {
+                MDC.remove("requestId");
+            }
         }
     }
 

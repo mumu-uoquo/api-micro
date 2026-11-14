@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import java.util.Map;
 
 /**
  * 消息管理（普通管理）
@@ -218,6 +219,17 @@ public class MessageManagerController {
         return new ReturnData<>(recordId);
     }
 
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息详情：批量添加接收人（由发布事件触发，幂等）", hidden = true)
+    @PostMapping("/info/receivers/batch/add")
+    public ReturnData<Map<String, String>> addReceivers4Message(@RequestBody @Valid MsgInfoReceiveBatchParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("addReceivers4Message messageId: {}, receivers: {}", param.getMessageId(), param.getReceivers().size());
+        }
+        Map<String, String> recordIds = msgReceiverService.addReceivers(param);
+        return new ReturnData<>(recordIds);
+    }
+
     @Operation(summary = "消息详情：删除接收人", operationId = "deleteReceiver4Message", method = "POST")
     @PostMapping("/info/receivers/delete")
     public ReturnData<String> deleteReceiver4Message(@RequestBody MsgInfoListParam param) {
@@ -264,6 +276,17 @@ public class MessageManagerController {
         }
         String logId = msgPushLogService.addPushLog(param);
         return new ReturnData<>(logId);
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息详情：推送日志批量新增（由发布事件触发）", hidden = true)
+    @PostMapping("/info/push/logs/batch/add")
+    public ReturnData<Integer> addPushLogs4Message(@RequestBody @Valid MsgPushLogBatchParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("addPushLogs4Message logs: {}", param.getLogs().size());
+        }
+        int count = msgPushLogService.addPushLogs(param);
+        return new ReturnData<>(count);
     }
 
     @Operation(summary = "消息详情：消息重推", operationId = "retryPushByLogId", method = "POST",

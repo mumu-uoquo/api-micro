@@ -40,6 +40,31 @@
       #{updateTime,jdbcType=TIMESTAMP}, #{deleteState,jdbcType=BIGINT})
   </insert>
 
+  <insert id="insertIgnoreBatch">
+    INSERT IGNORE INTO msg_receiver (id, message_id, receiver_id,
+      receiver_name, is_read, is_processed,
+      create_time, update_user, update_time, delete_state)
+    VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.id,jdbcType=VARCHAR}, #{item.messageId,jdbcType=VARCHAR}, #{item.receiverId,jdbcType=VARCHAR},
+      #{item.receiverName,jdbcType=VARCHAR}, #{item.readState,jdbcType=BIT}, #{item.processedState,jdbcType=BIT},
+      #{item.createTime,jdbcType=TIMESTAMP}, #{item.updateUser,jdbcType=VARCHAR}, #{item.updateTime,jdbcType=TIMESTAMP},
+      #{item.deleteState,jdbcType=BIGINT})
+    </foreach>
+  </insert>
+
+  <select id="listByMessageAndReceivers" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_receiver
+    WHERE message_id = #{messageId,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND receiver_id IN
+    <foreach collection="receiverIds" item="item" open="(" close=")" separator=",">
+      #{item,jdbcType=VARCHAR}
+    </foreach>
+  </select>
+
   <update id="deleteByMap">
     <!-- @mbg.generated: generated automatically, do not modify! -->
     UPDATE msg_receiver SET
@@ -52,10 +77,10 @@
       AND receiver_id = #{receiverId,jdbcType=VARCHAR}
     </if>
     <if test="id != null and id != ''">
-      id = #{id,jdbcType=VARCHAR}
+      AND id = #{id,jdbcType=VARCHAR}
     </if>
     <if test="ids != null and ids.size() > 0">
-      id IN
+      AND id IN
       <foreach collection="ids" item="item" open="(" close=")" separator=",">
         #{item}
       </foreach>

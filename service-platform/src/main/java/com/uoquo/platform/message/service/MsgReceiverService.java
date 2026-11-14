@@ -3,11 +3,13 @@ package com.uoquo.platform.message.service;
 import com.uoquo.platform.message.model.dto.MsgReceiverDto;
 import com.uoquo.platform.message.model.dto.MsgReceiverSearchDto;
 import com.uoquo.platform.message.model.param.MsgInfoListParam;
+import com.uoquo.platform.message.model.param.MsgInfoReceiveBatchParam;
 import com.uoquo.platform.message.model.param.MsgInfoReceiveParam;
 import com.uoquo.platform.message.model.param.MsgReceiverSearchParam;
 import com.uoquo.mybatis.page.PageResult;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 接收消息服务
@@ -19,6 +21,13 @@ public interface MsgReceiverService {
      * 注：调用前需判断 messageId 的有效性
      */
     String addReceiver(MsgInfoReceiveParam param);
+
+    /**
+     * 批量新增接收消息（幂等：已存在的接收记录不会重复添加，也不会报错，可安全重放）<br>
+     * 注：调用前需判断 messageId 的有效性；为了性能，不会逐个查询用户名称，未传名称时置空
+     * @return receiverId → 接收记录ID（含之前已存在的；已被接收人删除的记录不返回）
+     */
+    Map<String, String> addReceivers(MsgInfoReceiveBatchParam param);
 
     /**
      * 删除单条记录

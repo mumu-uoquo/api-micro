@@ -32,6 +32,18 @@
       #{pushResult,jdbcType=VARCHAR}, #{retryCount,jdbcType=TINYINT}, #{description,jdbcType=VARCHAR})
   </insert>
 
+  <insert id="insertBatch">
+    INSERT INTO msg_push_log (id, message_id, receiver_id, receiver_name,
+      push_way, push_status, push_time,
+      push_result, retry_count, description)
+    VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.id,jdbcType=VARCHAR}, #{item.messageId,jdbcType=VARCHAR}, #{item.receiverId,jdbcType=VARCHAR}, #{item.receiverName,jdbcType=VARCHAR},
+      #{item.pushWay,jdbcType=CHAR}, #{item.pushStatus,jdbcType=CHAR}, #{item.pushTime,jdbcType=TIMESTAMP},
+      #{item.pushResult,jdbcType=VARCHAR}, #{item.retryCount,jdbcType=TINYINT}, #{item.description,jdbcType=VARCHAR})
+    </foreach>
+  </insert>
+
   <update id="updatePushStatus">
     <!-- @mbg.generated: generated automatically, do not modify! -->
     UPDATE msg_push_log SET

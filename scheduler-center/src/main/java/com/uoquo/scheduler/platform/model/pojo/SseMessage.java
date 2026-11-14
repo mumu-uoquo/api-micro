@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -24,8 +26,12 @@ public class SseMessage {
     @Schema(description = "消息ID")
     private String messageId;
 
-    @Schema(description = "接收人ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "接收人ID（单个接收人时使用；批量时由 receiverRecords 指定）")
     private String receiverId;
+
+    @Schema(description = "批量接收人：receiverId → 接收记录ID。仅用于服务间的批量事件，投递给客户端前会被清空（避免泄露其他用户）")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Map<String, String> receiverRecords;
 
     @Schema(description = "发送人ID")
     private String senderId;
@@ -105,6 +111,14 @@ public class SseMessage {
 
     public void setReceiverId(String receiverId) {
         this.receiverId = receiverId;
+    }
+
+    public Map<String, String> getReceiverRecords() {
+        return receiverRecords;
+    }
+
+    public void setReceiverRecords(Map<String, String> receiverRecords) {
+        this.receiverRecords = receiverRecords;
     }
 
     public String getSenderId() {

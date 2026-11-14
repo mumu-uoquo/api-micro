@@ -14,6 +14,17 @@ public interface MsgReceiverMapper {
     int insert(MsgReceiver row);
 
     /**
+     * 批量新增（INSERT IGNORE：依赖唯一索引 uk_message_receiver(message_id, receiver_id)，已存在的记录自动跳过，可重复调用）
+     * @return 实际新增的行数
+     */
+    int insertIgnoreBatch(@Param("list") List<MsgReceiver> list);
+
+    /**
+     * 按消息和接收人批量查询（仅未删除的记录），用于获取接收记录ID
+     */
+    List<MsgReceiver> listByMessageAndReceivers(@Param("messageId") String messageId, @Param("receiverIds") List<String> receiverIds);
+
+    /**
      * 删除（逻辑删）
      * @mbg.generated generated automatically, do not modify!
      */

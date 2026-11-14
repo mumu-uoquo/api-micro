@@ -58,7 +58,8 @@ app:
       host:    ${KAFKA_HOST:dev.xuziu.com:9092}
       group:   ${KAFKA_GROUP:${app.name}}
       bus-topic: ${KAFKA_BUS_TOPIC:SpringCloudBusTopic}
-      bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus}  # 默认用服务名，防止多节点时重复消费
+      #bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus}  # 默认用服务名，防止多节点时重复消费
+      bus-group: ${KAFKA_BUS_GROUP:${app.name}-bus-${app.node}}  # 当前应用就是需要重复消费
   # ============= 自定义线程池 =============
   task:
     pool:

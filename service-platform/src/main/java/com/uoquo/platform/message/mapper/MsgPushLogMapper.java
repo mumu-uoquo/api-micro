@@ -15,6 +15,11 @@ public interface MsgPushLogMapper {
     int insert(MsgPushLog row);
 
     /**
+     * 批量新增
+     */
+    int insertBatch(@Param("list") List<MsgPushLog> list);
+
+    /**
      * 更新推送状态
      * @mbg.generated generated automatically, do not modify!
      */

@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -24,8 +26,12 @@ public class SseMessage {
     @Schema(description = "消息ID")
     private String messageId;
 
-    @Schema(description = "接收人ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "接收人ID（单个接收人时使用；批量时由 receiverRecords 指定，投递给客户端前会被填充为当前用户）")
     private String receiverId;
+
+    @Schema(description = "批量接收人：receiverId → 接收记录ID。仅用于服务间的批量事件，投递给客户端前会被清空（避免泄露其他用户）")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Map<String, String> receiverRecords;
 
     @Schema(description = "发送人ID")
     private String senderId;
@@ -105,6 +111,42 @@ public class SseMessage {
 
     public void setReceiverId(String receiverId) {
         this.receiverId = receiverId;
+    }
+
+    public Map<String, String> getReceiverRecords() {
+        return receiverRecords;
+    }
+
+    public void setReceiverRecords(Map<String, String> receiverRecords) {
+        this.receiverRecords = receiverRecords;
+    }
+
+    /**
+     * 为指定接收人生成投递副本：填充 receiverId、recordId，并清空批量接收人（不能把其他用户信息发给客户端）。<br>
+     * 其余字段为浅拷贝（投递过程中只读，无需深拷贝）。
+     */
+    public SseMessage forReceiver(String receiverId, String recordId) {
+        SseMessage copy = new SseMessage();
+        copy.recordId = recordId;
+        copy.eventName = this.eventName;
+        copy.targetAppKey = this.targetAppKey;
+        copy.messageId = this.messageId;
+        copy.receiverId = receiverId;
+        copy.receiverRecords = null;
+        copy.senderId = this.senderId;
+        copy.senderName = this.senderName;
+        copy.senderAvatar = this.senderAvatar;
+        copy.senderTime = this.senderTime;
+        copy.messageTitle = this.messageTitle;
+        copy.messageContent = this.messageContent;
+        copy.messageType = this.messageType;
+        copy.messageLevel = this.messageLevel;
+        copy.businessType = this.businessType;
+        copy.businessSubType = this.businessSubType;
+        copy.businessId = this.businessId;
+        copy.businessExtend = this.businessExtend;
+        copy.operationType = this.operationType;
+        return copy;
     }
 
     public String getSenderId() {

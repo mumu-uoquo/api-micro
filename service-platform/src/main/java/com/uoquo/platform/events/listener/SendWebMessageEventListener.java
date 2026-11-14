@@ -68,13 +68,24 @@ public class SendWebMessageEventListener {
                         message.getReceiverId(), message.getEventName(), sent);
                 return;
             }
-            // 普通消息：定向推送（指定了 targetAppKey）或推送到用户所有在线客户端
+            // 批量消息：一条事件携带多个接收人，本节点只推送给有连接的用户（其他节点由各自的消费者处理）
+            if (message.getReceiverRecords() != null && !message.getReceiverRecords().isEmpty()) {
+                int count = sseEmitterService.publishBatch(message);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("批量推送[{}]事件消息[{}]：接收人[{}]个，本节点命中连接数[{}].",
+                            message.getEventName(), message.getMessageId(), message.getReceiverRecords().size(), count);
+                }
+                return;
+            }
+            // 单个接收人：定向推送（指定了 targetAppKey）或推送到用户所有在线客户端
             int count = sseEmitterService.publish(message.getReceiverId(), message.getTargetAppKey(), message);
-            logger.info("给用户[{}]推送[{}]事件消息[{}]完成，送达连接数[{}].",
-                    message.getReceiverId(), message.getEventName(), message.getMessageContent(), count);
+            if (logger.isDebugEnabled()) {
+                logger.debug("给用户[{}]推送[{}]事件消息[{}]，本节点命中连接数[{}].",
+                        message.getReceiverId(), message.getEventName(), message.getMessageId(), count);
+            }
         } catch (Exception e) {
-            logger.warn("给用户[{}]推送[{}]事件消息[{}]异常：{}",
-                    message.getReceiverId(), message.getEventName(), JsonUtil.serialize(message), e);
+            logger.warn("推送[{}]事件消息[{}]异常（接收人[{}]）：{}",
+                    message.getEventName(), message.getMessageId(), message.getReceiverId(), e.getMessage(), e);
         }
     }
 

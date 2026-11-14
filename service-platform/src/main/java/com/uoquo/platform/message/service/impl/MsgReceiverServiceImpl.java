@@ -12,6 +12,7 @@ import com.uoquo.platform.message.mapper.MsgReceiverMapper;
 import com.uoquo.platform.message.model.dto.MsgReceiverDto;
 import com.uoquo.platform.message.model.dto.MsgReceiverSearchDto;
 import com.uoquo.platform.message.model.param.MsgInfoListParam;
+import com.uoquo.platform.message.model.param.MsgInfoReceiveBatchParam;
 import com.uoquo.platform.message.model.param.MsgInfoReceiveParam;
 import com.uoquo.platform.message.model.param.MsgReceiverSearchParam;
 import com.uoquo.platform.message.model.pojo.MsgReceiver;
@@ -94,6 +95,43 @@ public class MsgReceiverServiceImpl implements MsgReceiverService {
         msgReceiverMapper.insert(info);
         // 暂时不发送事件
         return info.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, String> addReceivers(MsgInfoReceiveBatchParam param) {
+        // 1. 按接收人去重（保持顺序）
+        Map<String, MsgInfoReceiveBatchParam.Receiver> receivers = new LinkedHashMap<>();
+        for (MsgInfoReceiveBatchParam.Receiver receiver : param.getReceivers()) {
+            receivers.putIfAbsent(receiver.getReceiverId(), receiver);
+        }
+        // 2. 构造对象
+        String operatorId = CurrentUser.getInfo().getUserId();
+        Date now = new Date();
+        List<MsgReceiver> list = new ArrayList<>(receivers.size());
+        for (MsgInfoReceiveBatchParam.Receiver receiver : receivers.values()) {
+            MsgReceiver info = new MsgReceiver();
+            info.setId(IDGenerator.getNextULID());
+            info.setMessageId(param.getMessageId());
+            info.setReceiverId(receiver.getReceiverId());
+            info.setReceiverName(StringUtil.isNull(receiver.getReceiverName()) ? "" : receiver.getReceiverName());
+            info.setReadState(false);
+            info.setProcessedState(false);
+            info.setCreateTime(now);
+            info.setUpdateUser(operatorId);
+            info.setUpdateTime(now);
+            info.setDeleteState(BaseConstant.NOT_DELETED);
+            list.add(info);
+        }
+        // 3. 批量保存（唯一索引 uk_message_receiver 保证幂等，已存在的自动跳过）
+        msgReceiverMapper.insertIgnoreBatch(list);
+        // 4. 查询接收记录ID（新增的与已存在的一并返回）
+        List<MsgReceiver> saved = msgReceiverMapper.listByMessageAndReceivers(param.getMessageId(), new ArrayList<>(receivers.keySet()));
+        Map<String, String> result = new HashMap<>(saved.size() * 2);
+        for (MsgReceiver item : saved) {
+            result.put(item.getReceiverId(), item.getId());
+        }
+        return result;
     }
 
     @Override

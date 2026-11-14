@@ -2,6 +2,7 @@ package com.uoquo.platform.message.service;
 
 import com.uoquo.platform.message.model.dto.MsgPushLogDto;
 import com.uoquo.platform.message.model.param.MsgInfoListParam;
+import com.uoquo.platform.message.model.param.MsgPushLogBatchParam;
 import com.uoquo.platform.message.model.param.MsgPushLogParam;
 import com.uoquo.mybatis.page.PageResult;
 
@@ -19,6 +20,12 @@ public interface MsgPushLogService {
      * 添加消息推送日志
      */
     String addPushLog(MsgPushLogParam param);
+
+    /**
+     * 批量添加消息推送日志（仅用于首次推送，忽略 oldLogId）
+     * @return 新增的日志条数
+     */
+    int addPushLogs(MsgPushLogBatchParam param);
 
     /**
      * 获取指定消息的推送日志

@@ -4,6 +4,7 @@ import com.uoquo.platform.common.DictionaryCodeEnum;
 import com.uoquo.platform.message.mapper.MsgPushLogMapper;
 import com.uoquo.platform.message.model.dto.MsgPushLogDto;
 import com.uoquo.platform.message.model.param.MsgInfoListParam;
+import com.uoquo.platform.message.model.param.MsgPushLogBatchParam;
 import com.uoquo.platform.message.model.param.MsgPushLogParam;
 import com.uoquo.platform.message.model.pojo.MsgPushLog;
 import com.uoquo.platform.message.service.MsgPushLogService;
@@ -60,6 +61,24 @@ public class MsgPushLogServiceImpl implements MsgPushLogService {
         }
         msgPushLogMapper.insert(info);
         return info.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int addPushLogs(MsgPushLogBatchParam param) {
+        Date now = new Date();
+        List<MsgPushLog> list = new ArrayList<>(param.getLogs().size());
+        for (MsgPushLogParam item : param.getLogs()) {
+            MsgPushLog info = new MsgPushLog();
+            BeanUtils.copyProperties(item, info);
+            info.setId(IDGenerator.getNextULID());
+            info.setRetryCount(item.getRetryCount() == null ? 0 : item.getRetryCount());
+            if (info.getPushTime() == null) {
+                info.setPushTime(now);
+            }
+            list.add(info);
+        }
+        return msgPushLogMapper.insertBatch(list);
     }
 
     @Override

@@ -66,11 +66,11 @@ public class AllEventListener {
     public void listenAllRemoteEvent(RemoteEvent<?> event) {
         if (event.isRetry()) {
             logger.info("重发的远程事件[{}]不记录日志：{eventId=\"{}\", businessType=\"{}\", businessId=\"{}\", operationType=\"{}\", operatorId=\"{}\"}",
-                    event.getId(), event.getId(), event.getBusinessType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
+                    event.getEventId(), event.getEventId(), event.getBusinessType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
             return;
         } else if (StringUtil.notNull(event.getDataType()) && event.getDataType().endsWith(SseMessage.class.getSimpleName())) {
             logger.info("SSE消息[{}]不记录日志：{eventId=\"{}\", businessType=\"{}\", businessId=\"{}\", operationType=\"{}\", operatorId=\"{}\"}",
-                    event.getId(), event.getId(), event.getBusinessType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
+                    event.getEventId(), event.getEventId(), event.getBusinessType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
             return;
         }
         // 1. 构建基本参数
@@ -97,7 +97,7 @@ public class AllEventListener {
     public void listenAllAppEvent(AppEvent<?> event) {
         if (event.isRetry()) {
             logger.info("重发的本地事件[{}]不记录日志：{eventId=\"{}\", businessType=\"{}\", businessId=\"{}\", operationType=\"{}\", operatorId=\"{}\"}",
-                    event.getId(), event.getId(), event.getBusinessType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
+                    event.getEventId(), event.getEventId(), event.getBusinessType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
             return;
         }
         // 1. 构建基本参数
@@ -123,10 +123,10 @@ public class AllEventListener {
         BizEventRecordParam param = new BizEventRecordParam();
 //        BeanUtils.copyProperties(event, param);
         // 1. 基本信息
-        if (StringUtil.isNull(event.getId())) {
+        if (StringUtil.isNull(event.getEventId())) {
             param.setId(IDGenerator.getNextULID());
         } else {
-            param.setId(event.getId());
+            param.setId(event.getEventId());
         }
         param.setToken(event.getToken());
         param.setTraceId(event.getTraceId());
@@ -144,7 +144,7 @@ public class AllEventListener {
         param.setOperatorInstituteId(event.getOperatorInstituteId());
         // 4. 操作类型及状态
         param.setOperationType(event.getOperationType());
-        param.setOperationStatus(event.getOperationStatus());
+        param.setOperationStatus(event.getOperationResult());
         param.setOperationContent(event.getExtension());
         // 5. 事件原文（消息记录使用）
         param.setEventClass(event.getClass().getName());

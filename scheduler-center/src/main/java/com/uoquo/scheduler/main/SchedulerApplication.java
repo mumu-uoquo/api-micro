@@ -2,10 +2,8 @@ package com.uoquo.scheduler.main;
 
 import com.uoquo.scheduler.main.config.ApplicationDeveloperConfig;
 import com.uoquo.web.ServiceApplication;
-import com.uoquo.web.BaseCacheKey;
-import com.uoquo.utils.spring.RedisUtil;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
+import com.uoquo.web.StartupProfiler;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.*;
@@ -23,16 +21,14 @@ import org.springframework.context.annotation.FilterType;
 ))
 public class SchedulerApplication extends ServiceApplication {
 
-    @Value("${app.name}")
-    private String appName;
-
     /**
      * 主程序入口.
      */
     public static void main(String[] args) {
-        init();
         // 启动应用
         SpringApplication application = new SpringApplication(SchedulerApplication.class);
+        // 启动耗时分析（默认关闭；-Dapp.startup.profile=true 或环境变量 APP_STARTUP_PROFILE=true 开启）
+        StartupProfiler.enable(application);
         // 常用监听器（预留，暂无实际用途）
         application.addListeners((ApplicationListener<ApplicationStartingEvent>) event -> {
             System.out.println("application starting event"); // 系统启动时，此时logback还没有初始化，因此不能使用log
@@ -58,11 +54,5 @@ public class SchedulerApplication extends ServiceApplication {
             // 这里强制退出，让容器编排/守护进程能感知失败并重新拉起。
             System.exit(1);
         }
-    }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        // 设置当前服务的appKey，用于feign调用
-        RedisUtil.put(BaseCacheKey.APPKEY_SECRET_PREFIX + appName, appName, null);
     }
 }

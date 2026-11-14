@@ -63,18 +63,19 @@ public class UserUtils {
     }
 
     /**
-     * 取 token 前16字符.<br>
-     * 双 token 机制下会话 token 会定期刷新，但前16字符（{@code getNextULID()} 部分）保持不变，
+     * 取 token 前20字符.<br>
+     * 双 token 机制下会话 token 会定期刷新，但前20字符（{@code getNextULID()} 部分）保持不变，
      * 可唯一标识同一会话，兼容 token 刷新后仍能精准寻址。<br>
+     * 与事件日志脱敏时保留的长度一致（{@code EventSupport.TOKEN_VISIBLE_LENGTH}）。<br>
      * token 为空时返回空字符串。
      *
      * @param token 原始 token
-     * @return 前16字符，token 为空时返回空字符串
+     * @return 前20字符，token 为空时返回空字符串
      */
     public static String formatToken(String token) {
         if (token == null || token.isEmpty()) {
             return "";
         }
-        return token.length() <= 16 ? token : token.substring(0, 16);
+        return token.length() <= 20 ? token : token.substring(0, 20);
     }
 }

@@ -57,8 +57,8 @@ public class MessageInfoEventListener {
     public void listenMessageInfoEvent(RemoteEvent<MsgInfo> event) {
         // 重发消息需忽略（常见于运维重发）
         if (event.isRetry()) {
-            logger.debug("重发的事件：{id:\"{}\", bizType:\"{}\", bizSub:\"{}\", bizId:\"{}\", opsType:\"{}\", opsId:\"{}\"}",
-                    event.getId(), event.getBusinessType(), event.getBusinessSubType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
+            logger.debug("重发的事件：{eventId:\"{}\", bizType:\"{}\", bizSub:\"{}\", bizId:\"{}\", opsType:\"{}\", opsId:\"{}\"}",
+                    event.getEventId(), event.getBusinessType(), event.getBusinessSubType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
             return;
         }
         // 正常消息处理
@@ -181,7 +181,7 @@ public class MessageInfoEventListener {
      */
     private String sendMessage2Web(RemoteEvent<MsgInfo> event, MsgInfo info, String recodeId, String receiverId) {
         // 1.1 构建SSE事件信息
-        RemoteEvent<SseMessage> sseEvent = new RemoteEvent<>(BusinessTypeEnum.SSE.getCode(), BusinessOperationEnum.MESSAGE_SEND.getCode(), SystemReturnCode.SUCCESS.getCode(), "service-platform");
+        RemoteEvent<SseMessage> sseEvent = new RemoteEvent<>(BusinessTypeEnum.SSE.getCode(), BusinessOperationEnum.MESSAGE_SEND.getCode(), SystemReturnCode.SUCCESS.getCode(), null, "service-platform");
         sseEvent.copy(event);
         // 由于是内部发送的，不需要token和traceId
         sseEvent.setToken(null);

@@ -39,8 +39,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 /**
- * 后缀为“/login”的接口，将忽略登录校验
- * 注解IgnoreAuth仅应用层有效，网关层只能根据路径是否/login结尾来控制
+ * 免登录的接口必须标注 {@code @IgnoreAuth(login = true)}：
+ * 应用启动后会将标注了 all / login 的URL登记到 Redis，网关据此放行，不再按路径后缀（如 /login）判断
  */
 @Tag(name = "auth", description = "用户认证相关")
 @Validated

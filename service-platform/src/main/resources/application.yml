@@ -203,8 +203,8 @@ spring:
         acks: 1
       #=============== consumer  =======================
       consumer:
-        # 指定默认消费者group id
-        group-id:  ${app.kafka.default.group}
+        # 消费组不在这里配置：Bus 的消费组由 spring.cloud.stream.bindings.springCloudBusInput.group 指定（binder 会忽略 group-id 并输出 WARN）
+        #group-id:  ${app.kafka.default.group}
         client-id: ${app.kafka.default.group}
         # 该属性指定了消费者在读取一个没有偏移量的分区或者偏移量无效的情况下该作何处理：
         # latest：（默认值）在偏移量无效的情况下，消费者将从最新的记录开始读取数据（在消费者启动之后生成的记录）

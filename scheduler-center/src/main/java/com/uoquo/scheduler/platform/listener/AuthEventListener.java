@@ -49,8 +49,8 @@ public class AuthEventListener {
     public void listenAuthEvent(RemoteEvent<AuthInfo> event) {
         // 重发消息需忽略（常见于运维重发）
         if (event.isRetry()) {
-            logger.debug("重发的事件：{id:\"{}\", bizType:\"{}\", bizSub:\"{}\", bizId:\"{}\", opsType:\"{}\", opsId:\"{}\"}",
-                    event.getId(), event.getBusinessType(), event.getBusinessSubType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
+            logger.debug("重发的事件：{eventId:\"{}\", bizType:\"{}\", bizSub:\"{}\", bizId:\"{}\", opsType:\"{}\", opsId:\"{}\"}",
+                    event.getEventId(), event.getBusinessType(), event.getBusinessSubType(), event.getBusinessId(), event.getOperationType(), event.getOperatorId());
             return;
         }
         // 正常消息处理
@@ -91,9 +91,9 @@ public class AuthEventListener {
      */
     private void handleLogoutEvent(RemoteEvent<AuthInfo> event, AuthInfo info) {
         // 1. 发送被踢下线（状态=02021）通知到在线设备（为了保证消息的及时性，所以优先执行发送逻辑，再记录登出日志）
-        if (SystemReturnCode.ACCOUNT_KICK_OUT.getCode().equals(event.getOperationStatus())) {
+        if (SystemReturnCode.ACCOUNT_KICK_OUT.getCode().equals(event.getOperationResult())) {
             // 1.1 构建SSE事件信息
-            RemoteEvent<SseMessage> sseEvent = new RemoteEvent<>(BusinessTypeEnum.SSE.getCode(), BusinessOperationEnum.MESSAGE_SEND.getCode(), SystemReturnCode.SUCCESS.getCode(), "service-platform");
+            RemoteEvent<SseMessage> sseEvent = new RemoteEvent<>(BusinessTypeEnum.SSE.getCode(), BusinessOperationEnum.MESSAGE_SEND.getCode(), SystemReturnCode.SUCCESS.getCode(), null, "service-platform");
             sseEvent.copy(event);
             // 1.2 具体的SSE信息
             SseMessage message = new SseMessage();
@@ -154,7 +154,7 @@ public class AuthEventListener {
         LogUserLoginParam param = new LogUserLoginParam();
 //        BeanUtils.copyProperties(event, param);
         // 1. 基本信息
-        param.setId(event.getId());
+        param.setId(event.getEventId());
         param.setToken(event.getToken());
         param.setTraceId(event.getTraceId());
         param.setUserId(event.getBusinessId());
@@ -173,7 +173,7 @@ public class AuthEventListener {
 //        param.setAppModuleId();
 //        param.setAppModuleName();
         // 4. 登录状态
-        param.setLoginStatus(event.getOperationStatus());
+        param.setLoginStatus(event.getOperationResult());
         param.setLoginTime(event.getOperationTime());
         param.setLoginParam(event.getExtension());
         param.setLoginMode(info.getLoginMode());
@@ -190,7 +190,7 @@ public class AuthEventListener {
         param.setAppKey(event.getAppKey());
         param.setTraceId(event.getTraceId());
         param.setUserId(event.getBusinessId());
-        param.setLogoutStatus(event.getOperationStatus());
+        param.setLogoutStatus(event.getOperationResult());
         param.setLogoutTime(event.getOperationTime());
         param.setLogoutDesc(event.getRemarks());
         return param;

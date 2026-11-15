@@ -88,6 +88,18 @@ public class AdminMessageController {
         return new ReturnData<>();
     }
 
+    @Operation(summary = "消息管理：取消定时发布", operationId = "cancelSchedule", method = "POST",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "消息ID", required = true)
+    )
+    @PostMapping("/schedule/cancel")
+    public ReturnData<String> cancelSchedule(@RequestBody @Valid IdParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("cancelSchedule param: {}", JsonUtil.serialize(param));
+        }
+        msgInfoService.cancelSchedule(param.getId());
+        return new ReturnData<>();
+    }
+
     @Operation(summary = "消息管理：撤回", operationId = "withdrawMessage", method = "POST",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "消息ID", required = true)
     )

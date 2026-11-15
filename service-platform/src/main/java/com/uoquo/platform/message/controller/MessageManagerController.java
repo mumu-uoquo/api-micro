@@ -1,6 +1,7 @@
 package com.uoquo.platform.message.controller;
 
 import com.uoquo.platform.common.DictionaryCodeEnum;
+import com.uoquo.platform.message.model.dto.MsgFanoutDto;
 import com.uoquo.platform.message.model.dto.MsgInfoDto;
 import com.uoquo.platform.message.model.dto.MsgPushLogDto;
 import com.uoquo.platform.message.model.dto.MsgReceiverDto;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -118,6 +120,73 @@ public class MessageManagerController {
         }
         msgInfoService.publishMessage(param);
         return new ReturnData<>();
+    }
+
+    @Operation(summary = "消息管理：取消定时发布", operationId = "cancelSchedule", method = "POST",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "消息ID", required = true)
+    )
+    @PostMapping("/schedule/cancel")
+    public ReturnData<String> cancelSchedule(@RequestBody @Valid IdParam param) {
+        if (logger.isInfoEnabled()) {
+            logger.info("cancelSchedule param: {}", JsonUtil.serialize(param));
+        }
+        // 只能取消自己添加消息的定时发布
+        MsgInfoDto old = msgInfoService.getMessageDetail(param.getId());
+        if (!old.getCreateUser().equals(CurrentUser.getInfo().getUserId())) {
+            throw new ForbiddenException("只能管理自己的添加消息");
+        }
+        msgInfoService.cancelSchedule(param.getId());
+        return new ReturnData<>();
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息维护：发布到点的定时消息（由定时器调用）", hidden = true)
+    @PostMapping("/schedule/publish-due")
+    public ReturnData<Integer> publishDueMessages(@RequestBody(required = false) MsgMaintainParam param) {
+        int count = msgInfoService.publishDueMessages(param == null || param.getLimit() == null ? 0 : param.getLimit());
+        return new ReturnData<>(count);
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息维护：清理过期消息（由定时器调用）", hidden = true)
+    @PostMapping("/expired/clear")
+    public ReturnData<Integer> clearExpiredMessages(@RequestBody(required = false) MsgMaintainParam param) {
+        MsgMaintainParam p = param == null ? new MsgMaintainParam() : param;
+        int count = msgInfoService.clearExpiredMessages(nullToZero(p.getRetainDays()), nullToZero(p.getLimit()), nullToZero(p.getMaxSeconds()));
+        return new ReturnData<>(count);
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息维护：领取群发任务（由发布事件、定时器触发）", hidden = true)
+    @PostMapping("/fanout/claim")
+    public ReturnData<MsgFanoutDto> claimFanout(@RequestBody @Valid MsgFanoutParam param) {
+        return new ReturnData<>(msgInfoService.claimFanout(param));
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息维护：更新群发进度（由发布事件、定时器触发）", hidden = true)
+    @PostMapping("/fanout/progress")
+    public ReturnData<Boolean> updateFanoutProgress(@RequestBody @Valid MsgFanoutParam param) {
+        return new ReturnData<>(msgInfoService.updateFanoutProgress(param));
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息维护：群发心跳（由发布事件、定时器触发）", hidden = true)
+    @PostMapping("/fanout/heartbeat")
+    public ReturnData<Boolean> heartbeatFanout(@RequestBody @Valid MsgFanoutParam param) {
+        return new ReturnData<>(msgInfoService.heartbeatFanout(param));
+    }
+
+    @IgnoreAuth(inner = true)
+    @Operation(summary = "消息维护：查询需要继续群发的消息（由定时器调用）", hidden = true)
+    @PostMapping("/fanout/stalled")
+    public ReturnData<List<MsgInfoDto>> listStalledFanout(@RequestBody(required = false) MsgMaintainParam param) {
+        MsgMaintainParam p = param == null ? new MsgMaintainParam() : param;
+        return new ReturnData<>(msgInfoService.listStalledFanout(nullToZero(p.getStaleSeconds()), nullToZero(p.getMaxRetry()), nullToZero(p.getLimit())));
+    }
+
+    private static int nullToZero(Integer value) {
+        return value == null ? 0 : value;
     }
 
     @Operation(summary = "消息管理：撤回", operationId = "withdrawMessage", method = "POST",

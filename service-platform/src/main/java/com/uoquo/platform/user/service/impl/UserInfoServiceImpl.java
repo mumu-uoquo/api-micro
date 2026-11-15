@@ -446,6 +446,13 @@ public class UserInfoServiceImpl implements UserInfoService {
         }  else {
             return PageResult.empty();
         }
+        if (param.getAfterId() != null) {
+            // 游标模式：按用户ID排序，查询ID大于游标的前 pageSize 条；不使用 PageHelper（避免每批都统计总数）
+            int size = Math.min(param.getPageSize(), 1000);
+            paramMap.put("afterId", param.getAfterId());
+            paramMap.put("limit", size);
+            return PageResult.of(userInfoMapper.selectBySimple(paramMap));
+        }
         PageHelper.startPage(param.getPageNum(), param.getPageSize());
         PageList<UserInfoDto>userList = (PageList<UserInfoDto>) userInfoMapper.selectBySimple(paramMap);
         return PageResult.of(userList);

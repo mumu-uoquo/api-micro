@@ -4,7 +4,9 @@ import com.uoquo.cloud.events.RemoteEvent;
 import com.uoquo.scheduler.common.BusinessOperationEnum;
 import com.uoquo.scheduler.common.BusinessTypeEnum;
 import com.uoquo.scheduler.common.DictionaryCodeEnum;
+import com.uoquo.scheduler.platform.model.dto.MsgFanoutDto;
 import com.uoquo.scheduler.platform.model.dto.UserInfoDto;
+import com.uoquo.scheduler.platform.model.param.MsgFanoutParam;
 import com.uoquo.scheduler.platform.model.param.MsgInfoReceiveBatchParam;
 import com.uoquo.scheduler.platform.model.param.MsgPushLogBatchParam;
 import com.uoquo.scheduler.platform.model.param.MsgPushLogParam;
@@ -141,25 +143,52 @@ public class MessageInfoEventListener {
             // 用事件携带的发起人信息填充用户上下文（Feign 请求头需要）
             EventContext.apply(event);
             MsgInfo message = event.getNewData();
-            // 查询指定范围的用户
+            // 1. 领取群发任务（CAS）：已完成、正在被其他节点执行、已撤回/删除的消息领取失败，直接结束
+            MsgFanoutParam claimParam = new MsgFanoutParam();
+            claimParam.setMessageId(message.getId());
+            claimParam.setStaleSeconds(fanoutStaleSeconds());
+            claimParam.setMaxRetry(fanoutMaxRetry());
+            MsgFanoutDto claim = messageRemoteService.claimFanout(claimParam);
+            if (claim == null || !claim.isClaimed()) {
+                logger.info("消息[{}]的群发任务无需执行（已完成、正在执行、已撤回或接管次数已用完）", message.getId());
+                return;
+            }
+            // 2. 从上次处理的位置（游标）继续，按接收人ID排序，每批 PAGE_SIZE 个
+            String cursor = claim.getCursor() == null ? "" : claim.getCursor();
+            int total = claim.getTotal();
+            if (StringUtil.notNull(cursor)) {
+                logger.info("消息[{}]的群发任务从中断处继续：已处理[{}]人，游标[{}]", message.getId(), total, cursor);
+            }
             UserListByRangeParam param = new UserListByRangeParam();
-            param.setPageNum(1);
             param.setPageSize(PAGE_SIZE);
             param.setReceiverRange(message.getReceiverRange());
             param.setReceiverInstituteId(message.getReceiverInstituteId());
             if (StringUtil.notNull(message.getReceiverIds())) {
                 param.setReceiverIds(List.of(message.getReceiverIds().split(",")));
             }
-            int total = 0;
-            PageResult<UserInfoDto> result = userRemoteService.listUserByRange(param);
-            while (result.getSize() > 0) {
-                total += result.getResult().size();
-                this.pushMessage2Users(event, message, result.getResult());
-                // 若还有下一页，则继续请求
-                if (result.isNextPage()) {
-                    param.setPageNum(param.getPageNum() + 1);
-                    result = userRemoteService.listUserByRange(param);
-                } else {
+            while (true) {
+                param.setAfterId(cursor);
+                PageResult<UserInfoDto> result = userRemoteService.listUserByRange(param);
+                List<UserInfoDto> users = result == null ? null : result.getResult();
+                if (users == null || users.isEmpty()) {
+                    // 没有更多接收人，群发结束
+                    this.updateFanoutProgress(message, claim, cursor, total, true);
+                    break;
+                }
+                if (!this.pushMessage2Users(event, message, claim, users)) {
+                    // 本批失败：不推进游标，等待定时任务发现进度停滞后接管，从这一批重新开始（接收记录幂等，不会重复）
+                    logger.error("消息[{}]的群发在游标[{}]之后的一批失败，已暂停，稍后由定时任务接管继续", message.getId(), cursor);
+                    return;
+                }
+                cursor = users.get(users.size() - 1).getId();
+                total += users.size();
+                boolean finished = users.size() < PAGE_SIZE;
+                // 每批处理完更新进度；同时也是心跳，并检查消息是否已被撤回/删除、任务是否已被其他节点接管
+                if (!this.updateFanoutProgress(message, claim, cursor, total, finished)) {
+                    logger.warn("消息[{}]的群发已停止：消息已被撤回/删除，或任务已被其他节点接管，已处理[{}]人", message.getId(), total);
+                    return;
+                }
+                if (finished) {
                     break;
                 }
             }
@@ -167,8 +196,11 @@ public class MessageInfoEventListener {
             if (logger.isDebugEnabled()) {
                 logger.debug("账号[{}]发布消息[{}]完毕：{}", event.getOperatorId(), event.getBusinessId(), JsonUtil.serialize(event));
             }
+        } catch (FanoutStoppedException e) {
+            logger.warn("{}：消息已被撤回/删除，或任务已被其他节点接管", e.getMessage());
         } catch (Exception e) {
-            logger.error("账号[{}]发布消息[{}]失败：", event.getOperatorId(), event.getBusinessId(), e);
+            // 异常时进度停留在上一批，由定时任务接管继续
+            logger.error("账号[{}]发布消息[{}]失败（稍后由定时任务接管继续）：", event.getOperatorId(), event.getBusinessId(), e);
         } finally {
             snapshot.restore();
             if (StringUtil.notNull(oldRequestId)) {
@@ -180,16 +212,90 @@ public class MessageInfoEventListener {
     }
 
     /**
-     * 处理一页用户：批量保存接收记录 → 渠道推送 → 站内推送（1条SSE事件）→ 批量保存推送日志。<br>
-     * 单页失败只记录日志，不影响后续页。
+     * 继续群发（由定时任务调用）：处理已发布，但群发没有开始或中断的消息。<br>
+     * 没有原始事件，这里构造一个等价的事件（站内推送事件需要复制其业务信息）；是否真正执行由领取任务（CAS）决定。
      */
-    private void pushMessage2Users(RemoteEvent<MsgInfo> event, MsgInfo message, List<UserInfoDto> users) {
+    public void resume(MsgInfo message) {
+        RemoteEvent<MsgInfo> event = new RemoteEvent<>(BusinessTypeEnum.MESSAGE.getCode(),
+                BusinessOperationEnum.MESSAGE_PUBLISH.getCode(), SystemReturnCode.SUCCESS.getCode());
+        event.setBusinessSubType("MESSAGE");
+        event.setBusinessId(message.getId());
+        event.setOperatorId(message.getSenderId());
+        event.setOperatorName(message.getSenderName());
+        event.setNewData(message);
+        fanoutExecutor.execute(() -> fanOut(event, MDC.get("requestId")));
+    }
+
+    /**
+     * 中断判定时间（秒）：群发进度超过该时间没有更新，视为已中断，由定时任务接管。<br>
+     * 可通过 app.message.fanout.stale-seconds 配置（默认300，最小120：设置过小容易把执行较慢的群发误判为中断，造成重复推送）。
+     */
+    public static int fanoutStaleSeconds() {
+        return Math.max(120, Config.getInt("app.message.fanout.stale-seconds", 300));
+    }
+
+    /**
+     * 群发被主动停止（消息已被撤回/删除，或任务已被其他节点接管），用于从批次处理的中途退出
+     */
+    private static class FanoutStoppedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        FanoutStoppedException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * 群发心跳：处理一批的过程中定期更新进度时间，避免耗时较长的批次被误判为中断。<br>
+     * 只有明确返回“已停止”才返回 false；网络等异常只记录日志（下次心跳或批次结束时再更新）。
+     */
+    private boolean heartbeatFanout(MsgInfo message, MsgFanoutDto claim) {
+        try {
+            MsgFanoutParam param = new MsgFanoutParam();
+            param.setMessageId(message.getId());
+            param.setRetry(claim.getRetry());
+            return Boolean.TRUE.equals(messageRemoteService.heartbeatFanout(param));
+        } catch (Exception e) {
+            logger.warn("消息[{}]的群发心跳失败：{}", message.getId(), e.getMessage());
+            return true;
+        }
+    }
+
+    /** 群发中断后的最大接管次数 */
+    public static int fanoutMaxRetry() {
+        return Math.max(1, Config.getInt("app.message.fanout.max-retry", 5));
+    }
+
+    /**
+     * 更新群发进度
+     * @return false 表示消息已被撤回/删除，或任务已被其他节点接管，应停止群发
+     */
+    private boolean updateFanoutProgress(MsgInfo message, MsgFanoutDto claim, String cursor, int total, boolean finished) {
+        MsgFanoutParam param = new MsgFanoutParam();
+        param.setMessageId(message.getId());
+        param.setRetry(claim.getRetry());
+        param.setCursor(cursor);
+        param.setTotal(total);
+        param.setFinished(finished);
+        return Boolean.TRUE.equals(messageRemoteService.updateFanoutProgress(param));
+    }
+
+    /**
+     * 处理一页用户：批量保存接收记录 → 渠道推送 → 站内推送（1条SSE事件）→ 批量保存推送日志。<br>
+     * 接收记录是幂等的，因此整页可以安全重放。
+     * @return true 表示本页已处理（可以推进游标）；false 表示本页失败（不能推进游标，需要重试）
+     * @throws FanoutStoppedException 心跳时发现群发已被停止（撤回、删除或被其他节点接管）
+     */
+    private boolean pushMessage2Users(RemoteEvent<MsgInfo> event, MsgInfo message, MsgFanoutDto claim, List<UserInfoDto> users) {
         try {
             // 1. 批量添加接收记录（幂等）：receiverId → recordId
             Map<String, String> recordIds = this.saveReceivers4Message(message.getId(), users);
             // 2. 按指定方式推送（接收人已删除记录的用户不推送）
             Map<String, String> failures = new HashMap<>();
             List<UserInfoDto> receivers = new ArrayList<>(users.size());
+            // 渠道推送是逐个用户调用的，一批可能耗时较长，所以处理过程中定期发送心跳（间隔为中断判定时间的1/5）
+            long heartbeatInterval = fanoutStaleSeconds() * 1000L / 5;
+            long lastHeartbeat = System.currentTimeMillis();
             for (UserInfoDto user : users) {
                 String recordId = recordIds.get(user.getId());
                 if (recordId == null) {
@@ -200,17 +306,32 @@ public class MessageInfoEventListener {
                 if (failure != null) {
                     failures.put(user.getId(), failure);
                 }
+                if (System.currentTimeMillis() - lastHeartbeat >= heartbeatInterval) {
+                    if (!this.heartbeatFanout(message, claim)) {
+                        throw new FanoutStoppedException("消息[" + message.getId() + "]的群发已被停止");
+                    }
+                    lastHeartbeat = System.currentTimeMillis();
+                }
             }
             if (receivers.isEmpty()) {
-                return;
+                return true;
             }
             // 3. 推送站内消息（整页一条SSE事件）
             String webFailure = this.sendMessage2Web(event, message, recordIds);
-            // 4. 批量记录推送日志
-            this.savePushLogs4Message(message, receivers, failures, webFailure);
+            // 4. 批量记录推送日志（日志只是辅助信息，保存失败不影响群发进度）
+            try {
+                this.savePushLogs4Message(message, receivers, failures, webFailure);
+            } catch (Exception e) {
+                logger.warn("保存消息[{}]的推送日志失败（[{}]个用户）：{}", message.getId(), receivers.size(), e.getMessage());
+            }
             logger.debug("将消息[{}]以方式[{}]给[{}]个用户推送完毕", message.getId(), message.getPushWay(), receivers.size());
+            return true;
+        } catch (FanoutStoppedException e) {
+            // 群发已被停止，交给调用方结束整个群发
+            throw e;
         } catch (Exception e) {
             logger.error("将消息[{}]以方式[{}]给[{}]个用户推送失败：", message.getId(), message.getPushWay(), users.size(), e);
+            return false;
         }
     }
 

@@ -24,6 +24,11 @@
     <result column="status" jdbcType="CHAR" property="status" />
     <result column="status_time" jdbcType="TIMESTAMP" property="statusTime" />
     <result column="status_memo" jdbcType="VARCHAR" property="statusMemo" />
+    <result column="fanout_status" jdbcType="TINYINT" property="fanoutStatus" />
+    <result column="fanout_cursor" jdbcType="VARCHAR" property="fanoutCursor" />
+    <result column="fanout_total" jdbcType="INTEGER" property="fanoutTotal" />
+    <result column="fanout_retry" jdbcType="TINYINT" property="fanoutRetry" />
+    <result column="fanout_time" jdbcType="TIMESTAMP" property="fanoutTime" />
     <result column="create_user" jdbcType="VARCHAR" property="createUser" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
@@ -31,12 +36,16 @@
     <result column="delete_state" jdbcType="BIGINT" property="deleteState" />
   </resultMap>
 
-  <sql id="Base_Column_List">
-    <!-- @mbg.generated: generated automatically, do not modify! -->
-    id, message_title, message_type, message_level, push_way, business_type, business_id, 
+  <!-- 不含正文（message_content）的字段：用于列表查询，避免把大字段带到列表里 -->
+  <sql id="List_Column_List">
+    id, message_title, message_type, message_level, push_way, business_type, business_id,
     business_extend, sender_id, sender_name, sender_time, expire_time, receiver_range, receiver_institute_id, receiver_ids,
-    description, `status`, status_time, status_memo, create_user, create_time, update_user, update_time,
-    delete_state, message_content
+    description, `status`, status_time, status_memo, fanout_status, fanout_cursor, fanout_total, fanout_retry, fanout_time,
+    create_user, create_time, update_user, update_time, delete_state
+  </sql>
+
+  <sql id="Base_Column_List">
+    <include refid="List_Column_List" />, message_content
   </sql>
 
   <insert id="insert" parameterType="com.uoquo.platform.message.model.pojo.MsgInfo">
@@ -98,30 +107,75 @@
     WHERE id = #{id,jdbcType=VARCHAR}
   </update>
 
-  <update id="updatePublishStatus" parameterType="com.uoquo.platform.message.model.pojo.MsgInfo">
-    <!-- @mbg.generated: generated automatically, do not modify! -->
+  <!-- 发布：只有当前状态为 fromStatus 时才会更新（CAS），保证同一条消息不会被重复发布；同时重置群发进度 -->
+  <update id="updatePublishStatus">
     UPDATE msg_info SET
-      sender_id   = #{senderId,jdbcType=TIMESTAMP},
-      sender_name = #{senderName,jdbcType=TIMESTAMP},
-      sender_time = #{senderTime,jdbcType=TIMESTAMP},
-    <if test="pushWay != null and pushWay != ''">
-      push_way = #{pushWay,jdbcType=VARCHAR},
+      sender_id   = #{row.senderId,jdbcType=VARCHAR},
+      sender_name = #{row.senderName,jdbcType=VARCHAR},
+      sender_time = #{row.senderTime,jdbcType=TIMESTAMP},
+    <if test="row.pushWay != null and row.pushWay != ''">
+      push_way = #{row.pushWay,jdbcType=VARCHAR},
     </if>
-    <if test="receiverRange != null and receiverRange != ''">
-      receiver_range = #{receiverRange,jdbcType=VARCHAR},
-      receiver_institute_id = #{receiverInstituteId,jdbcType=VARCHAR},
-      receiver_ids = #{receiverIds,jdbcType=VARCHAR},
+    <if test="row.receiverRange != null and row.receiverRange != ''">
+      receiver_range = #{row.receiverRange,jdbcType=VARCHAR},
+      receiver_institute_id = #{row.receiverInstituteId,jdbcType=VARCHAR},
+      receiver_ids = #{row.receiverIds,jdbcType=VARCHAR},
     </if>
-    <if test="expireTime != null">
-      expire_time = #{expireTime,jdbcType=TIMESTAMP},
+    <if test="row.expireTime != null">
+      expire_time = #{row.expireTime,jdbcType=TIMESTAMP},
     </if>
-      `status` = #{status,jdbcType=CHAR},
-      status_time = #{statusTime,jdbcType=TIMESTAMP},
-      status_memo = #{statusMemo,jdbcType=VARCHAR},
-      description = #{description,jdbcType=VARCHAR},
+      `status` = #{row.status,jdbcType=CHAR},
+      status_time = #{row.statusTime,jdbcType=TIMESTAMP},
+      status_memo = #{row.statusMemo,jdbcType=VARCHAR},
+      fanout_status = 0,
+      fanout_cursor = NULL,
+      fanout_total = 0,
+      fanout_retry = 0,
+      fanout_time = #{row.statusTime,jdbcType=TIMESTAMP},
+      description = #{row.description,jdbcType=VARCHAR},
+      update_user = #{row.updateUser,jdbcType=VARCHAR},
+      update_time = #{row.updateTime,jdbcType=TIMESTAMP}
+    WHERE id = #{row.id,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND `status` = #{fromStatus,jdbcType=CHAR}
+  </update>
+
+  <!-- 设置定时发布：只有待发布的消息才能设置 -->
+  <update id="updateSchedule">
+    UPDATE msg_info SET
+    <if test="row.pushWay != null and row.pushWay != ''">
+      push_way = #{row.pushWay,jdbcType=VARCHAR},
+    </if>
+    <if test="row.receiverRange != null and row.receiverRange != ''">
+      receiver_range = #{row.receiverRange,jdbcType=VARCHAR},
+      receiver_institute_id = #{row.receiverInstituteId,jdbcType=VARCHAR},
+      receiver_ids = #{row.receiverIds,jdbcType=VARCHAR},
+    </if>
+    <if test="row.expireTime != null">
+      expire_time = #{row.expireTime,jdbcType=TIMESTAMP},
+    </if>
+      sender_id = #{row.senderId,jdbcType=VARCHAR},
+      sender_name = #{row.senderName,jdbcType=VARCHAR},
+      sender_time = #{row.senderTime,jdbcType=TIMESTAMP},
+      update_user = #{row.updateUser,jdbcType=VARCHAR},
+      update_time = #{row.updateTime,jdbcType=TIMESTAMP}
+    WHERE id = #{row.id,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND `status` = #{waitStatus,jdbcType=CHAR}
+  </update>
+
+  <!-- 取消定时发布：清空发布人和发布时间（sender_id 有索引且不允许为空，所以置为空字符串，与新增时一致），状态不变 -->
+  <update id="clearSchedule">
+    UPDATE msg_info SET
+      sender_id = '',
+      sender_name = NULL,
+      sender_time = NULL,
       update_user = #{updateUser,jdbcType=VARCHAR},
       update_time = #{updateTime,jdbcType=TIMESTAMP}
     WHERE id = #{id,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND `status` = #{waitStatus,jdbcType=CHAR}
+      AND sender_time IS NOT NULL
   </update>
 
   <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -132,10 +186,11 @@
     WHERE id = #{id,jdbcType=VARCHAR}
   </select>
 
+  <!-- 列表查询：不返回正文（message_content），需要正文时请查询详情 -->
   <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
     <!-- @mbg.generated: generated automatically, do not modify! -->
     SELECT
-    <include refid="Base_Column_List" />
+    <include refid="List_Column_List" />
     FROM msg_info
     WHERE delete_state = 0
     <if test="messageTitle != null and messageTitle != ''">
@@ -168,6 +223,110 @@
     <if test="expireTimeStart != null">
       AND expire_time BETWEEN #{expireTimeStart,jdbcType=TIMESTAMP} AND #{expireTimeEnd,jdbcType=TIMESTAMP}
     </if>
+  </select>
+
+  <!-- 到点需要发布的消息ID：待发布状态下发布时间（sender_time）不为空表示定时发布，发布时间已到的需要发布 -->
+  <select id="listDueIds" resultType="java.lang.String">
+    SELECT id
+    FROM msg_info
+    WHERE delete_state = 0
+      AND `status` = #{waitStatus,jdbcType=CHAR}
+      AND sender_time IS NOT NULL
+      AND sender_time &lt;= #{now,jdbcType=TIMESTAMP}
+    ORDER BY sender_time
+    LIMIT #{limit}
+  </select>
+
+  <!-- 需要清理的过期消息ID：已发布/已撤回，且过期时间早于指定时间，且群发没有在进行中 -->
+  <select id="listExpiredIds" resultType="java.lang.String">
+    SELECT id
+    FROM msg_info
+    WHERE delete_state = 0
+      AND `status` IN
+      <foreach collection="statuses" item="item" open="(" close=")" separator=",">
+        #{item,jdbcType=CHAR}
+      </foreach>
+      AND expire_time IS NOT NULL
+      AND expire_time &lt; #{before,jdbcType=TIMESTAMP}
+      AND fanout_status &lt;&gt; 1
+    ORDER BY expire_time
+    LIMIT #{limit}
+  </select>
+
+  <!-- 领取群发任务（CAS）：未开始的，或者进行中但长时间没有更新进度（视为已中断）的任务才能领取；
+       注意：MySQL 的 SET 按从左到右的顺序执行，fanout_retry 必须写在 fanout_status 之前 -->
+  <update id="claimFanout">
+    UPDATE msg_info SET
+      fanout_retry = CASE WHEN fanout_status = 1 THEN fanout_retry + 1 ELSE fanout_retry END,
+      fanout_status = 1,
+      fanout_time = #{now,jdbcType=TIMESTAMP}
+    WHERE id = #{id,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND `status` = #{doneStatus,jdbcType=CHAR}
+      AND (
+        fanout_status = 0
+        OR (fanout_status = 1 AND fanout_time &lt; #{staleTime,jdbcType=TIMESTAMP} AND fanout_retry &lt; #{maxRetry})
+      )
+  </update>
+
+  <!-- 更新群发进度：只有任务仍在进行中、消息仍是已发布状态、且领取序号（fanout_retry）一致时才会更新；
+       更新失败说明消息已被撤回/删除，或任务已被其他节点接管，调用方应停止群发 -->
+  <update id="updateFanoutProgress">
+    UPDATE msg_info SET
+      fanout_cursor = #{cursor,jdbcType=VARCHAR},
+      fanout_total = #{total},
+      fanout_time = #{now,jdbcType=TIMESTAMP},
+    <choose>
+      <when test="finished">
+      fanout_status = 2
+      </when>
+      <otherwise>
+      fanout_status = 1
+      </otherwise>
+    </choose>
+    WHERE id = #{id,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND `status` = #{doneStatus,jdbcType=CHAR}
+      AND fanout_status = 1
+      AND fanout_retry = #{retry}
+  </update>
+
+  <!-- 群发心跳：处理一批的过程中（如逐个用户调用三方渠道，耗时较长）定期更新进度时间，避免被误判为中断；
+       条件与更新进度相同：更新失败说明消息已被撤回/删除，或任务已被其他节点接管，调用方应停止群发 -->
+  <update id="heartbeatFanout">
+    UPDATE msg_info SET
+      fanout_time = #{now,jdbcType=TIMESTAMP}
+    WHERE id = #{id,jdbcType=VARCHAR}
+      AND delete_state = 0
+      AND `status` = #{doneStatus,jdbcType=CHAR}
+      AND fanout_status = 1
+      AND fanout_retry = #{retry}
+  </update>
+
+  <!-- 中断后接管次数已用完的群发任务，标记为失败 -->
+  <update id="failExhaustedFanout">
+    UPDATE msg_info SET
+      fanout_status = 3
+    WHERE delete_state = 0
+      AND `status` = #{doneStatus,jdbcType=CHAR}
+      AND fanout_status = 1
+      AND fanout_time &lt; #{staleTime,jdbcType=TIMESTAMP}
+      AND fanout_retry &gt;= #{maxRetry}
+  </update>
+
+  <!-- 需要继续群发的消息：已发布，群发未开始或进行中，且长时间没有更新进度，消息还没有过期 -->
+  <select id="listStalledFanout" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List" />
+    FROM msg_info
+    WHERE delete_state = 0
+      AND `status` = #{doneStatus,jdbcType=CHAR}
+      AND fanout_status IN (0, 1)
+      AND fanout_time &lt; #{staleTime,jdbcType=TIMESTAMP}
+      AND fanout_retry &lt; #{maxRetry}
+      AND (expire_time IS NULL OR expire_time &gt; #{now,jdbcType=TIMESTAMP})
+    ORDER BY fanout_time
+    LIMIT #{limit}
   </select>
 
 </mapper>

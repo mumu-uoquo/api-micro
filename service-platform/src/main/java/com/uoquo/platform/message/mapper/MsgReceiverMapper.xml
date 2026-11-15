@@ -65,6 +65,14 @@
     </foreach>
   </select>
 
+  <update id="deleteByMessageLimit">
+    UPDATE msg_receiver SET
+      delete_state = #{deleteState,jdbcType=BIGINT}
+    WHERE message_id = #{messageId,jdbcType=VARCHAR}
+      AND delete_state = 0
+    LIMIT #{limit}
+  </update>
+
   <update id="deleteByMap">
     <!-- @mbg.generated: generated automatically, do not modify! -->
     UPDATE msg_receiver SET

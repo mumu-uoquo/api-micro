@@ -17,7 +17,7 @@ public class MsgInfoDto {
     @Schema(description = "消息标题", requiredMode = Schema.RequiredMode.REQUIRED)
     private String messageTitle;
 
-    @Schema(description = "消息内容", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "消息内容（列表查询不返回，请通过详情接口获取）")
     private String messageContent;
 
     @Schema(description = "消息分类（020）", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -44,8 +44,14 @@ public class MsgInfoDto {
     @Schema(description = "发送人名称")
     private String senderName;
 
-    @Schema(description = "发送时间")
+    @Schema(description = "发布时间（待发布状态下不为空表示定时发布时间，到点自动发布；发布后为实际发布时间）")
     private Date senderTime;
+
+    @Schema(description = "群发状态（0未开始 1进行中 2已完成 3失败）")
+    private Integer fanoutStatus;
+
+    @Schema(description = "群发已处理的接收人数")
+    private Integer fanoutTotal;
 
     @Schema(description = "过期时间")
     private Date expireTime;
@@ -220,6 +226,22 @@ public class MsgInfoDto {
 
     public void setReceiverIds(String receiverIds) {
         this.receiverIds = receiverIds;
+    }
+
+    public Integer getFanoutStatus() {
+        return fanoutStatus;
+    }
+
+    public void setFanoutStatus(Integer fanoutStatus) {
+        this.fanoutStatus = fanoutStatus;
+    }
+
+    public Integer getFanoutTotal() {
+        return fanoutTotal;
+    }
+
+    public void setFanoutTotal(Integer fanoutTotal) {
+        this.fanoutTotal = fanoutTotal;
     }
 
     public Date getExpireTime() {

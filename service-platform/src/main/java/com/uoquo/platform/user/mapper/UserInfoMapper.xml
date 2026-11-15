@@ -286,7 +286,7 @@
       </foreach>
     </if>
     <if test="roleList != null and roleList.size() > 0">
-      EXISTS (
+      AND EXISTS (
         SELECT 1 FROM bko_user_role ur
         WHERE ur.user_id = u.id
         AND ur.role_id IN
@@ -294,6 +294,15 @@
           #{item}
         </foreach>
       )
+    </if>
+    <!-- 游标分页：只查询ID大于游标的用户（游标模式下不使用 PageHelper，配合 limit 使用） -->
+    <if test="afterId != null">
+      AND u.id &gt; #{afterId,jdbcType=VARCHAR}
+    </if>
+    <!-- 必须排序：不排序时分页结果的顺序不稳定，多页查询可能重复或遗漏用户 -->
+    ORDER BY u.id
+    <if test="limit != null">
+      LIMIT #{limit}
     </if>
   </select>
 

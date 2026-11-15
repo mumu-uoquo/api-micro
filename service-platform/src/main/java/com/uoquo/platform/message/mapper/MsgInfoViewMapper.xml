@@ -31,13 +31,17 @@
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
   </resultMap>
 
-  <sql id="Base_Column_List">
-    <!-- @mbg.generated: generated automatically, do not modify! -->
-    m.message_title, m.message_content, m.message_type, m.message_level, m.push_way, m.business_type,
+  <!-- 不含正文（m.message_content）的字段：用于列表查询，避免把大字段带到列表里 -->
+  <sql id="List_Column_List">
+    m.message_title, m.message_type, m.message_level, m.push_way, m.business_type,
     m.business_id, m.business_extend, m.sender_id, m.sender_name, m.sender_time, m.expire_time,
     r.id AS recordId, r.message_id, r.receiver_id, r.receiver_name, r.is_read, r.read_time,
     r.is_processed, r.processed_time, r.processed_result, r.description, r.create_time,
     u.avatar AS sender_avatar
+  </sql>
+
+  <sql id="Base_Column_List">
+    <include refid="List_Column_List" />, m.message_content
   </sql>
 
   <select id="selectByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
@@ -61,10 +65,11 @@
       AND r.receiver_id = #{receiverId,jdbcType=VARCHAR}
   </select>
 
+  <!-- 列表查询：不返回正文（message_content），需要正文时请查询详情 -->
   <select id="listBySearch" parameterType="map" resultMap="BaseResultMap">
     <!-- @mbg.generated: generated automatically, do not modify! -->
     SELECT
-    <include refid="Base_Column_List" />
+    <include refid="List_Column_List" />
     FROM msg_info AS m
     LEFT JOIN msg_receiver AS r ON m.id = r.message_id
     LEFT JOIN bko_user AS u ON u.id = m.sender_id

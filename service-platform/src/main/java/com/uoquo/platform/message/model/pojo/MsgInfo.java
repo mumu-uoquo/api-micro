@@ -80,9 +80,44 @@ public class MsgInfo {
     /**
      * Column: sender_time
      * Type: DATETIME
-     * Remark: 发送时间
+     * Remark: 发布时间（待发布状态下不为空表示定时发布时间，到点自动发布；发布后为实际发布时间）
      */
     private Date senderTime;
+
+    /**
+     * Column: fanout_status
+     * Type: TINYINT
+     * Remark: 群发状态（0未开始 1进行中 2已完成 3失败）
+     */
+    private Integer fanoutStatus;
+
+    /**
+     * Column: fanout_cursor
+     * Type: VARCHAR(32)
+     * Remark: 群发游标（已处理的最后一个接收人ID，断点续跑用）
+     */
+    private String fanoutCursor;
+
+    /**
+     * Column: fanout_total
+     * Type: INT
+     * Remark: 群发已处理的接收人数
+     */
+    private Integer fanoutTotal;
+
+    /**
+     * Column: fanout_retry
+     * Type: TINYINT
+     * Remark: 群发中断后的接管次数
+     */
+    private Integer fanoutRetry;
+
+    /**
+     * Column: fanout_time
+     * Type: DATETIME
+     * Remark: 群发进度更新时间（心跳，用于判断群发是否中断）
+     */
+    private Date fanoutTime;
 
     /**
      * Column: expire_time
@@ -269,6 +304,46 @@ public class MsgInfo {
 
     public void setSenderTime(Date senderTime) {
         this.senderTime = senderTime;
+    }
+
+    public Integer getFanoutStatus() {
+        return fanoutStatus;
+    }
+
+    public void setFanoutStatus(Integer fanoutStatus) {
+        this.fanoutStatus = fanoutStatus;
+    }
+
+    public String getFanoutCursor() {
+        return fanoutCursor;
+    }
+
+    public void setFanoutCursor(String fanoutCursor) {
+        this.fanoutCursor = fanoutCursor;
+    }
+
+    public Integer getFanoutTotal() {
+        return fanoutTotal;
+    }
+
+    public void setFanoutTotal(Integer fanoutTotal) {
+        this.fanoutTotal = fanoutTotal;
+    }
+
+    public Integer getFanoutRetry() {
+        return fanoutRetry;
+    }
+
+    public void setFanoutRetry(Integer fanoutRetry) {
+        this.fanoutRetry = fanoutRetry;
+    }
+
+    public Date getFanoutTime() {
+        return fanoutTime;
+    }
+
+    public void setFanoutTime(Date fanoutTime) {
+        this.fanoutTime = fanoutTime;
     }
 
     public Date getExpireTime() {

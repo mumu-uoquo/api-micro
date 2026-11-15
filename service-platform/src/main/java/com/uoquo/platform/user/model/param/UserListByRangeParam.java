@@ -20,6 +20,17 @@ public class UserListByRangeParam extends PageRequest {
     @Schema(description = "目标ID集合")
     private List<String> receiverIds;
 
+    @Schema(description = "游标：上一批最后一个用户ID（空字符串表示从头开始）。不为空时使用游标分页（按用户ID排序，忽略pageNum，每批pageSize条，不查询总数），适合群发等需要完整遍历的场景")
+    private String afterId;
+
+    public String getAfterId() {
+        return afterId;
+    }
+
+    public void setAfterId(String afterId) {
+        this.afterId = afterId;
+    }
+
     public String getReceiverRange() {
         return receiverRange;
     }

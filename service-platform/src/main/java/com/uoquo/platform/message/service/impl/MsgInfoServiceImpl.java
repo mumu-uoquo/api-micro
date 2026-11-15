@@ -15,9 +15,11 @@ import com.uoquo.platform.message.mapper.MsgInfoMapper;
 import com.uoquo.platform.message.mapper.MsgInfoViewMapper;
 import com.uoquo.platform.message.mapper.MsgReceiverMapper;
 import com.uoquo.platform.message.model.dto.MsgAttachmentDto;
+import com.uoquo.platform.message.model.dto.MsgFanoutDto;
 import com.uoquo.platform.message.model.dto.MsgInfoDto;
 import com.uoquo.platform.message.model.dto.MsgInfoViewDto;
 import com.uoquo.platform.message.model.param.MsgAttachmentParam;
+import com.uoquo.platform.message.model.param.MsgFanoutParam;
 import com.uoquo.platform.message.model.param.MsgInfoListParam;
 import com.uoquo.platform.message.model.param.MsgInfoParam;
 import com.uoquo.platform.message.model.pojo.MsgAttachment;
@@ -102,6 +104,8 @@ public class MsgInfoServiceImpl implements MsgInfoService {
         MsgInfo info = new MsgInfo();
         BeanUtils.copyProperties(param, info);
         info.setId(IDGenerator.getNextULID());
+        // 发布时间（sender_time）只能在发布时设置（见 publishMessage），新增时不保存，避免未发布的草稿被当成定时发布而自动发布
+        info.setSenderTime(null);
         // 默认待发布
         if (StringUtil.isNull(param.getStatus())) {
             info.setStatus(DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode());
@@ -249,6 +253,11 @@ public class MsgInfoServiceImpl implements MsgInfoService {
             // 已发布的、已撤销的不可以再次发布
             throw new UoquoException(MessageReturnCode.PUBLISH_ERROR);
         }
+        // 定时发布：发布时间晚于当前时间时，只保存发布信息，由 scheduler-center 到点后调用 publishDueMessages 真正发布
+        if (param.getSenderTime() != null && param.getSenderTime().after(new Date())) {
+            this.scheduleMessage(param, old);
+            return;
+        }
         // 2. 标记事件为已发布
         MsgInfo info = new MsgInfo();
         info.setId(param.getId());
@@ -274,11 +283,241 @@ public class MsgInfoServiceImpl implements MsgInfoService {
         info.setStatusMemo("");
         info.setUpdateUser(CurrentUser.getInfo().getUserId());
         info.setUpdateTime(new Date());
-        // 保存数据
-        msgInfoMapper.updatePublishStatus(info);
+        // 保存数据（CAS：只有仍是待发布状态才能发布成功，避免与定时发布同时发布）
+        int rows = msgInfoMapper.updatePublishStatus(info, DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode());
+        if (rows == 0) {
+            throw new UoquoException(MessageReturnCode.PUBLISH_ERROR);
+        }
         // 3. 发布事件（发布）
         info = msgInfoMapper.selectByPrimaryKey(param.getId());
         this.publishEvent(BusinessOperationEnum.MESSAGE_PUBLISH, SystemReturnCode.SUCCESS, old, info, null);
+    }
+
+    /**
+     * 设置定时发布：保存发布信息（接收范围、推送方式、过期时间）和发布时间，状态仍是待发布
+     */
+    private void scheduleMessage(MsgInfoParam param, MsgInfo old) {
+        if (param.getExpireTime() != null && !param.getExpireTime().after(param.getSenderTime())) {
+            throw new ParamErrorException("过期时间必须晚于定时发布时间");
+        }
+        MsgInfo info = new MsgInfo();
+        info.setId(param.getId());
+        // 发布人是执行“发布”操作的人（不一定是创建人）；待发布状态下，发布时间（sender_time）不为空即表示定时发布
+        info.setSenderId(CurrentUser.getInfo().getUserId());
+        info.setSenderName(CurrentUser.getInfo().getUserName());
+        info.setSenderTime(param.getSenderTime());
+        // 发布范围不为空时，需要重置
+        if (StringUtil.notNull(param.getReceiverRange())) {
+            info.setReceiverRange(param.getReceiverRange());
+            info.setReceiverInstituteId(param.getReceiverInstituteId());
+            info.setReceiverIds(param.getReceiverIds());
+        }
+        info.setPushWay(param.getPushWay());
+        // 过期时间：未指定时，到点发布时再按“发布时间 + 1个月”默认
+        info.setExpireTime(param.getExpireTime());
+        info.setUpdateUser(CurrentUser.getInfo().getUserId());
+        info.setUpdateTime(new Date());
+        int rows = msgInfoMapper.updateSchedule(info, DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode());
+        if (rows == 0) {
+            throw new UoquoException(MessageReturnCode.PUBLISH_ERROR);
+        }
+        // 发布事件（编辑）
+        info = msgInfoMapper.selectByPrimaryKey(param.getId());
+        this.publishEvent(BusinessOperationEnum.UPDATE, SystemReturnCode.SUCCESS, old, info, null);
+        logger.info("消息[{}]设置定时发布：{}", param.getId(), param.getSenderTime());
+    }
+
+    @Override
+    public void cancelSchedule(String messageId) {
+        MsgInfo old = msgInfoMapper.selectByPrimaryKey(messageId);
+        if (old == null) {
+            throw new ResourceNotFoundException("消息信息不存在");
+        }
+        int rows = msgInfoMapper.clearSchedule(messageId, CurrentUser.getInfo().getUserId(), new Date(),
+                DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode());
+        if (rows == 0) {
+            // 已发布、已撤回，或者没有设置定时发布
+            throw new UoquoException(MessageReturnCode.PUBLISH_ERROR);
+        }
+        MsgInfo info = msgInfoMapper.selectByPrimaryKey(messageId);
+        this.publishEvent(BusinessOperationEnum.UPDATE, SystemReturnCode.SUCCESS, old, info, null);
+    }
+
+    @Override
+    public int publishDueMessages(int limit) {
+        List<String> ids = msgInfoMapper.listDueIds(DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode(), new Date(), clamp(limit, 50, 500));
+        int count = 0;
+        for (String id : ids) {
+            try {
+                if (this.publishDueMessage(id)) {
+                    count++;
+                }
+            } catch (Exception e) {
+                // 单条失败不影响其他消息；失败的消息仍然是待发布状态，下次继续尝试
+                logger.error("定时发布消息[{}]失败：", id, e);
+            }
+        }
+        if (count > 0) {
+            logger.info("定时发布消息完成：待发布[{}]条，已发布[{}]条", ids.size(), count);
+        }
+        return count;
+    }
+
+    /**
+     * 发布一条到点的消息：发送人为消息的创建人，发布范围、推送方式沿用设置定时发布时保存的内容
+     * @return true 表示由本次调用发布；false 表示已被其他节点发布、已撤回、已取消定时或时间未到
+     */
+    private boolean publishDueMessage(String id) {
+        MsgInfo old = msgInfoMapper.selectByPrimaryKey(id);
+        Date now = new Date();
+        if (old == null || old.getDeleteState() == null || old.getDeleteState() != 0
+                || !DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode().equals(old.getStatus())
+                || old.getSenderTime() == null || old.getSenderTime().after(now)) {
+            return false;
+        }
+        MsgInfo info = new MsgInfo();
+        info.setId(id);
+        // 发布人沿用设置定时发布时保存的发布人（执行“发布”操作的人）；没有时（异常数据）才退回到创建人
+        String senderId = old.getSenderId();
+        String senderName = old.getSenderName();
+        if (StringUtil.isNull(senderId)) {
+            senderId = old.getCreateUser();
+            senderName = userInfoService.mapNameByIds(Collections.singletonList(senderId)).get(senderId);
+        }
+        info.setSenderId(senderId);
+        info.setSenderName(senderName);
+        info.setSenderTime(now);
+        if (old.getExpireTime() == null) {
+            // 默认1个月过期（从实际发布时间开始计算）
+            info.setExpireTime(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000L));
+        }
+        info.setStatus(DictionaryCodeEnum.PUBLISH_STATUS_DONE.getCode());
+        info.setStatusTime(now);
+        info.setStatusMemo("定时发布");
+        info.setDescription(old.getDescription());
+        info.setUpdateUser(senderId);
+        info.setUpdateTime(now);
+        int rows = msgInfoMapper.updatePublishStatus(info, DictionaryCodeEnum.PUBLISH_STATUS_WAIT.getCode());
+        if (rows == 0) {
+            return false;
+        }
+        info = msgInfoMapper.selectByPrimaryKey(id);
+        this.publishEvent(BusinessOperationEnum.MESSAGE_PUBLISH, SystemReturnCode.SUCCESS, old, info, null);
+        return true;
+    }
+
+    @Override
+    public int clearExpiredMessages(int retainDays, int limit, int maxSeconds) {
+        long now = System.currentTimeMillis();
+        Date before = new Date(now - clamp(retainDays, 30, 3650) * 24 * 60 * 60 * 1000L);
+        long deadline = now + clamp(maxSeconds, 20, 600) * 1000L;
+        List<String> statuses = Arrays.asList(DictionaryCodeEnum.PUBLISH_STATUS_DONE.getCode(), DictionaryCodeEnum.PUBLISH_STATUS_UNDO.getCode());
+        List<String> ids = msgInfoMapper.listExpiredIds(statuses, before, clamp(limit, 20, 200));
+        int count = 0;
+        // 是否因为超时提前结束（还有没清理完的）
+        boolean more = false;
+        for (String id : ids) {
+            if (System.currentTimeMillis() > deadline) {
+                more = true;
+                break;
+            }
+            try {
+                long deleteState = System.currentTimeMillis();
+                // 1. 先分批删除接收记录（一条消息可能有几万、几十万条），没删完就先结束，下次调用时该消息仍会被查到，继续删除
+                boolean finished = false;
+                while (System.currentTimeMillis() <= deadline) {
+                    int deleted = msgReceiverMapper.deleteByMessageLimit(id, deleteState, CLEAR_RECEIVER_BATCH);
+                    if (deleted < CLEAR_RECEIVER_BATCH) {
+                        finished = true;
+                        break;
+                    }
+                }
+                if (!finished) {
+                    more = true;
+                    break;
+                }
+                // 2. 再删除消息本身（不逐条发布事件，避免大量事件）
+                msgInfoMapper.deleteByPrimaryKey(id, deleteState);
+                count++;
+            } catch (Exception e) {
+                logger.error("清理过期消息[{}]失败：", id, e);
+            }
+        }
+        if (count > 0) {
+            logger.info("清理过期消息完成：过期时间早于[{}]的消息，待清理[{}]条，已清理[{}]条", before, ids.size(), count);
+        }
+        // 因超时提前结束时，至少返回1，提示调用方还有没清理完的，可以继续调用
+        return more ? Math.max(count, 1) : count;
+    }
+
+    @Override
+    public MsgFanoutDto claimFanout(MsgFanoutParam param) {
+        Date now = new Date();
+        int staleSeconds = Math.max(MsgFanoutParam.MIN_STALE_SECONDS, positive(param.getStaleSeconds(), MsgFanoutParam.DEFAULT_STALE_SECONDS));
+        int maxRetry = positive(param.getMaxRetry(), MsgFanoutParam.DEFAULT_MAX_RETRY);
+        MsgFanoutDto dto = new MsgFanoutDto();
+        int rows = msgInfoMapper.claimFanout(param.getMessageId(), DictionaryCodeEnum.PUBLISH_STATUS_DONE.getCode(), now,
+                new Date(now.getTime() - staleSeconds * 1000L), maxRetry);
+        if (rows == 0) {
+            return dto;
+        }
+        MsgInfo info = msgInfoMapper.selectByPrimaryKey(param.getMessageId());
+        if (info == null) {
+            return dto;
+        }
+        dto.setClaimed(true);
+        dto.setRetry(info.getFanoutRetry() == null ? 0 : info.getFanoutRetry());
+        dto.setCursor(info.getFanoutCursor());
+        dto.setTotal(info.getFanoutTotal() == null ? 0 : info.getFanoutTotal());
+        return dto;
+    }
+
+    @Override
+    public boolean updateFanoutProgress(MsgFanoutParam param) {
+        int rows = msgInfoMapper.updateFanoutProgress(param.getMessageId(), DictionaryCodeEnum.PUBLISH_STATUS_DONE.getCode(),
+                param.getRetry() == null ? 0 : param.getRetry(), param.getCursor(),
+                param.getTotal() == null ? 0 : param.getTotal(),
+                Boolean.TRUE.equals(param.getFinished()), new Date());
+        return rows > 0;
+    }
+
+    @Override
+    public boolean heartbeatFanout(MsgFanoutParam param) {
+        int rows = msgInfoMapper.heartbeatFanout(param.getMessageId(), DictionaryCodeEnum.PUBLISH_STATUS_DONE.getCode(),
+                param.getRetry() == null ? 0 : param.getRetry(), new Date());
+        return rows > 0;
+    }
+
+    @Override
+    public List<MsgInfoDto> listStalledFanout(int staleSeconds, int maxRetry, int limit) {
+        Date now = new Date();
+        int stale = Math.max(MsgFanoutParam.MIN_STALE_SECONDS, positive(staleSeconds, MsgFanoutParam.DEFAULT_STALE_SECONDS));
+        int retry = positive(maxRetry, MsgFanoutParam.DEFAULT_MAX_RETRY);
+        Date staleTime = new Date(now.getTime() - stale * 1000L);
+        // 接管次数已用完的任务标记为失败，不再继续
+        String doneStatus = DictionaryCodeEnum.PUBLISH_STATUS_DONE.getCode();
+        int failed = msgInfoMapper.failExhaustedFanout(doneStatus, staleTime, retry);
+        if (failed > 0) {
+            logger.error("有[{}]条消息的群发多次中断，接管次数已用完，已标记为失败，请人工处理", failed);
+        }
+        List<MsgInfo> list = msgInfoMapper.listStalledFanout(doneStatus, now, staleTime, retry, clamp(limit, 10, 100));
+        List<MsgInfoDto> result = new ArrayList<>(list.size());
+        for (MsgInfo item : list) {
+            result.add(this.convertInfo2Dto(item));
+        }
+        return result;
+    }
+
+    /** 过期清理时，每批删除的接收记录条数 */
+    private static final int CLEAR_RECEIVER_BATCH = 5000;
+
+    /** 入参为空或不合法（小于等于0）时使用默认值，并限制最大值 */
+    private static int clamp(int value, int defaultValue, int max) {
+        return value <= 0 ? defaultValue : Math.min(value, max);
+    }
+
+    private static int positive(Integer value, int defaultValue) {
+        return (value == null || value <= 0) ? defaultValue : value;
     }
 
     @Override
@@ -456,8 +695,14 @@ public class MsgInfoServiceImpl implements MsgInfoService {
                 old = msgInfoMapper.selectByPrimaryKey(attachment.getMessageId());
                 if (old == null) {
                     throw new ResourceNotFoundException("消息信息不存在");
-                } else if (!old.getSenderId().equals(CurrentUser.getInfo().getUserId())) {
-                    throw new ForbiddenException("您无权查看该附件");
+                } else {
+                    // 不是接收人时，只有消息的发布人或创建人可以下载（二者不一定是同一个人）
+                    String userId = CurrentUser.getInfo().getUserId();
+                    boolean isSender = StringUtil.notNull(userId) && userId.equals(old.getSenderId());
+                    boolean isCreator = StringUtil.notNull(userId) && userId.equals(old.getCreateUser());
+                    if (!isSender && !isCreator) {
+                        throw new ForbiddenException("您无权查看该附件");
+                    }
                 }
             }
         }

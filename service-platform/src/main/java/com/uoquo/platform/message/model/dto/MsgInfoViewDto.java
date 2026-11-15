@@ -18,7 +18,7 @@ public class MsgInfoViewDto {
     @Schema(description = "消息标题", requiredMode = Schema.RequiredMode.REQUIRED)
     private String messageTitle;
 
-    @Schema(description = "消息内容", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "消息内容（列表、未读列表不返回，请通过详情接口获取）")
     private String messageContent;
 
     @Schema(description = "消息分类（020）", requiredMode = Schema.RequiredMode.REQUIRED)

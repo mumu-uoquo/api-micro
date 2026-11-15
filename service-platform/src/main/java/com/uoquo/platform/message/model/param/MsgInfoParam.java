@@ -47,6 +47,9 @@ public class MsgInfoParam {
     @Schema(description = "业务扩展")
     private Map<String, Object> businessExtend;
 
+    @Schema(description = "发布时间（仅在发布时有效：晚于当前时间则为定时发布，到点自动发布；为空或已过则立即发布）")
+    private Date senderTime;
+
     @Schema(description = "过期时间")
     private Date expireTime;
 
@@ -149,6 +152,14 @@ public class MsgInfoParam {
 
     public void setBusinessExtend(Map<String, Object> businessExtend) {
         this.businessExtend = businessExtend;
+    }
+
+    public Date getSenderTime() {
+        return senderTime;
+    }
+
+    public void setSenderTime(Date senderTime) {
+        this.senderTime = senderTime;
     }
 
     public Date getExpireTime() {

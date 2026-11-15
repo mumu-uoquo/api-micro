@@ -20,6 +20,12 @@ public interface MsgReceiverMapper {
     int insertIgnoreBatch(@Param("list") List<MsgReceiver> list);
 
     /**
+     * 按消息逻辑删除接收记录（每次最多 limit 条，用于过期清理时分批处理，避免一次更新过多行）
+     * @return 本次删除的行数；小于 limit 表示该消息的接收记录已删完
+     */
+    int deleteByMessageLimit(@Param("messageId") String messageId, @Param("deleteState") Long deleteState, @Param("limit") int limit);
+
+    /**
      * 按消息和接收人批量查询（仅未删除的记录），用于获取接收记录ID
      */
     List<MsgReceiver> listByMessageAndReceivers(@Param("messageId") String messageId, @Param("receiverIds") List<String> receiverIds);

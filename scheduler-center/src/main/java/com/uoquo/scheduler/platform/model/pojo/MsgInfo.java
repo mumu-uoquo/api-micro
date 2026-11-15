@@ -80,7 +80,7 @@ public class MsgInfo {
     /**
      * Column: sender_time
      * Type: DATETIME
-     * Remark: 发送时间
+     * Remark: 发布时间（待发布状态下不为空表示定时发布时间，到点自动发布；发布后为实际发布时间）
      */
     private Date senderTime;
 
@@ -90,6 +90,24 @@ public class MsgInfo {
      * Remark: 过期时间
      */
     private Date expireTime;
+
+    /**
+     * Column: fanout_status
+     * Remark: 群发状态（0未开始 1进行中 2已完成 3失败）
+     */
+    private Integer fanoutStatus;
+
+    /**
+     * Column: fanout_cursor
+     * Remark: 群发游标（已处理的最后一个接收人ID）
+     */
+    private String fanoutCursor;
+
+    /**
+     * Column: fanout_total
+     * Remark: 群发已处理的接收人数
+     */
+    private Integer fanoutTotal;
 
     /**
      * Column: receiver_range
@@ -269,6 +287,30 @@ public class MsgInfo {
 
     public void setSenderTime(Date senderTime) {
         this.senderTime = senderTime;
+    }
+
+    public Integer getFanoutStatus() {
+        return fanoutStatus;
+    }
+
+    public void setFanoutStatus(Integer fanoutStatus) {
+        this.fanoutStatus = fanoutStatus;
+    }
+
+    public String getFanoutCursor() {
+        return fanoutCursor;
+    }
+
+    public void setFanoutCursor(String fanoutCursor) {
+        this.fanoutCursor = fanoutCursor;
+    }
+
+    public Integer getFanoutTotal() {
+        return fanoutTotal;
+    }
+
+    public void setFanoutTotal(Integer fanoutTotal) {
+        this.fanoutTotal = fanoutTotal;
     }
 
     public Date getExpireTime() {

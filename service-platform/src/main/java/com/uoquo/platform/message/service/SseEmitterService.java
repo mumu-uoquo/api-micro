@@ -283,10 +283,16 @@ public class SseEmitterService {
      * @param message 消息体（必须设置 eventName）
      */
     public void broadcast(@NotNull SseMessage message) {
-        if (StringUtil.isNull(message.getEventName())) {
-            throw new SystemErrorException("SSE 消息 eventName 不能为空");
-        }
-        doBroadcast(message.getEventName(), message);
+        checkEventName(message);
+        // 异步执行：全员广播要遍历本节点所有连接，不能占用事件线程
+        broadcastExecutor.execute(() -> {
+            try {
+                int count = doBroadcast(message.getEventName(), message);
+                logger.debug("全员广播消息[{}]完成，本节点连接数[{}]", message.getMessageId(), count);
+            } catch (Exception e) {
+                logger.warn("全员广播消息[{}]出错：{}", message.getMessageId(), e.getMessage(), e);
+            }
+        });
     }
 
     /**

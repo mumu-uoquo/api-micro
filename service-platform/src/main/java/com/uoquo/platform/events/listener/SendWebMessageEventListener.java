@@ -68,6 +68,11 @@ public class SendWebMessageEventListener {
                         message.getReceiverId(), message.getEventName(), sent);
                 return;
             }
+            // 全员广播：不区分接收人，发送给本节点所有在线连接
+            if (Boolean.TRUE.equals(message.getBroadcast())) {
+                sseEmitterService.broadcast(message);
+                return;
+            }
             // 批量消息：一条事件携带多个接收人，本节点只推送给有连接的用户（其他节点由各自的消费者处理）
             if (message.getReceiverRecords() != null && !message.getReceiverRecords().isEmpty()) {
                 int count = sseEmitterService.publishBatch(message);

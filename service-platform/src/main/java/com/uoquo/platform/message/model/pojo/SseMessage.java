@@ -33,6 +33,10 @@ public class SseMessage {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Map<String, String> receiverRecords;
 
+    @Schema(description = "是否全员广播：为 true 时发送给所有在线连接，不区分接收人（客户端按 messageId 去重）")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean broadcast;
+
     @Schema(description = "发送人ID")
     private String senderId;
 
@@ -111,6 +115,14 @@ public class SseMessage {
 
     public void setReceiverId(String receiverId) {
         this.receiverId = receiverId;
+    }
+
+    public Boolean getBroadcast() {
+        return broadcast;
+    }
+
+    public void setBroadcast(Boolean broadcast) {
+        this.broadcast = broadcast;
     }
 
     public Map<String, String> getReceiverRecords() {

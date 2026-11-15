@@ -172,7 +172,9 @@ public class MessageInfoEventListener {
                 List<UserInfoDto> users = result == null ? null : result.getResult();
                 if (users == null || users.isEmpty()) {
                     // 没有更多接收人，群发结束
-                    this.updateFanoutProgress(message, claim, cursor, total, true);
+                    if (this.updateFanoutProgress(message, claim, cursor, total, true)) {
+                        this.notifyAllStaff(event, message);
+                    }
                     break;
                 }
                 if (!this.pushMessage2Users(event, message, claim, users)) {
@@ -189,6 +191,7 @@ public class MessageInfoEventListener {
                     return;
                 }
                 if (finished) {
+                    this.notifyAllStaff(event, message);
                     break;
                 }
             }
@@ -316,13 +319,17 @@ public class MessageInfoEventListener {
             if (receivers.isEmpty()) {
                 return true;
             }
-            // 3. 推送站内消息（整页一条SSE事件）
-            String webFailure = this.sendMessage2Web(event, message, recordIds);
-            // 4. 批量记录推送日志（日志只是辅助信息，保存失败不影响群发进度）
+            // 3. 推送站内消息：普通消息每页一条定向SSE事件；全员消息不按页推送，群发结束后统一广播一次（见 notifyAllStaff）
+            boolean allStaff = isAllStaff(message);
+            String webFailure = allStaff ? null : this.sendMessage2Web(event, message, recordIds);
+            // 4. 批量记录推送日志（日志只是辅助信息，保存失败不影响群发进度）。全员消息只记录失败的用户，成功的不逐条记录
             try {
-                this.savePushLogs4Message(message, receivers, failures, webFailure);
+                this.savePushLogs4Message(message, receivers, failures, webFailure, allStaff);
             } catch (Exception e) {
                 logger.warn("保存消息[{}]的推送日志失败（[{}]个用户）：{}", message.getId(), receivers.size(), e.getMessage());
+            }
+            if (allStaff) {
+                logger.info("全员消息[{}]本批接收人[{}]个，渠道推送失败[{}]个", message.getId(), receivers.size(), failures.size());
             }
             logger.debug("将消息[{}]以方式[{}]给[{}]个用户推送完毕", message.getId(), message.getPushWay(), receivers.size());
             return true;
@@ -351,15 +358,19 @@ public class MessageInfoEventListener {
 
     /**
      * 批量添加记录：推送日志
-     * @param failures   渠道推送失败的用户：receiverId → 失败原因
-     * @param webFailure 站内推送的失败原因（为空表示成功）
+     * @param failures      渠道推送失败的用户：receiverId → 失败原因
+     * @param webFailure    站内推送的失败原因（为空表示成功）
+     * @param onlyFailures  为 true 时只记录失败的用户（全员消息使用，成功的用户不逐条记录）
      */
-    private void savePushLogs4Message(MsgInfo message, List<UserInfoDto> receivers, Map<String, String> failures, String webFailure) {
+    private void savePushLogs4Message(MsgInfo message, List<UserInfoDto> receivers, Map<String, String> failures, String webFailure, boolean onlyFailures) {
         Date pushTime = new Date();
         MsgPushLogBatchParam param = new MsgPushLogBatchParam();
         for (UserInfoDto user : receivers) {
             // 推送结果：为空表示成功，否则为失败原因（渠道失败 + 站内失败）
             String failure = this.joinFailure(failures.get(user.getId()), webFailure);
+            if (onlyFailures && failure == null) {
+                continue;
+            }
             MsgPushLogParam log = new MsgPushLogParam();
             // 消息信息
             log.setMessageId(message.getId());
@@ -372,6 +383,10 @@ public class MessageInfoEventListener {
             log.setPushResult(failure);
             log.setPushTime(pushTime);
             param.getLogs().add(log);
+        }
+        // 没有需要记录的日志时不调用（批量接口要求至少一条）
+        if (param.getLogs().isEmpty()) {
+            return;
         }
         messageRemoteService.addPushLogs4Message(param);
     }
@@ -403,7 +418,7 @@ public class MessageInfoEventListener {
 
     /**
      * 消息推送：站内（整页只发布1条SSE事件，由service-platform的各节点匹配本地连接后推送）
-     * @param recordIds receiverId → 接收记录ID
+     * @param recordIds receiverId → 接收记录ID；为 null 时表示全员广播（不带接收人）
      * @return 失败原因；为空表示成功
      */
     private String sendMessage2Web(RemoteEvent<MsgInfo> event, MsgInfo info, Map<String, String> recordIds) {
@@ -417,7 +432,12 @@ public class MessageInfoEventListener {
             // 1.2 具体的SSE信息
             SseMessage message = new SseMessage();
             // 基本信息：接收人由 receiverRecords 指定，每个用户的 recordId 在投递时由 service-platform 填充
-            message.setReceiverRecords(new LinkedHashMap<>(recordIds));
+            if (recordIds == null) {
+                // 全员广播：不带接收人，由 service-platform 发送给所有在线连接
+                message.setBroadcast(true);
+            } else {
+                message.setReceiverRecords(new LinkedHashMap<>(recordIds));
+            }
             message.setMessageId(info.getId());
             message.setMessageType(info.getMessageType());
             message.setMessageLevel(info.getMessageLevel());
@@ -435,12 +455,32 @@ public class MessageInfoEventListener {
             // 1.3 发送消息
             sseEvent.setNewData(message);
             eventPublisher.publishEvent(sseEvent);
-            logger.debug("消息[{}]的站内推送事件发布成功，接收人数[{}]", info.getId(), recordIds.size());
+            logger.debug("消息[{}]的站内推送事件发布成功，接收人数[{}]", info.getId(), recordIds == null ? "全员" : recordIds.size());
             return null;
         } catch (Exception e) {
             logger.error("消息[{}]的站内推送事件发布失败：", info.getId(), e);
             return StringUtil.isNull(e.getMessage()) ? e.getClass().getSimpleName() : e.getMessage();
         }
+    }
+
+    /**
+     * 是否为全员消息（发布范围为所有人员）：这类消息不按页推送站内消息，群发结束后统一广播一次
+     */
+    private static boolean isAllStaff(MsgInfo message) {
+        return DictionaryCodeEnum.PUBLISH_RANGE_ALL.getCode().equals(message.getReceiverRange());
+    }
+
+    /**
+     * 全员消息群发结束后发布一次全员广播。<br>
+     * 只在群发状态更新为“已完成”之后调用：若任务已被撤回或被其他节点接管，则不会广播。
+     * 注意：广播与“已完成”之间若服务异常中断，广播可能丢失（不会重放），这是为换取不重复广播所做的取舍。
+     */
+    private void notifyAllStaff(RemoteEvent<MsgInfo> event, MsgInfo message) {
+        if (!isAllStaff(message)) {
+            return;
+        }
+        String failure = sendMessage2Web(event, message, null);
+        logger.info("全员消息[{}]群发完毕，站内广播{}", message.getId(), failure == null ? "已发布" : "发布失败：" + failure);
     }
 
     /**

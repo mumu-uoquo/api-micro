@@ -1,12 +1,9 @@
 package com.uoquo.scheduler.main.config;
 
-import com.uoquo.cloud.feign.FeignHeaderInterceptor;
 import com.uoquo.cloud.loadbalancer.IphashLoadBalancerConfiguration;
-import com.uoquo.scheduler.common.feign.SchedulerFeignHeaderInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
@@ -31,9 +28,4 @@ public class ApplicationConfig {
         log.debug("ApplicationConfig init ...");
     }
 
-    @Bean
-    public FeignHeaderInterceptor schedulerFeignHeaderInterceptor() {
-        log.debug("加载BEAN：SchedulerFeignHeaderInterceptor");
-        return new SchedulerFeignHeaderInterceptor();
-    }
 }

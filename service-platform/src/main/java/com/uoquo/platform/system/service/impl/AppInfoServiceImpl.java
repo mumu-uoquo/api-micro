@@ -73,6 +73,10 @@ public class AppInfoServiceImpl implements AppInfoService {
         // 2. 保存
         AppInfo info = new AppInfo();
         BeanUtils.copyProperties(param, info);
+        // 机构ID为空字符串表示内置APP，未传时统一为空字符串（字段非空，不能写入null）
+        if (info.getInstituteId() == null) {
+            info.setInstituteId("");
+        }
         info.setId(IDGenerator.getNextULID());
         info.setStatus(DictionaryCodeEnum.STATE_NORMAL.getCode());
         info.setStatusTime(new Date());

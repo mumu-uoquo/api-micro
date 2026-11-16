@@ -18,6 +18,7 @@ public interface AppInfoService{
 
     /**
      * 更新：根据ID
+     * 注：不更新所属机构，若需调整，请先删后增
      */
     int updateAppInfo(AppInfoParam param);
 

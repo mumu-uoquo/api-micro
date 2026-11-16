@@ -25,11 +25,11 @@ public class AppInfoDto {
     private String appName;
 
     @Schema(description = "appkey")
-    @Sensitive(type = SensitiveType.CRYPT_AES)
+    @Sensitive(type = SensitiveType.CRYPT_TAES)
     private String appkey;
 
     @Schema(description = "secret")
-    @Sensitive(type = SensitiveType.CRYPT_AES)
+    @Sensitive(type = SensitiveType.CRYPT_TAES)
     private String secret;
 
     @Schema(description = "可信站点")

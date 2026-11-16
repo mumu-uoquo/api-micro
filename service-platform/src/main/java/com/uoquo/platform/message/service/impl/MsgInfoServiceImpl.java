@@ -659,7 +659,8 @@ public class MsgInfoServiceImpl implements MsgInfoService {
 
     @Override
     public MsgInfoViewDto getMessage4View(String messageId) {
-        MsgInfoViewDto dto = msgInfoViewMapper.selectByMessageAndReceiver(messageId, CurrentUser.getInfo().getUserId());
+        CurrentUser.UserInfo loginUser = CurrentUser.getInfo();
+        MsgInfoViewDto dto = msgInfoViewMapper.selectByMessageAndReceiver(messageId, loginUser.getUserId());
         if (dto == null) {
             throw new ResourceNotFoundException("消息信息不存在");
         }
@@ -669,7 +670,6 @@ public class MsgInfoServiceImpl implements MsgInfoService {
             info.setReadState(true);
             info.setReadTime(new Date());
             info.setDescription("");
-            CurrentUser.UserInfo loginUser = CurrentUser.getInfo();
             info.setUpdateUser(loginUser.getUserId());
             info.setUpdateTime(new Date());
             info.setId(dto.getRecordId());

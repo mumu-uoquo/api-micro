@@ -90,9 +90,9 @@ public class UserTest {
     @Test
     public void testPassword() {
         String password = "admin@123";
-        String pswdmd5 = MD5.encrypt(password);
-        System.out.println(pswdmd5);
-        System.out.println(UserUtils.hashPassword(pswdmd5));
+//        password = MD5.encrypt(password);
+        System.out.println(password);
+        System.out.println(UserUtils.hashPassword(password));
     }
 
     @Test
